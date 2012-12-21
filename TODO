@@ -1,0 +1,19 @@
+  Copyright (C) 2012 xorangekiller.
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
+Add support to the front-end for serving mutiple files simultaneously.
+The SimplePost class is capable of this already, but the program is not.
+
+Allow entire directories to be hosted, not simply individual files. This
+support can be handled externally by other programs making use of the
+SimplePost class, but it would be cleaner to integrate it instead.
+Integration would also allow the front-end program to handle directories
+so the user no longer has to resort to gziping them prior to being
+served.
+
+Add IPv6 support to the server. Most modern POSIX networking functions
+have the support included already, but it needs to be explicitly
+integrated into the server class.

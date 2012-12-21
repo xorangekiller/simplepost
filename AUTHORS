@@ -1,0 +1,15 @@
+  Copyright (C) 2012 xorangekiller.
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
+J. David Blackstone wrote a program called tinyhttpd in 1990 for a
+networking class and posted it on SourceForge. This program is based on
+tinyhttpd 0.1.0, the first (and only) release.
+
+xorangekiller modified tinyhttpd in 2012 to create the first version of
+SimplePost. Basically, it was updated to better support Linux and use
+newer POSIX standards, ported to C++ so it can be easily embedded into
+other applications, and stripped of CGI support since CGI is largely
+irrelevant in 2012.

@@ -1,0 +1,38 @@
+Installation Instructions
+*************************
+
+Copyright (C) 2012 xorangekiller.
+
+   Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.  This file is offered as-is,
+without warranty of any kind.
+
+Basic Installation
+==================
+
+    There is no configure script or installation support provided with
+this program at the moment. To compile, 'cd' to the root of the source
+directory and type 'make'. The binary will be placed in the './bin'
+directory and may be copied elsewhere on your system.
+
+    The recommended install location is /usr/local/bin, unless you
+choose to seperate software not installed through your distribution's
+package management system. In that case, the install location should be
+/opt/simplepost/bin. Since this software is a standalone binary
+requiring no additional first-party libraries or configuration files,
+it may conceivably be executed from anywhere you choose.
+
+Compilers and Options
+=====================
+
+   Since there is no configure script provided with this package,
+compilation is performed using a hand written makefile. So long as your
+environment is reasonably standard, you should be able to compile this
+software on any POSIX-compliant system using the method described above.
+The software has only been tested on Debian 7.0 AMD64, however.
+
+    By default, the makefile is set to use the Clang C++ compiler. It
+has been tested to work with GCC on the same system, however. If you
+don't have Clang installed or would simply prefer to use GCC, replace
+the line 'CC = clang++' in './src/Makefile' with 'CC = g++'.

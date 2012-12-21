@@ -1,0 +1,32 @@
+  Copyright (C) 2012 xorangekiller.
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
+SimplePost is provided "as is" with no warranty.  The exact terms under
+which you may use and (re)distribute this program are detailed in the
+GNU General Public License, in the file COPYING.
+
+SimplePost is a lightweight HTTP server for embedded applications. The
+program provided in this package allows single files to be served over
+HTTP a predetermined number of times. The SimplePost class, however, is
+more versatile and allows multiple files to be served simultaneously
+and errors to be handled more discreetly. While this program is intended
+to be a feature-complete front-end for the SimplePost class, its use as
+an embedded web server in other programs was considered in the design.
+
+The server is HTTP 1.1 compilant, but it does not implement the entire
+specification. Since it was only intended to be a simple file server, it
+handles that use case well, but has no support for scripting and other
+advanced features of modern web servers. Unimplemented features are
+handled gracefully by sending the client a '501 Method Not Implemented'
+error message.
+
+See the file AUTHORS for a list of authors and other contributors.
+
+See the file INSTALL for compilation and installation instructions.
+
+See the file NEWS for a description of major changes in this release.
+
+See the file TODO for ideas on how you could help improve this program.
