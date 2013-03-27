@@ -18,7 +18,11 @@
 # Boston, MA 021110-1307, USA.
 
 # Executable definitions
-CC = clang++
+ifdef ALTCC
+CC=$(ALTCC)
+else
+CC = g++
+endif
 RM = rm -rf
 
 # Compiler definitions
