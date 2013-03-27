@@ -345,7 +345,7 @@ int main( int argc, char * argv[] )
 
         if( flags & SP_FLAG_PORT ) httpd->Init( port, address.empty() ? NULL : address.c_str() );
         else httpd->Init( &port, address.empty() ? NULL : address.c_str() );
-        if( !(flags & SP_FLAG_QUIET) ) printf( "Started %s HTTP server on port %u.\n", SP_MAIN_IDENT, port );
+        if( !(flags & SP_FLAG_QUIET) ) printf( "Started %s HTTP server on port %u with PID %d.\n", SP_MAIN_IDENT, port, getpid() );
 
         httpd->Serve( url, sizeof( url ), filename.c_str(), count );
         if( !(flags & SP_FLAG_QUIET) )
