@@ -347,21 +347,34 @@ int main( int argc, char * argv[] )
         else httpd->Init( &port, address.empty() ? NULL : address.c_str() );
         if( !(flags & SP_FLAG_QUIET) ) printf( "Started %s HTTP server on port %u with PID %d.\n", SP_MAIN_IDENT, port, getpid() );
 
-        httpd->Serve( url, sizeof( url ), filename.c_str(), count );
-        if( !(flags & SP_FLAG_QUIET) )
+        switch( httpd->Serve( url, sizeof( url ), filename.c_str(), count ) )
         {
-            switch( count )
-            {
-                case 0:
-                    printf( "Serving %s on %s indefinitely.\n", filename.c_str(), url );
-                    break;
-                case 1:
-                    printf( "Serving %s on %s once.\n", filename.c_str(), url );
-                    break;
-                default:
-                    printf( "Serving %s on %s %u times.\n", filename.c_str(), url, count );
-                    break;
-            };
+            case -3:
+                if( !(flags & SP_FLAG_QUIET) ) fprintf( stderr, "%s: Internal error adding file to serve!\n", SP_MAIN_IDENT );
+                break;
+            case -2:
+                if( !(flags & SP_FLAG_QUIET) ) fprintf( stderr, "%s: Cannot serve more than %u files!\n", SP_MAIN_IDENT, SP_SERV_MAX );
+                break;
+            case -1:
+                if( !(flags & SP_FLAG_QUIET) ) fprintf( stderr, "File \"%s\" does not exist or is not a file!\n", filename.c_str() );
+                break;
+            default:
+                if( !(flags & SP_FLAG_QUIET) )
+                {
+                    switch( count )
+                    {
+                        case 0:
+                            printf( "Serving %s on %s indefinitely.\n", filename.c_str(), url );
+                            break;
+                        case 1:
+                            printf( "Serving %s on %s once.\n", filename.c_str(), url );
+                            break;
+                        default:
+                            printf( "Serving %s on %s %u times.\n", filename.c_str(), url, count );
+                            break;
+                    };
+                };
+                break;
         };
 
         httpd->Run();

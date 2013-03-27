@@ -395,7 +395,7 @@ int SimplePost::Serve( char * url, int size, const char * filename, unsigned int
 
     pthread_mutex_lock( &this->transtex );
 
-    if( filename == NULL || stat( filename, &st ) == -1 )
+    if( filename == NULL || stat( filename, &st ) == -1 || !(S_ISREG( st.st_mode ) || S_ISLNK( st.st_mode )) )
     {
         pthread_mutex_unlock( &this->transtex );
         return -1;
