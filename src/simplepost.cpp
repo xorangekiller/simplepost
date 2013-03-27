@@ -851,7 +851,21 @@ void SimplePost::Accept()
                 client_ptr = new SimplePostProcessRequestType;
                 client_ptr->simple_ptr = this;
                 client_ptr->client_sock = client_sock;
-                pthread_create( &client_thread , NULL, &SimplePostProcessRequestThread, (void *) client_ptr );
+                if( pthread_create( &client_thread, NULL, &SimplePostProcessRequestThread, (void *) client_ptr ) == 0 )
+                {
+                    pthread_detach( client_thread );
+                }
+                else
+                {
+                    // TODO: Alert the user in some way and attempt to mitigate.
+                    // We should probably either give the user some choice as to what happens here.
+                    // Either we need to let the client timeout, alert the client that we can't
+                    // serve its request (is that counterproductive?), or wait for another thread
+                    // to exit so we are below PTHREAD_THREADS_MAX or have enough resources to
+                    // spawn a response thread.
+                    close( client_ptr->client_sock );
+                    delete client_ptr;
+                };
             };
         };
     };
