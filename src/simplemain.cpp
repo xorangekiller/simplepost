@@ -1,7 +1,7 @@
 /*
 SimplePost - A Basic, Embedded HTTP Server
 
-Copyright (C) 2012 xorangekiller.  All rights reserved.
+Copyright (C) 2012-2013 xorangekiller.  All rights reserved.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public
@@ -31,9 +31,9 @@ Boston, MA 021110-1307, USA.
 /*
 Configuration details
 */
-#define SP_MAIN_IDENT       "SimplePost"                        // Program name string
-#define SP_MAIN_VER         "0.1.0"                             // Program version string
-#define SP_MAIN_COPYRIGHT   "Copyright (C) 2012 xorangekiller." // Program copyright string
+#define SP_MAIN_IDENT       "SimplePost"                             // Program name string
+#define SP_MAIN_VER         "0.1.0"                                  // Program version string
+#define SP_MAIN_COPYRIGHT   "Copyright (C) 2012-2013 xorangekiller." // Program copyright string
 
 /*
 Startup flags
