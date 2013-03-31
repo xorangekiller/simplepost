@@ -1,5 +1,15 @@
 SimplePost NEWS
 
+* Noteworthy changes in release 0.2.0 (2013-03-31) [stable]
+
+** Serve more than one file simultaneously
+
+  While this probably seems like an obvious addition, more than one file
+  can now be served simultaneously! There are two ways to do this. The
+  first - and easiest - is to specify more than one file on the command
+  line. The second is to add files to a running instance of the program
+  using the '--pid' switch.
+
 * Noteworthy changes in release 0.1.0 (2012-12-20) [stable]
 
 ** Intial release
