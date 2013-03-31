@@ -29,6 +29,7 @@ Boston, MA 021110-1307, USA.
 #include <limits.h>
 #include <string.h>
 #include <string>
+#include <vector>
 #include <pthread.h>
 
 /*
@@ -55,14 +56,23 @@ Startup flags
 #define SP_FLAG_QUIET   16  // Do not print anything to standard output.
 #define SP_FLAG_HELP    32  // Display our help information.
 #define SP_FLAG_VERSION 64  // Display our version information.
-#define SP_FLAG_ERROR  128  // An error occurred; abort!
+#define SP_FLAG_FILE   128  // The next argument passed by the user is a file.
+#define SP_FLAG_ERROR  256  // An error occurred; abort!
+
+/*
+This simple structure contains the information necessary to serve a file.
+*/
+struct SimpleFile
+{
+    std::string filename; // File to be served
+    unsigned int count; // Number of times the file may be downloaded
+};
 
 /*
 Global variables
 */
 static unsigned int flags = SP_FLAG_NONE; // Startup flags indicating user options
-static std::string filename; // File to be served
-static unsigned int count = 0; // Number of times the file may be downloaded
+static std::vector< SimpleFile > files; // Files to serve
 static std::string address; // Internet protocol address of the server
 static unsigned short port = 0; // Port the server will be bound to
 static pid_t another_pid = 0; // PID of another instance of this program
@@ -92,7 +102,7 @@ static void SetCountFlag( const char * arg )
         }
         else
         {
-            count = (unsigned int) i;
+            files.front().count = (unsigned int) i;
             flags |= SP_FLAG_COUNT;
         };
     };
@@ -211,6 +221,14 @@ static void SetVersionFlag()
 }
 
 /*
+Set the file flag.
+*/
+static void SetFileFlag()
+{
+    flags |= SP_FLAG_FILE;
+}
+
+/*
 Process an invalid argument.
 
 Arguments:
@@ -224,6 +242,42 @@ static void SetInvalidFlag( const char * arg )
 }
 
 /*
+Process the file argument.
+
+Arguments:
+    file [in]       File to add to the list of files to serve
+*/
+static void ProcessInputFile( const char * file )
+{
+    struct stat st; // File status information structure
+
+    if( stat( file, &st ) == -1 )
+    {
+        fprintf( stderr, "%s: No such file or directory\n", file );
+        flags |= SP_FLAG_ERROR;
+    }
+    else if( !(S_ISREG( st.st_mode ) || S_ISLNK( st.st_mode )) )
+    {
+        fprintf( stderr, "%s: Must of a regular file or link to a one\n", file );
+        flags |= SP_FLAG_ERROR;
+    }
+    else
+    {
+        if( files.front().filename.empty() )
+        {
+            files.front().filename = file;
+            if( !(flags & SP_FLAG_COUNT) ) files.front().count = 0;
+        }
+        else
+        {
+            files.push_back( SimpleFile() );
+            files.back().filename = file;
+            files.back().count = files.front().count;
+        };
+    };
+}
+
+/*
 Parse the arguments passed to this program.
 
 Arguments:
@@ -232,8 +286,6 @@ Arguments:
 */
 static void SetFlags( int argc, char * argv[] )
 {
-    struct stat st; // Status structure for calls to stat()
-
     if( argc < 2 )
     {
         fprintf( stderr, "invalid syntax\n" );
@@ -242,7 +294,19 @@ static void SetFlags( int argc, char * argv[] )
     }
     else
     {
-        for( unsigned int i = 1; i < argc; i++ )
+        unsigned int i; // Iterator for the arguments array
+
+        if( files.empty() )
+        {
+            files.push_back( SimpleFile() );
+        }
+        else
+        {
+            files.clear();
+            files.push_back( SimpleFile() );
+        };
+
+        for( i = 1; i < argc; i++ )
         {
             switch( argv[i][0] )
             {
@@ -277,20 +341,25 @@ static void SetFlags( int argc, char * argv[] )
                     };
                     break;
                 default:
-                    if( !((i == (argc - 1)) && !(flags & SP_FLAG_HELP || flags & SP_FLAG_VERSION)) ) SetInvalidFlag( argv[i] );
+                    SetFileFlag();
                     break;
             };
-            if( flags & SP_FLAG_ERROR ) break;
+
+            if( flags & SP_FLAG_ERROR ) return;
+            else if( flags & SP_FLAG_HELP || flags & SP_FLAG_VERSION ) return;
+            else if( flags & SP_FLAG_FILE ) break;
         };
 
-        if( !(flags & SP_FLAG_ERROR || flags & SP_FLAG_HELP || flags & SP_FLAG_VERSION) )
+        if( !(flags & SP_FLAG_FILE) )
         {
-            filename = argv[argc - 1];
-            if( stat( filename.c_str(), &st ) == -1 )
-            {
-                fprintf( stderr, "%s: No such file or directory\n", filename.c_str() );
-                flags |= SP_FLAG_ERROR;
-            };
+            SetInvalidFlag( (i >= argc) ? "INTERNAL_ERROR" : argv[i] );
+            return;
+        };
+
+        for( ; i < argc; i++ )
+        {
+            ProcessInputFile( argv[i] );
+            if( flags & SP_FLAG_ERROR ) return;
         };
     };
 }
@@ -335,10 +404,15 @@ Add a file to the current SimplePost instance.
 Remarks:
     This function is a basic wrapper around SimplePost::Serve() that prints status messages.
     The arguments are the same as the final two arguments of the function we are wrapping.
+
+Return Value:
+    false   An error occurred adding the file
+    true    The file is being served
 */
-static void SimplePostServe( const char * filename, unsigned int count )
+static bool SimplePostServe( const char * filename, unsigned int count )
 {
     char url[2048]; // Uniform Resource Locator associated with the file we are serving
+    bool ret = false; // Return value
 
     switch( httpd->Serve( url, sizeof( url ), filename, count ) )
     {
@@ -367,8 +441,11 @@ static void SimplePostServe( const char * filename, unsigned int count )
                         break;
                 };
             };
+            ret = true;
             break;
     };
+
+    return ret;
 }
 
 /*
@@ -754,8 +831,11 @@ int main( int argc, char * argv[] )
             return 1;
         };
 
-        sprintf( read_buffer, "%s;%u;", filename.c_str(), count );
-        SendPipeData( pipe_descriptor, "ServeFile", read_buffer );
+        for( std::vector< SimpleFile >::iterator it = files.begin(); it != files.end(); it++ )
+        {
+            sprintf( read_buffer, "%s;%u;", it->filename.c_str(), it->count );
+            SendPipeData( pipe_descriptor, "ServeFile", read_buffer );
+        };
         SendPipeData( pipe_descriptor, "ClosePipe", NULL );
 
         return 0;
@@ -769,10 +849,20 @@ int main( int argc, char * argv[] )
         else httpd->Init( &port, address.empty() ? NULL : address.c_str() );
         if( !(flags & SP_FLAG_QUIET) ) printf( "Started %s HTTP server on port %u with PID %d.\n", SP_MAIN_IDENT, port, getpid() );
 
-        SimplePostServe( filename.c_str(), count );
+        for( std::vector< SimpleFile >::iterator it = files.begin(); it != files.end(); it++ )
+        {
+            if( SimplePostServe( it->filename.c_str(), it->count ) == false )
+            {
+                ret = 1;
+                break;
+            };
+        };
 
-        httpd->Run();
-        httpd->Block();
+        if( ret == 0 )
+        {
+            httpd->Run();
+            httpd->Block();
+        };
         if( !(flags & SP_FLAG_QUIET) ) printf( "%s: Shutting down...\n", SP_MAIN_IDENT );
     }
     catch( SimpleExcept & e )
