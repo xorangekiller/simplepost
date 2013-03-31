@@ -105,7 +105,7 @@ class SimplePost
         ~SimplePost();
         void Init( unsigned short * port, const char * address = NULL );
         void Init( unsigned short port, const char * address = NULL );
-        int Serve( char * url, int size, const char * filename, unsigned int count );
+        int Serve( char * url, unsigned int size, const char * filename, unsigned int count );
         void Run();
         void Block();
         void Kill();

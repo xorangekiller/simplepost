@@ -386,7 +386,7 @@ Return Value:
     -2      The server has hit the maximum number of files to serve.
     -3      The buffer is too small to hold the URL.
 */
-int SimplePost::Serve( char * url, int size, const char * filename, unsigned int count )
+int SimplePost::Serve( char * url, unsigned int size, const char * filename, unsigned int count )
 {
     struct stat st; // Status structure for calls to stat()
     const char * bare_filename; // filename without its base path
