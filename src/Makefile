@@ -18,10 +18,11 @@
 # Boston, MA 021110-1307, USA.
 
 # Executable definitions
-ifdef ALTCC
-CC=$(ALTCC)
-else
-CC = g++
+ifndef CC
+CC=gcc
+endif
+ifndef CXX
+CXX=g++
 endif
 RM = rm -rf
 
@@ -36,7 +37,7 @@ DBGCFLAGS = $(ALLCFLAGS) -g -O0 -fno-inline -fno-diagnostics-show-option
 RELCFLAGS = $(ALLCFLAGS) -w -O2 -xc++
 
 # Compiler include directories
-ALLCIDIR = -I/usr/local/include
+ALLCIDIR =
 RELCIDIR = $(ALLCIDIR)
 DBGCIDIR = $(ALLCIDIR)
 
@@ -61,7 +62,7 @@ RELLFLAGS = $(ALLLFLAGS) -s
 DBGLFLAGS = $(ALLLFLAGS)
 
 # Linker include directories
-ALLLIDIR = -L/usr/local/lib
+ALLLIDIR =
 RELLIDIR = $(ALLLIDIR)
 DBGLIDIR = $(ALLLIDIR)
 
@@ -87,15 +88,18 @@ BINARY = $(OUTDIR)/simplepost
 # The target definitions and commands are the only thing below this line.
 # You should not need to modify anything from here down!
 
+.PHONY: all debug \
+	clean clean_src clean_bin
+
 all: $(SOURCES) $(BINARY)
 
 debug: $(SORUCES) $(BINARY)
 
 $(BINARY): $(OBJECTS)
-	$(CC) -o "$(BINARY)" $(OBJECTS) $(LNFINAL)
+	$(CXX) -o "$(BINARY)" $(OBJECTS) $(LNFINAL)
 
 .cpp.o:
-	$(CC) $(CFINAL) $< -o $@
+	$(CXX) $(CFINAL) $< -o $@
 
 clean: clean_src clean_bin
 
