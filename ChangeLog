@@ -1,11 +1,11 @@
-2013-03-31  xorangekiller  <xorangekiller@gmail.com>
+2013-03-31  Karl Lenz  <xorangekiller@gmail.com>
 
     version 0.2.0
     * New Feature: Support for specifying more than one file to serve
     * New Feature: Files to serve can be added to a running instance!
     * Bugfix: Eliminated a memory leak on response thread creation
 
-2012-12-20  xorangekiller  <xorangekiller@gmail.com>
+2012-12-20  Karl Lenz  <xorangekiller@gmail.com>
 
     version 0.1.0
     * Initial release

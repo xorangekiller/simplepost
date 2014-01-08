@@ -1,7 +1,7 @@
 /*
 SimplePost - A Basic, Embedded HTTP Server
 
-Copyright (C) 2012-2013 xorangekiller.  All rights reserved.
+Copyright (C) 2012-2014 Karl Lenz.  All rights reserved.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public
