@@ -27,6 +27,7 @@ Boston, MA 021110-1307, USA.
 #include <sys/select.h>
 #include <sys/time.h>
 #include <netinet/in.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 
