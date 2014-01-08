@@ -30,9 +30,11 @@ Compilers and Options
 compilation is performed using a hand written makefile. So long as your
 environment is reasonably standard, you should be able to compile this
 software on any POSIX-compliant system using the method described above.
-The software has only been tested on Debian 7.0 AMD64, however.
+The software has only been tested on Debian 7.0 amd64, Debian 8.0 amd64,
+and Debian 8.0 armhf, however.
 
-    By default, the makefile is set to use the Clang C++ compiler. It
-has been tested to work with GCC on the same system, however. If you
-don't have Clang installed or would simply prefer to use GCC, replace
-the line 'CC = clang++' in './src/Makefile' with 'CC = g++'.
+    By default, the makefile is set to use the GCC C++ compiler. It
+has been tested to work with Clang on the same system, however. If you
+don't have GCC installed or would simply prefer to use Clang, issue the
+command `make CC=clang CXX=clang++` from the top-level directory to
+build this program with the Clang C++ compiler.
