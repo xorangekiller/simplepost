@@ -37,7 +37,7 @@ Boston, MA 021110-1307, USA.
 Global configuration details
 */
 #define SP_MAIN_IDENT       "SimplePost"                            // Program name string
-#define SP_MAIN_VER         "0.2.0"                                 // Program version string
+#define SP_MAIN_VER         "0.2.1"                                 // Program version string
 #define SP_MAIN_COPYRIGHT   "Copyright (C) 2012-2014 Karl Lenz."    // Program copyright string
 
 /*

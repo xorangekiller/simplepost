@@ -1,3 +1,10 @@
+2014-01-08  Karl Lenz  <xorangekiller@gmail.com>
+
+    version 0.2.1
+    * Bugfix: Fixed two potential NULL-pointer dereferences
+    * Bugfix: Updated the program for modern compilers
+    * Bugfix: Edited the INSTALL document for accuracy
+
 2013-03-31  Karl Lenz  <xorangekiller@gmail.com>
 
     version 0.2.0
