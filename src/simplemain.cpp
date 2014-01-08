@@ -497,7 +497,6 @@ Arguments:
 */
 static void SendPipeData( int pipe_descriptor, const char * command, const char * data )
 {
-    int write_to; // Number of character to write to the pipe
     char write_to_buffer[SP_PIPE_MAX_LENGTH]; // Buffer for the number of characters to write to the pipe
 
     if( command != NULL )
@@ -566,13 +565,13 @@ static bool ReceivePipeData( int pipe_descriptor, const char * command, char * r
     {
         if( read_buffer == NULL )
         {
-            if( !(flags & SP_FLAG_QUIET) ) fprintf( stderr, "%s: Read buffer required for %s from %d!\n", SP_MAIN_IDENT, command, another_pid );
+            if( !(flags & SP_FLAG_QUIET) ) fprintf( stderr, "%s: Read buffer required for %s from %d!\n", SP_MAIN_IDENT, (command == NULL) ? "NULL" : command, another_pid );
             return false;
         };
 
         if( read_to < 0 || read_to > (read_buffer_size - 2) )
         {
-            if( !(flags & SP_FLAG_QUIET) ) fprintf( stderr, "%s: Invalid length %u from PID %d.\n", SP_MAIN_IDENT, read_to, another_pid );
+            if( !(flags & SP_FLAG_QUIET) ) fprintf( stderr, "%s: Invalid length %d from PID %d.\n", SP_MAIN_IDENT, read_to, another_pid );
             return false;
         };
 

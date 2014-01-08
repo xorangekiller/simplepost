@@ -53,7 +53,7 @@ Call the SimplePost::Accept() instance associated with simple_ptr.
 */
 void * SimplePostAcceptThread( void * ptr )
 {
-    SimplePost * simple_ptr = (SimplePost *) ptr; // SimplePost instance that called this function
+    SimplePost * simple_ptr = reinterpret_cast< SimplePost * >( ptr ); // SimplePost instance that called this function
     simple_ptr->Accept();
     return NULL;
 }
@@ -63,7 +63,7 @@ Call the SimplePost::ProcessRequest() instance associated with simple_ptr.
 */
 void * SimplePostProcessRequestThread( void * ptr )
 {
-    SimplePostProcessRequestType * process_request_ptr = (SimplePostProcessRequestType *) ptr; // Input data cast
+    SimplePostProcessRequestType * process_request_ptr = reinterpret_cast< SimplePostProcessRequestType * >( ptr ); // Input data cast
     process_request_ptr->simple_ptr->ProcessRequest( process_request_ptr->client_sock );
     delete process_request_ptr;
     return NULL;
@@ -475,7 +475,7 @@ Don't return until the server is shut down.
 Exceptions:
     This function does not throw.
 */
-void SimplePost::Block()
+void SimplePost::Block() const
 {
     while( this->httpd != -1 ) usleep( SP_SLEEP * 1000 );
 }
@@ -542,8 +542,8 @@ void SimplePost::ServeFile( const int & client, const char * filename )
             send( client, line, strlen( line ), 0 );
             fgets( line, sizeof( line ), fh );
         };
+        fclose( fh );
     };
-    fclose( fh );
 }
 
 /*
