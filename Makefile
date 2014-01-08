@@ -17,22 +17,21 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 021110-1307, USA.
 
-.PHONY: all release debug \
-		clean clean_src clean_bin
-
-all: release
-
-release:
+.PHONY: all
+all:
 	$(MAKE) -C src -f Makefile all
 
-debug:
-	$(MAKE) -C src -f Makefile debug
+.PHONY: build
+build:
+	$(MAKE) -C src -f Makefile build
 
+.PHONY: rebuild
+rebuild: clean build
+
+.PHONY: stats
+stats:
+	$(MAKE) -C src -f Makefile stats
+
+.PHONY: clean
 clean:
 	$(MAKE) -C src -f Makefile clean
-
-clean_src:
-	$(MAKE) -C src -f Makefile clean_src
-
-clean_bin:
-	$(MAKE) -C src -f Makefile clean_bin

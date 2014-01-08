@@ -17,94 +17,112 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 021110-1307, USA.
 
-# Executable definitions
-ifndef CC
-CC=gcc
-endif
-ifndef CXX
-CXX=g++
-endif
-RM = rm -rf
+###############################################################################
 
-# Compiler definitions
-ALLCDEFS = -DSIMPLEPOST
-RELCDEFS = $(ALLCDEFS)
-DBGCDEFS = $(ALLCDEFS) -DDEBUG
+# Project name
+PROJECT_NAME = simplepost
 
-# Compiler flags
-ALLCFLAGS = -c
-DBGCFLAGS = $(ALLCFLAGS) -g -O0 -fno-inline -fno-diagnostics-show-option
-RELCFLAGS = $(ALLCFLAGS) -w -O2 -xc++
+# Target binary to be produced
+TARGET = $(PROJECT_NAME)
 
-# Compiler include directories
-ALLCIDIR =
-RELCIDIR = $(ALLCIDIR)
-DBGCIDIR = $(ALLCIDIR)
+# List of C source files
+CSRCS =
 
-# Aggregated compiler flags
-RELCFINAL = $(RELCFLAGS) $(RELCDEFS) $(RELCIDIR)
-DBGCFINAL = $(DBGCFLAGS) $(DBGCDEFS) $(DBGCIDIR)
-# IMPORTANT: Compiler flags below!
-ifneq "$(findstring debug, $(MAKECMDGOALS))" ""
-CFINAL = $(DBGCFINAL)
-else
-CFINAL = $(RELCFINAL)
-endif
-
-# Linked libraries
-ALLLLIB = -lpthread
-RELLLIB = $(ALLLLIB)
-DBGLLIB = $(ALLLLIB)
-
-# Linker flags
-ALLLFLAGS =
-RELLFLAGS = $(ALLLFLAGS) -s
-DBGLFLAGS = $(ALLLFLAGS)
-
-# Linker include directories
-ALLLIDIR =
-RELLIDIR = $(ALLLIDIR)
-DBGLIDIR = $(ALLLIDIR)
-
-# Aggregated linker flags
-RELLFINAL = $(RELLFLAGS) $(RELLLIB) $(RELLIDIR)
-DBGLFINAL = $(DBGLFLAGS) $(DBGLLIB) $(DBGLIDIR)
-# IMPORTANT: Linker flags below!
-ifneq "$(findstring debug, $(MAKECMDGOALS))" ""
-LNFINAL = $(DBGLFINAL)
-else
-LNFINAL = $(RELLFINAL)
-endif
-
-# Source files and objects
-SOURCES = simplepost.cpp \
+# List of C++ source files
+CXXSRCS = simplepost.cpp \
 		  simplemain.cpp
-OBJECTS = $(SOURCES:.cpp=.o)
 
-# Binary
-OUTDIR = ../bin
-BINARY = $(OUTDIR)/simplepost
+# List of the objects files to be made
+OBJECTS = $(CSRCS:.c=.o) $(CXXSRCS:.cpp=.o)
 
-# The target definitions and commands are the only thing below this line.
-# You should not need to modify anything from here down!
+# Binary output directory (must include a trailing / if set)
+OUTPUT_PATH = ../bin/
 
-.PHONY: all debug \
-	clean clean_src clean_bin
+# Application optimization used during compilation and linking:
+# -O0, -O1, -O2, -O3 or -Os
+ifdef DEBUG
+OPTIMIZATION = -O0
+else
+OPTIMIZATION = -O2
+endif
 
-all: $(SOURCES) $(BINARY)
+# List of include paths
+INCLUDES =
 
-debug: $(SORUCES) $(BINARY)
+# List of search paths for libraries
+LIB_PATH =
 
-$(BINARY): $(OBJECTS)
-	$(CXX) -o "$(BINARY)" $(OBJECTS) $(LNFINAL)
+# List of libraries to use during linking
+LIBS = -lpthread
+
+# C compiler options
+CFLAGS += -xc -c -std=c99
+CFLAGS += $(OPTIMIZATION)
+CFLAGS += -DSIMPLEPOST
+ifdef DEBUG
+CFLAGS += -DDEBUG
+CFLGAS += -g -Wall -Werror
+CFLGAS += -fno-inline -fno-diagnostics-show-option
+else
+CFLAGS += -w
+endif
+
+# C++ compiler options
+CXXFLAGS += -xc++ -c -std=c++03
+CXXFLAGS += $(OPTIMIZATION)
+CXXFLAGS += -DSIMPLEPOST
+ifdef DEBUG
+CXXFLAGS += -DDEBUG
+CXXFLGAS += -g -Wall -Werror
+CXXFLAGS += -pedantic-errors
+CXXFLGAS += -fno-inline -fno-diagnostics-show-option
+else
+CXXFLAGS += -w
+endif
+
+# Linker options
+LDFLAGS += $(OPTIMIZATION) $(LIB_PATH)
+ifndef DEBUG
+LDFLAGS += -s
+endif
+
+# Executable definitions
+CC := gcc
+CXX := g++
+OBJDUMP := objdump
+SIZE := size
+RM := rm -rf
+
+###############################################################################
+
+.PHONY: all
+all: build
+
+.PHONY: build
+build: $(TARGET)
+
+.PHONY: rebuild
+rebuild: clean build
+
+$(TARGET): $(OBJECTS)
+	$(CXX) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_PATH)$@
+
+.PHONY: stats
+stats: $(TARGET)
+	$(OBJDUMP) -th $(OUTPUT_PATH)$<
+	$(SIZE) $(OUTPUT_PATH)$<
+
+.PHONY: clean
+clean:
+	$(RM) $(OBJECTS)
+	$(RM) $(OUTPUT_PATH)$(TARGET)
+
+###############################################################################
+
+.c.o:
+	$(CC) $(CFLAGS) $< -o $@
 
 .cpp.o:
-	$(CXX) $(CFINAL) $< -o $@
+	$(CXX) $(CXXFLAGS) $< -o $@
 
-clean: clean_src clean_bin
-
-clean_src:
-	-@$(RM) $(OBJECTS) $(RESOBJ)
-
-clean_bin:
-	-@$(RM) $(BINARY)
+###############################################################################
