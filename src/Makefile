@@ -92,6 +92,7 @@ CXX := g++
 OBJDUMP := objdump
 SIZE := size
 RM := rm -rf
+INSTALL := install
 
 ###############################################################################
 
@@ -105,6 +106,7 @@ build: $(TARGET)
 rebuild: clean build
 
 $(TARGET): $(OBJECTS)
+	@[ -n $(OUTPUT_PATH) -a ! -d $(OUTPUT_PATH) ] && $(INSTALL) -d -m 0755 $(OUTPUT_PATH)
 	$(CXX) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_PATH)$@
 
 .PHONY: stats
@@ -116,6 +118,7 @@ stats: $(TARGET)
 clean:
 	$(RM) $(OBJECTS)
 	$(RM) $(OUTPUT_PATH)$(TARGET)
+	@[ -n $(OUTPUT_PATH) -a -z $$(ls -A $(OUTPUT_PATH) 2>/dev/null) ] && $(RM) $(OUTPUT_PATH)
 
 ###############################################################################
 
