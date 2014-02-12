@@ -1,0 +1,91 @@
+\" TROFF Macro Summary: http://www.fileformat.info/info/man-pages/macro.htm
+
+.TH SIMPLEPOST "1" "February 2014" "SimplePost 0.2" "User Commands"
+
+\" Completely disable hyphenation. It is a very annoying feature while reading man pages, in my opinion.
+.nh
+
+.SH NAME
+SimplePost \- Serve \fIFILE\fR \fICOUNT\fR times via HTTP on port \fIPORT\fR with ip address \fIADDRESS\fR.
+
+.SH SYNOPSIS
+.B simplepost
+[\fIOPTIONS\fR]
+\fIFILE\fR
+
+.SH DESCRIPTION
+SimplePost is an extremely lightweight Hypertext Transfer Protocol (HTTP) server. It is missing many of the features of more established web servers such as Apache, nGenx, and Lighttpd. SimplePost has no intention of competing with these more established projects on features or speed. Its goal is to be a highly portable, fast, and low-resource web server for quickly transferring files from one computer to another on the same network with minimal setup.
+
+.SH OPTIONS
+.IP \fB-c\fR\ \fICOUNT\fR,\ \fB--count=\fR\fICOUNT\fR
+Serve \fIFILE\fR exactly \fICOUNT\fR times. Once the file has been served to a client (or multiple clients) \fICOUNT\fR times, it will no longer be served by the web server. (SimplePost will return a 404 error if the file is requested by a client after it has already been served \fICOUNT\fR times.) This does not necessarily guarantee that every client has received a complete copy of \fIFILE\fR. If a client disconnects (whether or not that was their intention) \fICOUNT\fR is decremented.
+
+If this option is not specified, \fIFILE\fR will be served until \fBsimplepost\fR is sent the TERM signal.
+
+.IP \fB-i\fR\ \fIADDRESS\fR,\ \fB--ip-address=\fR\fIADDRESS\fR
+Serve \fIFILE\fR on \fIADDRESS\fR, where \fIADDRESS\fR is the server's Internet Protocol version 4 (IPv4) address. If no adapter on the host claims \fIADDRESS\fR, \fBsimplepost\fR fail to launch.
+
+If this option is not specified, the server will listen on all active adapters. (netstat will claim its "Local Address" is "0.0.0.0:\fIPORT\fR".)
+
+.IP \fB-p\fR\ \fIPORT\fR,\ \fB--port=\fR\fIPORT\fR
+Bind to \fIPORT\fR on the host. If \fIPORT\fR is not available, \fBsimplepost\fR fail to launch.
+
+If this option is not specified, a random, available port will be chosen. As long as \fI--quiet\fR is not specified, the chosen port will be printed to STDOUT when the program is launched.
+
+.IP \fB--pid=\fR\fIPID\fR
+Act on the instance of SimplePost with the process identifier \fIPID\fR rather than seeking the most recent instance with the same \fIADDRESS\fR and \fIPORT\fR or creating a new instance. If there is no process attached to \fIPID\fR or the process attached to \fIPID\fR is not compatible with this version of SimplePost, the program will fail to launch.
+
+Although the first line that SimplePost prints to STDOUT typically contains its current PID (unless there is an initialization error or \fI--quiet\fR has been invoked), sometimes it is helpful to retrieve the PID of all running \fBsimplepost\fR instances. There are many ways to go about this, but a selection of the more common commands are listed below for your convenience.
+
+.br
+    \fBps -A | grep simplepost\fR
+.br
+    \fBps -eo pid,user,args | head -n -3 | grep simplepost\fR
+.br
+    \fBsudo netstat -tlpn | grep simplepost\fR
+
+.IP \fB-q\fR,\ \fB--quiet\fR
+Reduce verbosity with extreme prejudice. Do not print anything to STDOUT.
+
+.IP \fB--help\fR
+Print the program's built-in help documentation.
+
+.IP \fB--version\fR
+Print the program's build and version information.
+
+.SH FILE
+At least one \fIFILE\fR must be specified to serve. If more than one \fIFILE\fR is specified, it will also be served the specified number of times. If there is already an instance of SimplePost running on \fIADDRESS\fR:\fIPORT\fR, all specified files will be added to the original instance.
+
+.SH EXAMPLES
+The following examples demonstrate the proper syntax for performing various common operations. If you need more help interpreting them, read the documentation above, and use common sense.
+
+Serve the file ~/.bashrc on port 80 exactly once, then exit. Since port 80 is a privileged port, you will most likely need to run this command with superuser privileges; typically this involves prefixing the command with \fBsudo\fR.
+
+.br
+    \fBsimplepost -p 80 -c 1 -q ~/.bashrc\fR
+
+Serve the file ~/.bash_aliases exactly twice on the instance of SimplePost with the process identifier 99031. Note that if no SimplePost instance has the PID 99031 when this command is run, it will fail.
+
+.br
+    \fBsimplepost --pid=99031 --count=2 ~/.bash_aliases\fR
+
+Serve the file "~/Documents/Manuals/Walk-in Support Training Manual.pdf" on a random port until \fBsimplepost\fR receives the TERM signal.
+
+.br
+    \fBsimplepost "~/Documents/Manuals/Walk-in Support Training Manual.pdf"\fR
+
+.SH AUTHOR
+This manual was written by Karl Lenz <xorangekiller@gmail.com>.
+
+.SH COPYRIGHT
+Copyright 2012-2014 Karl Lenz
+
+Copying and distribution of this file, with or without modification, are permitted in any medium without royalty provided the copyright notice and this notice are preserved.
+
+SimplePost is free software; see the COPYING file distributed with the source for the specific conditions. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+.SH SEE\ ALSO
+.BR woof (1),
+.BR kill (1),
+.BR ps (1),
+.BR netstat (8)
