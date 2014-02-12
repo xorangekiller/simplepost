@@ -38,6 +38,9 @@ OBJECTS = $(CSRCS:.c=.o) $(CXXSRCS:.cpp=.o)
 # Binary output directory (must include a trailing / if set)
 OUTPUT_PATH = ../bin/
 
+# Installation directories
+PREFIX = /usr/local
+
 # Application optimization used during compilation and linking:
 # -O0, -O1, -O2, -O3 or -Os
 ifdef DEBUG
@@ -105,8 +108,13 @@ build: $(TARGET)
 .PHONY: rebuild
 rebuild: clean build
 
+.PHONY: install
+install:
+	@[ -d $(DESTDIR)$(PREFIX)/bin ] || $(INSTALL) -d -m 0755 $(DESTDIR)$(PREFIX)/bin
+	$(INSTALL) -m 0755 $(OUTPUT_PATH)$(TARGET) $(DESTDIR)$(PREFIX)/bin/$(TARGET)
+
 $(TARGET): $(OBJECTS)
-	@[ -n $(OUTPUT_PATH) -a ! -d $(OUTPUT_PATH) ] && $(INSTALL) -d -m 0755 $(OUTPUT_PATH)
+	@[ -n "$(OUTPUT_PATH)" -a ! -d $(OUTPUT_PATH) ] && $(INSTALL) -d -m 0755 $(OUTPUT_PATH)
 	$(CXX) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_PATH)$@
 
 .PHONY: stats
@@ -118,7 +126,7 @@ stats: $(TARGET)
 clean:
 	$(RM) $(OBJECTS)
 	$(RM) $(OUTPUT_PATH)$(TARGET)
-	@[ -n $(OUTPUT_PATH) -a -z $$(ls -A $(OUTPUT_PATH) 2>/dev/null) ] && $(RM) $(OUTPUT_PATH)
+	@[ -n "$(OUTPUT_PATH)" -a -z $$(ls -A $(OUTPUT_PATH) 2>/dev/null) ] && $(RM) $(OUTPUT_PATH)
 
 ###############################################################################
 

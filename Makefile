@@ -19,19 +19,24 @@
 
 .PHONY: all
 all:
-	$(MAKE) -C src -f Makefile all
+	$(MAKE) -C src -f Makefile $@
 
 .PHONY: build
 build:
-	$(MAKE) -C src -f Makefile build
+	$(MAKE) -C src -f Makefile $@
 
 .PHONY: rebuild
-rebuild: clean build
+rebuild:
+	$(MAKE) -C src -f Makefile $@
+
+.PHONY: install
+install:
+	$(MAKE) -C src -f Makefile $@
 
 .PHONY: stats
 stats:
-	$(MAKE) -C src -f Makefile stats
+	$(MAKE) -C src -f Makefile $@
 
 .PHONY: clean
 clean:
-	$(MAKE) -C src -f Makefile clean
+	$(MAKE) -C src -f Makefile $@
