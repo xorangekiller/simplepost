@@ -39,7 +39,7 @@ OBJECTS = $(CSRCS:.c=.o) $(CXXSRCS:.cpp=.o)
 OUTPUT_PATH = ../bin/
 
 # Installation directories
-PREFIX = /usr/local
+PREFIX ?= /usr/local
 
 # Application optimization used during compilation and linking:
 # -O0, -O1, -O2, -O3 or -Os
