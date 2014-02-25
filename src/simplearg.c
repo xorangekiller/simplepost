@@ -20,6 +20,8 @@ Boston, MA 021110-1307, USA.
 */
 
 #include "simplearg.h"
+#include "impact.h"
+
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,7 +39,7 @@ static void __set_address( simplearg_t sap, const char * arg )
 {
     if( sap->address )
     {
-        fprintf( stderr, "invalid option -- IP address already set\n" );
+        impact_printf_error( "invalid option -- IP address already set\n" );
         sap->error = 1;
     }
     else
@@ -63,7 +65,7 @@ static void __set_port( simplearg_t sap, const char * arg )
 {
     if( sap->port )
     {
-        fprintf( stderr, "invalid option -- port already set\n" );
+        impact_printf_error( "invalid option -- port already set\n" );
         sap->error = 1;
     }
     else
@@ -71,7 +73,7 @@ static void __set_port( simplearg_t sap, const char * arg )
         int i = atoi( arg );
         if( i < 1 )
         {
-            fprintf( stderr, "%d: PORT must be between 1 and %u\n", i, USHRT_MAX );
+            impact_printf_error( "%d: PORT must be between 1 and %u\n", i, USHRT_MAX );
             sap->error = 1;
         }
         else
@@ -92,12 +94,12 @@ static void __set_pid( simplearg_t sap, const char * arg )
 {
     if( sap->pid )
     {
-        fprintf( stderr, "invalid option -- PID already specified\n" );
+        impact_printf_error( "invalid option -- PID already specified\n" );
         sap->error = 1;
     }
     else if( sap->new )
     {
-        fprintf( stderr, "invalid option -- process identifier and new arguments are mutually exclusive\n" );
+        impact_printf_error( "invalid option -- process identifier and new arguments are mutually exclusive\n" );
         sap->error = 1;
     }
     else
@@ -105,7 +107,7 @@ static void __set_pid( simplearg_t sap, const char * arg )
         int i = atoi( arg );
         if( i <= 1 )
         {
-            fprintf( stderr, "%d: PID must be a valid process identifier\n", i );
+            impact_printf_error( "%d: PID must be a valid process identifier\n", i );
             sap->error = 1;
         }
         else
@@ -125,12 +127,12 @@ static void __set_new( simplearg_t sap )
 {
     if( sap->new )
     {
-        fprintf( stderr, "invalid option -- new argument may only be specified once\n" );
+        impact_printf_error( "invalid option -- new argument may only be specified once\n" );
         sap->error = 1;
     }
     else if( sap->pid )
     {
-        fprintf( stderr, "invalid option -- process identifier and new arguments are mutually exclusive\n" );
+        impact_printf_error( "invalid option -- process identifier and new arguments are mutually exclusive\n" );
         sap->error = 1;
     }
     else
@@ -149,7 +151,7 @@ static void __set_quiet( simplearg_t sap )
 {
     if( sap->quiet )
     {
-        fprintf( stderr, "invalid option -- standard output already suppressed\n" );
+        impact_printf_error( "invalid option -- standard output already suppressed\n" );
         sap->error = 1;
     }
     else
@@ -243,7 +245,7 @@ static void __set_count( simplearg_t sap, const char * arg )
     
     if( last->count )
     {
-        fprintf( stderr, "invalid option -- COUNT already set for FILE\n" );
+        impact_printf_error( "invalid option -- COUNT already set for FILE\n" );
         sap->error = 1;
     }
     else
@@ -251,7 +253,7 @@ static void __set_count( simplearg_t sap, const char * arg )
         int i = atoi( arg );
         if( i < 0 )
         {
-            fprintf( stderr, "%d: COUNT must be between 0 and %d\n", i, INT_MAX );
+            impact_printf_error( "%d: COUNT must be between 0 and %d\n", i, INT_MAX );
             sap->error = 1;
         }
         else
@@ -274,12 +276,12 @@ static void __set_file( simplearg_t sap, const char * file )
     
     if( stat( file, &file_status ) == -1 )
     {
-        fprintf( stderr, "%s: No such file or directory\n", file );
+        impact_printf_error( "%s: No such file or directory\n", file );
         sap->error = 1;
     }
     else if( !(S_ISREG( file_status.st_mode ) || S_ISLNK( file_status.st_mode )) )
     {
-        fprintf( stderr, "%s: Must of a regular file or link to a one\n", file );
+        impact_printf_error( "%s: Must of a regular file or link to a one\n", file );
         sap->error = 1;
     }
     else
@@ -293,7 +295,7 @@ static void __set_file( simplearg_t sap, const char * file )
         
         if( last->file )
         {
-            fprintf( stderr, "%s:%d => logic flaw or potential memory leak detected\n", __FILE__, __LINE__ );
+            impact_printf_error( "%s:%d => logic flaw or potential memory leak detected\n", __FILE__, __LINE__ );
             sap->error = 1;
             return;
         }
@@ -317,8 +319,8 @@ Arguments:
 */
 static void __set_invalid( simplearg_t sap, const char * arg )
 {
-    fprintf( stderr, "invalid option -- %s\n", arg );
-    fprintf( stderr, "Try `simplepost --help` for more information.\n" );
+    impact_printf_error( "invalid option -- %s\n", arg );
+    impact_printf_error( "Try `simplepost --help` for more information.\n" );
     sap->error = 1;
 }
 
@@ -385,8 +387,8 @@ void simplearg_parse( simplearg_t sap, int argc, char * argv[] )
 {
     if( argc < 2 )
     {
-        fprintf( stderr, "invalid syntax\n" );
-        fprintf( stderr, "Try `simplepost --help` for more information.\n" );
+        impact_printf_error( "invalid syntax\n" );
+        impact_printf_error( "Try `simplepost --help` for more information.\n" );
         sap->error = 1;
     }
     else
@@ -440,14 +442,14 @@ void simplearg_parse( simplearg_t sap, int argc, char * argv[] )
         simplefile_t last = __get_last_file( sap );
         if( last == NULL || sap->files == NULL )
         {
-            fprintf( stderr, "invalid syntax -- at least one FILE must be specified\n" );
+            impact_printf_error( "invalid syntax -- at least one FILE must be specified\n" );
             sap->error = 1;
             return;
         }
         
         if( last->file == NULL )
         {
-            fprintf( stderr, "invalid syntax -- last argument must be a FILE\n" );
+            impact_printf_error( "invalid syntax -- last argument must be a FILE\n" );
             
             if( sap->files == last ) sap->files = NULL;
             if( last->prev ) last->prev = NULL;
