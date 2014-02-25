@@ -1,4 +1,4 @@
-# SimplePost - A Basic, Embedded HTTP Server
+# SimplePost - A Simple HTTP Server
 #
 # Copyright (C) 2012-2014 Karl Lenz.  All rights reserved.
 #
