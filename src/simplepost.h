@@ -1,5 +1,5 @@
 /*
-SimplePost - A Basic, Embedded HTTP Server
+SimplePost - A Simple HTTP Server
 
 Copyright (C) 2012-2014 Karl Lenz.  All rights reserved.
 
@@ -22,130 +22,126 @@ Boston, MA 021110-1307, USA.
 #ifndef _SIMPLEPOST_H_
 #define _SIMPLEPOST_H_
 
-#include <exception>
-#include <string>
-#include <pthread.h>
+#include <sys/types.h>
 
 /*
-Static configuration details for the server.
+SimplePost HTTP configuration
 */
-#define SP_PORT_MAX 65535        // Highest port number
-#define SP_BACKLOG  5            // Maximum number of pending connections before clients start getting refused
-#define SP_SLEEP    100          // Milliseconds to sleep between shutdown checks while blocking
-#define SP_SERV_MAX 50           // Maximum number of files that may be served at once
-#define SP_IDENT    "simplepost" // String containing the short name of the server (no spaces allowed)
-#define SP_VER      "0.1.0"      // String identifying the server version
+#define SP_HTTP_PORT_MAX     65535      // Highest port number
+#define SP_HTTP_BACKLOG      5          // Maximum number of pending connections before clients start getting refused
+#define SP_HTTP_SLEEP        100        // Milliseconds to sleep between shutdown checks while blocking
+#define SP_HTTP_FILES_MAX    50         // Maximum number of files which may be served simultaneously
+#define SP_HTTP_VERSION     "HTTP/1.0"  // HTTP version implemented by the server
 
 /*
-The definitions below are the only valid IDs for SimpleExcept.
+SimplePost error codes
 */
-#define SEID_NONE           0 // No exception; oops!
-#define SEID_CUSTOM         1 // Custom exception message was set
-#define SEID_INITIALIZED    2 // Server is already initialized
-#define SEID_SOCKET         3 // Socket could not be created
-#define SEID_BIND           4 // Server failed to bind to socket
-#define SEID_ADDRESS        5 // Invalid source address specified
-#define SEID_PORTALLOC      6 // Port could not be allocated
-#define SEID_LISTEN         7 // Cannot listen on socket
-#define SEID_ACCEPT         8 // Cannot accept connections on socket
-#define SEID_UNINITIALIZED  9 // Server is not running
-#define SEID_MAX            9 // Not really an ID, just a definition for the highest numbered ID
+#define SP_ERROR_NONE               0   // No exception; oops!
+#define SP_ERROR_INITIALIZED        1   // Server is already initialized
+#define SP_ERROR_SOCKET             2   // Socket could not be created
+#define SP_ERROR_BIND               3   // Server failed to bind to socket
+#define SP_ERROR_ADDRESS            4   // Invalid source address specified
+#define SP_ERROR_PORTALLOC          5   // Port could not be allocated
+#define SP_ERROR_LISTEN             6   // Cannot listen on socket
+#define SP_ERROR_ACCEPT             7   // Cannot accept connections on socket
+#define SP_ERROR_FILE_DOESNT_EXIST  8   // Specified file does not exist
+#define SP_ERROR_TOO_MANY_FILES     9   // Cannot add more than the maximum file count
+#define SP_ERROR_FILE_INSERT_FAILED 10  // Cannot insert file
+#define SP_ERROR_RECVREQUEST        11  // Buffer is too small to receive the request
+#define SP_ERROR_NO_METHOD          12  // Request does not specify a HTTP method
+#define SP_ERROR_INVALID_METHOD     13  // HTTP method of the request is invalid
+#define SP_ERROR_NO_URI             14  // Request does not specify a HTTP URI
+#define SP_ERROR_INVALID_URI        15  // HTTP URI of the request is invalid
+#define SP_ERROR_URI_ALREADY_TAKEN  16  // HTTP URI is already in use
+#define SP_ERROR_NO_VERSION         17  // Request does not specify a HTTP version
+#define SP_ERROR_RESOURCE_NOT_FOUND 18  // Requested resource is not available
+#define SP_ERROR_INVALID_VERSION    19  // HTTP version of the request is not supported
+#define SP_ERROR_UNINITIALIZED      20  // Server is not running
+#define SP_ERROR_UNIDENTIFIED       21  // Custom exception message was set
+
+#define SP_ERROR_MIN    SP_ERROR_INITIALIZED    // Lowest SimplePost error code
+#define SP_ERROR_MAX    SP_ERROR_UNIDENTIFIED   // Highest SimplePost error code
 
 /*
-This is the SimplePost exception class.
+SimplePost files type
 */
-class SimpleExcept: public std::exception
+typedef struct simplefile
 {
-    public:
-        // Initialization
-        SimpleExcept( const unsigned int & id ) throw();
-        SimpleExcept( const char * message ) throw();
-        SimpleExcept( const SimpleExcept & e ) throw();
-        ~SimpleExcept() throw();
-        // Get Functions
-        unsigned int GetID() const throw();
-        const char * what() const throw();
-        const char * GetMessage() const throw();
-        // Operators
-        bool operator==( const SimpleExcept & e ) const throw();
-        bool operator==( const unsigned int & id ) const throw();
-    protected:
-        static char * CreateMessage( const unsigned int & id ) throw();
-    private:
-        unsigned int id; // Identification number of the exception
-        char * message; // Short message explaining the exception
-};
+    char * file;    // Name and path of the file on the filesystem
+    char * url;     // Uniform Resource Locator assigned to the file
+    
+    struct simplefile * next;   // Next file in the doubly-linked list
+    struct simplefile * prev;   // Previous file in the doubly-linked list
+} * simplefile_t;
 
 /*
-This is a simple HTTP server class.
-
-Exceptions:
-    All public methods in this class throw errors of type SimpleExcept
-    unless it is explicitly noted otherwise in their documentation or
-    they are static. It would break HTTP control flow to implement
-    exceptions so no static methods throw.
-
-Remarks:
-    This class is based on TinyHTTPd 0.1.0 by J. David Blackstone. It
-    has been updated, ported to C++, and had its CGI support stripped.
-
-Example Usage:
-    SimplePost sp; // Example SimplePost instance
-    sp.Init( 41471 );
-    sp.Serve( NULL, 0, "example1.txt", 2 );
-    sp.Serve( NULL, 0, "example2.txt", 0 );
-    sp.Run();
-    // Use signals or another thread to release the block with sp.Kill()
-    sp.Block();
+SimplePost master type
 */
-class SimplePost
+typedef struct simplepost * simplepost_t;
+
+/*
+SimplePost is a lightweight, multi-threaded HTTP server. It is designed to be
+embedded into other applications. If you have a reasonably modern C compiler
+and POSIX support, you should have no problem building it. All of the public
+simplepost_*() methods defined below are completely thread-safe.
+
+SimplePost tries to accommodate a reasonable amount of flexibility while
+remaining fast and easy to use. In the simplest case, all you need to do is
+initialize a simplepost instance, bind that instance to a port, and add a file
+to serve. Sample code for this most basic case is below.
+
+int simple_example()
 {
-    public:
-        SimplePost();
-        ~SimplePost();
-        void Init( unsigned short * port, const char * address = NULL );
-        void Init( unsigned short port, const char * address = NULL );
-        int Serve( char * url, unsigned int size, const char * filename, unsigned int count );
-        void Run();
-        void Block() const;
-        void Kill();
-        bool Running() const;
-    protected:
-        static void ServeFile( const int & client, const char * filename );
-        static int GetLine( const int & sock, char * buf, const int & size );
-        static void UnImplemented( const int & client );
-        static void NotFound( const int & client );
-        static void Headers( const int & client, const char * filename );
-        static const char * GetMimeType( const char * filename );
-        static bool WildCmp( const char * wild_string, const char * match_string, const bool case_sensitive );
-    private:
-        friend void * SimplePostAcceptThread( void * ptr );
-        friend void * SimplePostProcessRequestThread( void * ptr );
-        void Accept();
-        void ProcessRequest( const int & client );
-        int TranslateRequest( char * path, int size, const char * url );
-    private:
-        /* This translation type can store the data associated with each file being served. */
-        struct TransType
-        {
-            std::string filename; // Name (and path) of the file on the filesystem
-            std::string url; // URL assigned to the file
-            unsigned int count; // Number of times the file may be downloaded
-        };
-    private:
-        // Initialization
-        int httpd; // Socket for the HTTP server
-        unsigned short port; // Port for the HTTP server
-        std::string address; // Address of the HTTP server
-        pthread_t accept_thread; // Handle of the primary thread
-        // Files
-        TransType trans[SP_SERV_MAX]; // Array of files being served
-        unsigned int count; // Number of files being served
-        unsigned int trigger; // Current write position in the trans array
-        pthread_mutex_t transtex; // Mutex for trans, count, and trigger
-        // Client Tracking
-        unsigned int client_count; // Number of clients currently being served
-        pthread_mutex_t clienttex; // Mutex for client_count
-};
+    simplepost_t spp = simplepost_init();
+    if( spp == NULL ) goto init_error;
+    
+    unsigned short port = simplepost_bind( spp, NULL, 0 );
+    if( port == 0 ) goto generic_error;
+    
+    char * url;
+    if( simplepost_serve_file( spp, &url, "/usr/bin/simplepost", NULL, 5 ) == 0 ) goto generic_error;
+    
+    while( simplepost_is_alive( spp ) )
+    {
+        printf( "Serving: %s\n", url );
+        sleep( 5 );
+    }
+    
+    simplepost_free( spp );
+    return 1;
+    
+    init_error:
+    fprintf( stderr, "Failed to initialize SimplePost\n" );
+    return 0;
+    
+    generic_error:
+    char * error_msg;
+    simplepost_get_last_error( ssp, &error_msg );
+    fprintf( stderr, "%s\n", error_msg );
+    free( error_msg );
+    
+    simplepost_free( spp );
+    return 0;
+}
+*/
+
+simplepost_t simplepost_init();
+void simplepost_free( simplepost_t spp );
+
+unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned short port );
+short simplepost_unbind( simplepost_t spp );
+void simplepost_block( simplepost_t spp );
+short simplepost_is_alive( simplepost_t spp );
+
+size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file,  const char * uri, unsigned int count );
+short simplepost_purge_file( simplepost_t spp, const char * uri );
+
+simplefile_t simplefile_init();
+void simplefile_free( simplefile_t sfp );
+
+size_t simplepost_get_address( simplepost_t spp, char ** address );
+unsigned short simplepost_get_port( simplepost_t spp );
+size_t simplepost_get_files( simplepost_t spp, simplefile_t * files );
+unsigned int simplepost_get_last_error( simplepost_t spp, char ** error_msg );
 
 #endif // _SIMPLEPOST_H_
