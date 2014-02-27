@@ -20,23 +20,19 @@
 ###############################################################################
 
 # Project name
-PROJECT_NAME = simplepost
+PROJECT_NAME := simplepost
 
 # Target binary to be produced
-TARGET = $(PROJECT_NAME)
+TARGET := $(PROJECT_NAME)
 
 # List of C source files
-CSRCS =
-
-# List of C++ source files
-CXXSRCS = simplepost.cpp \
-		  simplemain.cpp
+CSRCS := $(shell find . -type f -name '*.c' | cut -d '/' -f 2-)
 
 # List of the objects files to be made
-OBJECTS = $(CSRCS:.c=.o) $(CXXSRCS:.cpp=.o)
+OBJECTS := $(CSRCS:.c=.o)
 
 # Binary output directory (must include a trailing / if set)
-OUTPUT_PATH = ../bin/
+OUTPUT_PATH := ../bin/
 
 # Installation directories
 PREFIX ?= /usr/local
@@ -44,54 +40,45 @@ PREFIX ?= /usr/local
 # Application optimization used during compilation and linking:
 # -O0, -O1, -O2, -O3 or -Os
 ifdef DEBUG
-OPTIMIZATION = -O0
+OPTIMIZATION := -O0
 else
-OPTIMIZATION = -O2
+OPTIMIZATION := -O2
 endif
 
 # List of include paths
-INCLUDES =
+INCLUDES :=
 
 # List of search paths for libraries
-LIB_PATH =
+LIB_PATH :=
 
 # List of libraries to use during linking
-LIBS = -lpthread
+LIBS := -lpthread -lmagic
 
 # C compiler options
-CFLAGS += -xc -c -std=c99
+CFLAGS := -xc -c -std=c99
 CFLAGS += $(OPTIMIZATION)
-CFLAGS += -DSIMPLEPOST
+CFLAGS += -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -DSIMPLEPOST
 ifdef DEBUG
-CFLAGS += -DDEBUG
-CFLGAS += -g -Wall -Werror
-CFLGAS += -fno-inline -fno-diagnostics-show-option
+CFLAGS += -DDEBUG -g
+CFLAGS += -Wall -Wextra -Werror
+CFLAGS += -fno-inline -fno-diagnostics-show-option
 else
-CFLAGS += -w
+CFLAGS += -D_FORTIFY_SOURCE=2
+CFLAGS += -fstack-protector --param=ssp-buffer-size=4
 endif
-
-# C++ compiler options
-CXXFLAGS += -xc++ -c -std=c++03
-CXXFLAGS += $(OPTIMIZATION)
-CXXFLAGS += -DSIMPLEPOST
-ifdef DEBUG
-CXXFLAGS += -DDEBUG
-CXXFLGAS += -g -Wall -Werror
-CXXFLAGS += -pedantic-errors
-CXXFLGAS += -fno-inline -fno-diagnostics-show-option
-else
-CXXFLAGS += -w
-endif
+CFLAGS += -Wcast-align -Wimplicit -Wpointer-arith -Wswitch
+CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused
+CFLAGS += -Wformat -Wformat-security
 
 # Linker options
-LDFLAGS += $(OPTIMIZATION) $(LIB_PATH)
+LDFLAGS := $(OPTIMIZATION) $(LIB_PATH)
 ifndef DEBUG
 LDFLAGS += -s
 endif
+LDFLAGS += -Wl,-z,relro -Wl,--as-needed
 
 # Executable definitions
 CC := gcc
-CXX := g++
 OBJDUMP := objdump
 SIZE := size
 RM := rm -rf
@@ -115,7 +102,7 @@ install:
 
 $(TARGET): $(OBJECTS)
 	@[ -n "$(OUTPUT_PATH)" -a ! -d $(OUTPUT_PATH) ] && $(INSTALL) -d -m 0755 $(OUTPUT_PATH)
-	$(CXX) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_PATH)$@
+	$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_PATH)$@
 
 .PHONY: stats
 stats: $(TARGET)
@@ -132,8 +119,5 @@ clean:
 
 .c.o:
 	$(CC) $(CFLAGS) $< -o $@
-
-.cpp.o:
-	$(CXX) $(CXXFLAGS) $< -o $@
 
 ###############################################################################
