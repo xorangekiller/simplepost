@@ -28,9 +28,9 @@ int impact_printf_standard( const char * format, ... );
 int impact_printf_error( const char * format, ... );
 
 #ifdef DEBUG
-#define impact_printf_debug()
-#else // !DEBUG
 int impact_printf_debug( const char * format, ... );
+#else // !DEBUG
+#define impact_printf_debug( ... )
 #endif // DEBUG
 
 #endif // _IMPACT_H_
