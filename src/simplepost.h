@@ -65,14 +65,14 @@ SimplePost error codes
 /*
 SimplePost files type
 */
-typedef struct simplefile
+typedef struct simplepost_file
 {
     char * file;    // Name and path of the file on the filesystem
     char * url;     // Uniform Resource Locator assigned to the file
     
-    struct simplefile * next;   // Next file in the doubly-linked list
-    struct simplefile * prev;   // Previous file in the doubly-linked list
-} * simplefile_t;
+    struct simplepost_file * next;  // Next file in the doubly-linked list
+    struct simplepost_file * prev;  // Previous file in the doubly-linked list
+} * simplepost_file_t;
 
 /*
 SimplePost master type
@@ -136,12 +136,12 @@ short simplepost_is_alive( simplepost_t spp );
 size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file,  const char * uri, unsigned int count );
 short simplepost_purge_file( simplepost_t spp, const char * uri );
 
-simplefile_t simplefile_init();
-void simplefile_free( simplefile_t sfp );
+simplepost_file_t simplepost_file_init();
+void simplepost_file_free( simplepost_file_t sfp );
 
 size_t simplepost_get_address( simplepost_t spp, char ** address );
 unsigned short simplepost_get_port( simplepost_t spp );
-size_t simplepost_get_files( simplepost_t spp, simplefile_t * files );
+size_t simplepost_get_files( simplepost_t spp, simplepost_file_t * files );
 unsigned int simplepost_get_last_error( simplepost_t spp, char ** error_msg );
 
 #endif // _SIMPLEPOST_H_

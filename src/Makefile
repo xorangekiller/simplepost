@@ -60,15 +60,17 @@ CFLAGS += $(OPTIMIZATION)
 CFLAGS += -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -DSIMPLEPOST
 ifdef DEBUG
 CFLAGS += -DDEBUG -g
-CFLAGS += -Wall -Wextra -Werror
 CFLAGS += -fno-inline -fno-diagnostics-show-option
+CFLAGS += -Wall -Wextra -Werror
+CFLAGS += -Wno-unused-function -Wno-unused-result
 else
 CFLAGS += -D_FORTIFY_SOURCE=2
 CFLAGS += -fstack-protector --param=ssp-buffer-size=4
-endif
 CFLAGS += -Wcast-align -Wimplicit -Wpointer-arith -Wswitch
-CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow -Wunused
+CFLAGS += -Wredundant-decls -Wreturn-type -Wshadow
+CFLAGS += -Wunused -Wno-unused-function -Wno-unused-result
 CFLAGS += -Wformat -Wformat-security
+endif
 
 # Linker options
 LDFLAGS := $(OPTIMIZATION) $(LIB_PATH)

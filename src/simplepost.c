@@ -46,7 +46,7 @@ Boston, MA 021110-1307, USA.
 /*
 SimplePost error containment structure
 */
-struct simpleerror
+struct simplepost_error
 {
     unsigned int id; // Numeric error code
     char * msg; // Human readable message associated with the error code
@@ -185,14 +185,14 @@ static size_t __recv_line_dynamic( int sock, char ** buffer )
 /*
 SimplePost container of files being served
 */
-struct simpleserve
+struct simplepost_serve
 {
-    char * file;                // Name and path of the file on the filesystem
-    char * uri;                 // Uniform Resource Identifier assigned to the file
-    unsigned int count;         // Number of times the file may be downloaded
+    char * file;            // Name and path of the file on the filesystem
+    char * uri;             // Uniform Resource Identifier assigned to the file
+    unsigned int count;     // Number of times the file may be downloaded
     
-    struct simpleserve * next;  // Next file in the doubly-linked list
-    struct simpleserve * prev;  // Previous file in the doubly-linked list
+    struct simplepost_serve * next; // Next file in the doubly-linked list
+    struct simplepost_serve * prev; // Previous file in the doubly-linked list
 };
 
 /*
@@ -202,40 +202,40 @@ Return Value:
     On success a pointer to the new instance will be returned.
     If we failed to allocate the requested memory, a NULL pointer will be returned.
 */
-static struct simpleserve * __simpleserve_init()
+static struct simplepost_serve * __simplepost_serve_init()
 {
-    struct simpleserve * ssp = (struct simpleserve *) malloc( sizeof( struct simpleserve ) );
-    if( ssp == NULL ) return NULL;
+    struct simplepost_serve * spsp = (struct simplepost_serve *) malloc( sizeof( struct simplepost_serve ) );
+    if( spsp == NULL ) return NULL;
     
-    ssp->file = NULL;
-    ssp->uri = NULL;
-    ssp->count = 0;
+    spsp->file = NULL;
+    spsp->uri = NULL;
+    spsp->count = 0;
     
-    ssp->next = NULL;
-    ssp->prev = NULL;
+    spsp->next = NULL;
+    spsp->prev = NULL;
     
-    return ssp;
+    return spsp;
 }
 
 /*
 Free the given SimpleServe instance.
 
 Remarks:
-    This function will only free from ssp to the end of the list. If ssp is not
-    the first element in the list (ssp->prev != NULL), the beginning of the
+    This function will only free from spsp to the end of the list. If spsp is not
+    the first element in the list (spsp->prev != NULL), the beginning of the
     list (the part this function won't free) will be properly terminated.
 
 Arguments:
-    ssp [in]    List to free
+    spsp [in]   List to free
 */
-static void __simpleserve_free( struct simpleserve * ssp )
+static void __simplepost_serve_free( struct simplepost_serve * spsp )
 {
-    if( ssp->prev ) ssp->prev->next = NULL;
+    if( spsp->prev ) spsp->prev->next = NULL;
     
-    while( ssp )
+    while( spsp )
     {
-        struct simpleserve * p = ssp;
-        ssp = ssp->next;
+        struct simplepost_serve * p = spsp;
+        spsp = spsp->next;
         
         if( p->file ) free( p->file );
         if( p->uri ) free( p->uri );
@@ -247,102 +247,102 @@ static void __simpleserve_free( struct simpleserve * ssp )
 Insert the second list before the current element in the first list.
 
 Arguments:
-    ssp1 [in]   List to insert into
-    ssp2 [in]   List to insert
+    spsp1 [in]  List to insert into
+    spsp2 [in]  List to insert
                 If this parameter is NULL, a single new element will be inserted.
 
 Return Value:
     The modified list will be returned at the inserted element.
     If something went wrong, a NULL pointer will be returned instead.
 */
-static struct simpleserve * __simpleserve_insert_before( struct simpleserve * ssp1, struct simpleserve * ssp2 )
+static struct simplepost_serve * __simplepost_serve_insert_before( struct simplepost_serve * spsp1, struct simplepost_serve * spsp2 )
 {
-    if( ssp2 == NULL )
+    if( spsp2 == NULL )
     {
-        ssp2 = __simpleserve_init();
-        if( ssp2 == NULL ) return NULL;
+        spsp2 = __simplepost_serve_init();
+        if( spsp2 == NULL ) return NULL;
     }
     
-    ssp2->prev = ssp1->prev;
-    if( ssp2->next )
+    spsp2->prev = spsp1->prev;
+    if( spsp2->next )
     {
-        struct simpleserve * p; // Last element in ssp2
-        for( p = ssp2; p->next != NULL; p = p->next );
-        p->next = ssp1;
-        ssp1->prev = p;
+        struct simplepost_serve * p; // Last element in spsp2
+        for( p = spsp2; p->next != NULL; p = p->next );
+        p->next = spsp1;
+        spsp1->prev = p;
     }
     else
     {
-        ssp2->next = ssp1;
-        ssp1->prev = ssp2;
+        spsp2->next = spsp1;
+        spsp1->prev = spsp2;
     }
     
-    return ssp2;
+    return spsp2;
 }
 
 /*
 Insert the second list after the current element in the first list.
 
 Arguments:
-    ssp1 [in]   List to insert into
-    ssp2 [in]   List to insert
+    spsp1 [in]  List to insert into
+    spsp2 [in]  List to insert
                 If this parameter is NULL, a single new element will be inserted.
 
 Return Value:
     The modified list will be returned at the inserted element.
     If something went wrong, a NULL pointer will be returned instead.
 */
-static struct simpleserve * __simpleserve_insert_after( struct simpleserve * ssp1, struct simpleserve * ssp2 )
+static struct simplepost_serve * __simplepost_serve_insert_after( struct simplepost_serve * spsp1, struct simplepost_serve * spsp2 )
 {
-    if( ssp2 == NULL )
+    if( spsp2 == NULL )
     {
-        ssp2 = __simpleserve_init();
-        if( ssp2 == NULL ) return NULL;
+        spsp2 = __simplepost_serve_init();
+        if( spsp2 == NULL ) return NULL;
     }
     
-    ssp2->prev = ssp1;
-    if( ssp2->next )
+    spsp2->prev = spsp1;
+    if( spsp2->next )
     {
-        struct simpleserve * p; // Last element in ssp2
-        for( p = ssp2; p->next != NULL; p = p->next );
-        p->next = ssp1->next;
+        struct simplepost_serve * p; // Last element in spsp2
+        for( p = spsp2; p->next != NULL; p = p->next );
+        p->next = spsp1->next;
     }
     else
     {
-        ssp2->next = ssp1->next;
+        spsp2->next = spsp1->next;
     }
-    ssp1->next = ssp2;
+    spsp1->next = spsp2;
     
-    return ssp2;
+    return spsp2;
 }
 
 /*
 Remove the specified number of elements from the list.
 
 Arguments:
-    ssp [in]    List to modify
+    spsp [in]   List to modify
                 The element assigned to this parameter will be the first
                 element in the list to be removed. THIS FUNCTION ONLY TRAVERSES
                 THE LIST FORWARD, NEVER BACKWARD.
     n [in]      Number of elements to remove
-                If the list has fewer than n elements (from ssp forward), every
-                element will be removed from ssp to the end of the list. n = 0
+                If the list has fewer than n elements (from spsp forward), every
+                element will be removed from spsp to the end of the list. n = 0
                 invokes the same behavior.
 */
-static void __simpleserve_remove( struct simpleserve * ssp, size_t n )
+static void __simplepost_serve_remove( struct simplepost_serve * spsp, size_t n )
 {
     if( n == 0 )
     {
-        __simpleserve_free( ssp );
+        __simplepost_serve_free( spsp );
     }
     else
     {
-        struct simpleserve * top = ssp; // Top element in the list
-        struct simpleserve * prev = ssp->prev; // Last element in the original list
+        struct simplepost_serve * top = spsp; // Top element in the list
+        struct simplepost_serve * prev = spsp->prev; // Last element in the original list
         
         for( size_t i = 0; i < n && top; i++ )
         {
-            struct simpleserve * p = top;
+            struct simplepost_serve * p = top;
             top = top->next;
             
             if( p->file ) free( p->file );
@@ -358,16 +358,16 @@ static void __simpleserve_remove( struct simpleserve * ssp, size_t n )
 Calculate the number of elements in the list (from the current element forward).
 
 Arguments:
-    ssp [in]    First element in the list to count
+    spsp [in]    First element in the list to count
 
 Return Value:
     The number of elements in the list will be returned.
 */
-static size_t __simpleserve_length( struct simpleserve * ssp )
+static size_t __simplepost_serve_length( struct simplepost_serve * spsp )
 {
     size_t n = 0; // Number of elements in the list
     
-    for( struct simpleserve * p = ssp; p != NULL; p = p->next ) n++;
+    for( struct simplepost_serve * p = spsp; p != NULL; p = p->next ) n++;
     
     return n;
 }
@@ -504,7 +504,6 @@ Arguments:
 static void __http_serve_file( int sock, const char * file )
 {
     char * line; // Line received from the socket or file
-    size_t line_length; // Number of characters received in the line
     FILE * hfile; // File handle associated with the input file
     
     // Read and discard headers.
@@ -539,7 +538,7 @@ static void __http_serve_file( int sock, const char * file )
 /*
 SimplePost container for processing client requests
 */
-struct simplerequest
+struct simplepost_request
 {
     struct simplepost * spp;    // SimplePost instance to act on
     int client_sock;            // Socket the client connected on
@@ -551,25 +550,25 @@ SimplePost HTTP server status structure
 struct simplepost
 {
     /* Initialization */
-    int httpd;                      // Socket for the HTTP server
-    unsigned short port;            // Port for the HTTP server
-    char * address;                 // Address of the HTTP server
-    pthread_t accept_thread;        // Handle of the primary thread
-    pthread_mutex_t master_lock;    // Mutex for 
+    int httpd;                          // Socket for the HTTP server
+    unsigned short port;                // Port for the HTTP server
+    char * address;                     // Address of the HTTP server
+    pthread_t accept_thread;            // Handle of the primary thread
+    pthread_mutex_t master_lock;        // Mutex for entire structure
     
     /* Files */
-    struct simpleserve * files;     // List of files being served
-    size_t files_count;             // Number of files being served
-    pthread_mutex_t files_lock;     // Mutex for files and files_count
+    struct simplepost_serve * files;    // List of files being served
+    size_t files_count;                 // Number of files being served
+    pthread_mutex_t files_lock;         // Mutex for files and files_count
     
     /* Clients */
-    short accpeting_clients;        // Are we accepting client connections?
-    size_t client_count;            // Number of clients currently being served
-    pthread_mutex_t client_lock;    // Mutex for accepting_clients and client_count
+    short accpeting_clients;            // Are we accepting client connections?
+    size_t client_count;                // Number of clients currently being served
+    pthread_mutex_t client_lock;        // Mutex for accepting_clients and client_count
     
     /* Errors */
-    struct simpleerror last_error;  // Last error posted by one of our functions
-    pthread_mutex_t error_lock;     // Mutex for last_error
+    struct simplepost_error last_error; // Last error posted by one of our functions
+    pthread_mutex_t error_lock;         // Mutex for last_error
 };
 
 /*
@@ -653,7 +652,7 @@ static size_t __get_filename_from_uri( simplepost_t spp, char ** file, const cha
     pthread_mutex_lock( &spp->files_lock );
     if( spp->files )
     {
-        for( struct simpleserve * p = spp->files; p != NULL; p = p->next )
+        for( struct simplepost_serve * p = spp->files; p != NULL; p = p->next )
         {
             if( strcmp( uri, p->uri ) == 0 )
             {
@@ -680,8 +679,8 @@ static size_t __get_filename_from_uri( simplepost_t spp, char ** file, const cha
 Process a request accepted by the server.
 
 Arguments:
-    p [in]      simplerequest instance
-                Ideally we would accept each variable in the simplerequest
+    p [in]      simplepost_request instance
+                Ideally we would accept each variable in the simplepost_request
                 struct as its own argument, but we are limited to a single
                 void pointer for pthreads compatibility.
 
@@ -691,12 +690,12 @@ Return Value:
 */
 static void * __process_request( void * p )
 {
-    struct simplerequest * srp = (struct simplerequest *) p; // Convenience cast of our input parameter
-    simplepost_t spp = srp->spp; // SimplePost instance to act on
-    int client_sock = srp->client_sock; // Socket the client connected on
+    struct simplepost_request * sprp = (struct simplepost_request *) p; // Convenience cast of our input parameter
+    simplepost_t spp = sprp->spp; // SimplePost instance to act on
+    int client_sock = sprp->client_sock; // Socket the client connected on
     
-    free( srp );
-    srp = p = NULL;
+    free( sprp );
+    sprp = p = NULL;
     
     char * request = NULL; // Client's request to process
     size_t request_length; // Length of the request
@@ -903,19 +902,19 @@ static void * __accept_requests( void * p )
         client_sock = accept( spp->httpd, (struct sockaddr *) &client_name, &client_name_len );
         if( client_sock == -1 ) continue;
         
-        struct simplerequest * srp = (struct simplerequest *) malloc( sizeof( struct simplerequest ) );
-        if( srp == NULL ) continue;
-        srp->spp = spp;
-        srp->client_sock = client_sock;
+        struct simplepost_request * sprp = (struct simplepost_request *) malloc( sizeof( struct simplepost_request ) );
+        if( sprp == NULL ) continue;
+        sprp->spp = spp;
+        sprp->client_sock = client_sock;
         
-        if( pthread_create( &client_thread, NULL, &__process_request, (void *) srp ) == 0 )
+        if( pthread_create( &client_thread, NULL, &__process_request, (void *) sprp ) == 0 )
         {
             pthread_detach( client_thread );
         }
         else
         {
-            close( srp->client_sock );
-            free( srp );
+            close( sprp->client_sock );
+            free( sprp );
         }
     }
     
@@ -975,7 +974,7 @@ void simplepost_free( simplepost_t spp )
     if( spp->httpd != -1 ) simplepost_unbind( spp );
     if( spp->address ) free( spp->address );
     
-    if( spp->files ) __simpleserve_free( spp->files );
+    if( spp->files ) __simplepost_serve_free( spp->files );
     
     pthread_mutex_destroy( &spp->master_lock );
     pthread_mutex_destroy( &spp->files_lock );
@@ -1210,7 +1209,7 @@ Return Value:
 size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file, const char * uri, unsigned int count )
 {
     struct stat file_status; // Status of the input file
-    struct simpleserve * this_file = NULL; // New file to serve
+    struct simplepost_serve * this_file = NULL; // New file to serve
     size_t url_length = 0; // Length of the URL
     *url = NULL; // Failsafe
     
@@ -1244,12 +1243,12 @@ size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file, 
     
     if( spp->files )
     {
-        this_file = spp->files = __simpleserve_init();
+        this_file = spp->files = __simplepost_serve_init();
     }
     else
     {
         for( this_file = spp->files; this_file->next; this_file = this_file->next );
-        this_file = __simpleserve_insert_after( this_file, NULL );
+        this_file = __simplepost_serve_insert_after( this_file, NULL );
     }
     if( this_file == NULL ) goto cannot_insert_file;
     
@@ -1283,7 +1282,7 @@ size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file, 
         strcat( this_file->uri, uri );
     }
     
-    for( struct simpleserve * p = spp->files; p != this_file; p = p->next )
+    for( struct simplepost_serve * p = spp->files; p != this_file; p = p->next )
     {
         if( strcmp( p->uri, uri ) == 0 )
         {
@@ -1322,7 +1321,7 @@ size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file, 
     __set_last_error( spp, SP_ERROR_FILE_INSERT_FAILED, "Cannot insert file: %s", file );
     
     abort_insert:
-    if( this_file ) __simpleserve_remove( this_file, 1 );
+    if( this_file ) __simplepost_serve_remove( this_file, 1 );
     pthread_mutex_unlock( &spp->files_lock );
     
     return 0;
@@ -1353,11 +1352,11 @@ short simplepost_purge_file( simplepost_t spp, const char * uri )
     }
     
     pthread_mutex_lock( &spp->files_lock );
-    for( struct simpleserve * p = spp->files; p; p = p->next )
+    for( struct simplepost_serve * p = spp->files; p; p = p->next )
     {
         if( p->uri && strcmp( p->uri, uri ) == 0 )
         {
-            __simpleserve_remove( p, 1 );
+            __simplepost_serve_remove( p, 1 );
             spp->files_count--;
             pthread_mutex_unlock( &spp->files_lock );
             return 1;
@@ -1375,34 +1374,34 @@ Return Value:
     On success a pointer to the new instance will be returned.
     If we failed to allocate the requested memory, a NULL pointer will be returned.
 */
-simplefile_t simplefile_init()
+simplepost_file_t simplepost_file_init()
 {
-    simplefile_t sfp = (simplefile_t) malloc( sizeof( struct simplefile ) );
-    if( sfp == NULL ) return NULL;
+    simplepost_file_t spfp = (simplepost_file_t) malloc( sizeof( struct simplepost_file ) );
+    if( spfp == NULL ) return NULL;
     
-    sfp->file = NULL;
-    sfp->url = NULL;
+    spfp->file = NULL;
+    spfp->url = NULL;
     
-    sfp->next = NULL;
-    sfp->prev = NULL;
+    spfp->next = NULL;
+    spfp->prev = NULL;
     
-    return sfp;
+    return spfp;
 }
 
 /*
 Free the given SimplePost File instance.
 
 Arguments:
-    sfp [in]    SimplePost File instance to act on
+    spfp [in]   SimplePost File instance to act on
 */
-void simplefile_free( simplefile_t sfp )
+void simplepost_file_free( simplepost_file_t spfp )
 {
-    if( sfp->prev ) sfp->prev->next = NULL;
+    if( spfp->prev ) spfp->prev->next = NULL;
     
-    while( sfp )
+    while( spfp )
     {
-        simplefile_t p = sfp;
-        sfp = sfp->next;
+        simplepost_file_t p = spfp;
+        spfp = spfp->next;
         
         if( p->file ) free( p->file );
         if( p->url ) free( p->url );
@@ -1473,26 +1472,26 @@ Return Value:
     The number of files currently being served (or, more accurately, unique
     URIs) will be returned.
 */
-size_t simplepost_get_files( simplepost_t spp, simplefile_t * files )
+size_t simplepost_get_files( simplepost_t spp, simplepost_file_t * files )
 {
-    simplefile_t tail; // Last file in the *files list
+    simplepost_file_t tail; // Last file in the *files list
     size_t files_count = 0; // Number of unique URIs
     
     if( files == NULL ) return spp->files_count;
     
     pthread_mutex_lock( &spp->files_lock );
-    for( struct simpleserve * p = spp->files; p; p = p->next )
+    for( struct simplepost_serve * p = spp->files; p; p = p->next )
     {
         if( *files == NULL )
         {
-            tail = *files = simplefile_init();
+            tail = *files = simplepost_file_init();
             if( tail == NULL ) goto abort_count;
         }
         else
         {
-            simplefile_t prev = tail;
+            simplepost_file_t prev = tail;
             
-            tail = simplefile_init();
+            tail = simplepost_file_init();
             if( tail == NULL ) goto abort_count;
             
             tail->prev = prev;
@@ -1517,7 +1516,7 @@ size_t simplepost_get_files( simplepost_t spp, simplefile_t * files )
     abort_count:
     if( *files )
     {
-        simplefile_free( *files );
+        simplepost_file_free( *files );
         *files = NULL;
     }
     pthread_mutex_unlock( &spp->files_lock );
