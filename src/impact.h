@@ -24,11 +24,11 @@ Boston, MA 021110-1307, USA.
 
 extern unsigned short impact_quiet;
 
-int impact_printf_standard( const char * format, ... );
-int impact_printf_error( const char * format, ... );
+int impact_printf_standard( const char * format, ... ) __attribute__ ((format (printf, 1, 2)));
+int impact_printf_error( const char * format, ... ) __attribute__ ((format (printf, 1, 2)));
 
 #ifdef DEBUG
-int impact_printf_debug( const char * format, ... );
+int impact_printf_debug( const char * format, ... ) __attribute__ ((format (printf, 1, 2)));
 #else // !DEBUG
 #define impact_printf_debug( ... )
 #endif // DEBUG
