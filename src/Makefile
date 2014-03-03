@@ -79,8 +79,14 @@ LDFLAGS += -s
 endif
 LDFLAGS += -Wl,-z,relro -Wl,--as-needed
 
+# Static analyzer options
+SAFLAGS := --language=c --std=c99
+SAFLAGS += -DDEBUG=1 -DSIMPLEPOST
+SAFLAGS += --enable=warning --enable=style --enable=portability --enable=performance
+
 # Executable definitions
 CC := gcc
+SA := cppcheck
 OBJDUMP := objdump
 SIZE := size
 RM := rm -rf
@@ -110,6 +116,10 @@ $(TARGET): $(OBJECTS)
 stats: $(TARGET)
 	$(OBJDUMP) -th $(OUTPUT_PATH)$<
 	$(SIZE) $(OUTPUT_PATH)$<
+
+.PHONY: check
+check:
+	$(SA) $(SAFLAGS) .
 
 .PHONY: clean
 clean:
