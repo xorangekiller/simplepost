@@ -83,6 +83,9 @@ LDFLAGS += -Wl,-z,relro -Wl,--as-needed
 SAFLAGS := --language=c --std=c99
 SAFLAGS += -DDEBUG=1 -DSIMPLEPOST
 SAFLAGS += --enable=warning --enable=style --enable=portability --enable=performance
+ifdef DEBUG
+SAFLAGS += --verbose
+endif
 
 # Executable definitions
 CC := gcc
