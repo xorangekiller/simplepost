@@ -62,7 +62,7 @@ ifdef DEBUG
 CFLAGS += -DDEBUG -g
 CFLAGS += -fno-inline -fno-diagnostics-show-option
 CFLAGS += -Wall -Wextra -Werror
-CFLAGS += -Wno-error-unused-parameter -Wno-error-unused-function -Wno-error-unused-result
+CFLAGS += -Wno-error=unused-parameter -Wno-error=unused-function -Wno-error=unused-result
 else
 CFLAGS += -D_FORTIFY_SOURCE=2
 CFLAGS += -fstack-protector --param=ssp-buffer-size=4
