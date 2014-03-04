@@ -34,35 +34,6 @@ SimplePost HTTP configuration
 #define SP_HTTP_VERSION     "HTTP/1.0"  // HTTP version implemented by the server
 
 /*
-SimplePost error codes
-*/
-#define SP_ERROR_NONE               0   // No exception; oops!
-#define SP_ERROR_INITIALIZED        1   // Server is already initialized
-#define SP_ERROR_SOCKET             2   // Socket could not be created
-#define SP_ERROR_BIND               3   // Server failed to bind to socket
-#define SP_ERROR_ADDRESS            4   // Invalid source address specified
-#define SP_ERROR_PORTALLOC          5   // Port could not be allocated
-#define SP_ERROR_LISTEN             6   // Cannot listen on socket
-#define SP_ERROR_ACCEPT             7   // Cannot accept connections on socket
-#define SP_ERROR_FILE_DOESNT_EXIST  8   // Specified file does not exist
-#define SP_ERROR_TOO_MANY_FILES     9   // Cannot add more than the maximum file count
-#define SP_ERROR_FILE_INSERT_FAILED 10  // Cannot insert file
-#define SP_ERROR_RECVREQUEST        11  // Buffer is too small to receive the request
-#define SP_ERROR_NO_METHOD          12  // Request does not specify a HTTP method
-#define SP_ERROR_INVALID_METHOD     13  // HTTP method of the request is invalid
-#define SP_ERROR_NO_URI             14  // Request does not specify a HTTP URI
-#define SP_ERROR_INVALID_URI        15  // HTTP URI of the request is invalid
-#define SP_ERROR_URI_ALREADY_TAKEN  16  // HTTP URI is already in use
-#define SP_ERROR_NO_VERSION         17  // Request does not specify a HTTP version
-#define SP_ERROR_RESOURCE_NOT_FOUND 18  // Requested resource is not available
-#define SP_ERROR_INVALID_VERSION    19  // HTTP version of the request is not supported
-#define SP_ERROR_UNINITIALIZED      20  // Server is not running
-#define SP_ERROR_UNIDENTIFIED       21  // Custom exception message was set
-
-#define SP_ERROR_MIN    SP_ERROR_INITIALIZED    // Lowest SimplePost error code
-#define SP_ERROR_MAX    SP_ERROR_UNIDENTIFIED   // Highest SimplePost error code
-
-/*
 SimplePost files type
 */
 typedef struct simplepost_file
@@ -115,11 +86,6 @@ int simple_example()
     return 0;
     
     generic_error:
-    char * error_msg;
-    simplepost_get_last_error( ssp, &error_msg );
-    fprintf( stderr, "%s\n", error_msg );
-    free( error_msg );
-    
     simplepost_free( spp );
     return 0;
 }
@@ -142,6 +108,5 @@ void simplepost_file_free( simplepost_file_t sfp );
 size_t simplepost_get_address( simplepost_t spp, char ** address );
 unsigned short simplepost_get_port( simplepost_t spp );
 size_t simplepost_get_files( simplepost_t spp, simplepost_file_t * files );
-unsigned int simplepost_get_last_error( simplepost_t spp, char ** error_msg );
 
 #endif // _SIMPLEPOST_H_
