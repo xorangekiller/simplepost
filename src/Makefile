@@ -55,7 +55,7 @@ LIB_PATH :=
 LIBS := -lpthread -lmagic
 
 # C compiler options
-CFLAGS := -xc -c -std=c99
+CFLAGS := -xc -c -std=c11
 CFLAGS += $(OPTIMIZATION)
 CFLAGS += -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -DSIMPLEPOST
 ifdef DEBUG
@@ -80,7 +80,7 @@ endif
 LDFLAGS += -Wl,-z,relro -Wl,--as-needed
 
 # Static analyzer options
-SAFLAGS := --language=c --std=c99
+SAFLAGS := --language=c --std=c11
 SAFLAGS += -DDEBUG=1 -DSIMPLEPOST
 SAFLAGS += --enable=warning --enable=style --enable=portability --enable=performance
 ifdef DEBUG
