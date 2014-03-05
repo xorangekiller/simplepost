@@ -204,30 +204,38 @@ Get the last file in the list.
 
 Arguments:
     sap [in]    Instance to act on
+    new [in]    Add a new entry to the end of the list if appropriate?
 
 Return Value:
     The last file in the list will be returned. If the list is empty or a valid
     entry does not exist, a new entry will be added to the end of the list.
 */
-static simplefile_t __get_last_file( simplearg_t sap )
+static simplefile_t __get_last_file( simplearg_t sap, short new )
 {
     simplefile_t last; // Last file in the list
     
     if( sap->files == NULL )
     {
-        sap->files = (simplefile_t) malloc( sizeof( struct simplefile ) );
-        if( sap->files == NULL ) return NULL;
-        
-        sap->files->count = 0;
-        sap->files->file = NULL;
-        
-        sap->files->next = NULL;
-        sap->files->prev = NULL;
+        if( new )
+        {
+            sap->files = (simplefile_t) malloc( sizeof( struct simplefile ) );
+            if( sap->files == NULL ) return NULL;
+            
+            sap->files->count = 0;
+            sap->files->file = NULL;
+            
+            sap->files->next = NULL;
+            sap->files->prev = NULL;
+        }
+        else
+        {
+            return NULL;
+        }
     }
     
     for( last = sap->files; last->next; last = last->next );
     
-    if( last->file )
+    if( last->file && new )
     {
         last->next = (simplefile_t) malloc( sizeof( struct simplefile ) );
         if( last->next == NULL ) return NULL;
@@ -253,7 +261,7 @@ Arguments:
 */
 static void __set_count( simplearg_t sap, const char * arg )
 {
-    simplefile_t last = __get_last_file( sap );
+    simplefile_t last = __get_last_file( sap, 1 );
     if( last == NULL )
     {
         impact_printf_debug( "%s: %s: Failed to allocate memory for FILE\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
@@ -305,7 +313,7 @@ static void __set_file( simplearg_t sap, const char * file )
     }
     else
     {
-        simplefile_t last = __get_last_file( sap );
+        simplefile_t last = __get_last_file( sap, 1 );
         if( last == NULL )
         {
             impact_printf_debug( "%s: %s: Failed to allocate memory for FILE\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
@@ -452,18 +460,15 @@ void simplearg_parse( simplearg_t sap, int argc, char * argv[] )
                     }
                     break;
                 default:
-                    {
-                        struct stat file_status; // FILE status
-                        if( stat( argv[i], &file_status ) == -1 ) __set_file( sap, argv[i] );
-                    }
+                    __set_file( sap, argv[i] );
                     break;
             }
             
             if( sap->error || sap->help || sap->version ) return;
         }
         
-        simplefile_t last = __get_last_file( sap );
-        if( last == NULL || sap->files == NULL )
+        simplefile_t last = __get_last_file( sap, 0 );
+        if( last == NULL )
         {
             impact_printf_error( "%s: %s: At least one FILE must be specified\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_SYNTAX );
             sap->error = 1;
