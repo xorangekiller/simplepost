@@ -661,6 +661,7 @@ static void * __accept_requests( void * p )
     impact_printf_debug( "%s: Closing socket %d\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock );
     close( scp->sock );
     scp->sock = -1;
+    remove( scp->sock_name );
     
     return NULL;
 }
@@ -791,7 +792,7 @@ short simplecmd_activate( simplecmd_t scp, simplepost_t spp )
     
     error:
     close( scp->sock );
-    scp->sock = 0;
+    scp->sock = -1;
     
     remove( scp->sock_name );
     free( scp->sock_name );
