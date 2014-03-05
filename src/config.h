@@ -30,4 +30,10 @@ Global configuration details
 #define SP_MAIN_VERSION     "0.2.1"                                 // Program version
 #define SP_MAIN_COPYRIGHT   "Copyright (C) 2012-2014 Karl Lenz."    // Program copyright
 
+/*
+Global header strings
+*/
+#define SP_MAIN_HEADER_NAMESPACE            "SimplePost"
+#define SP_MAIN_HEADER_MEMORY_ALLOC         "Memory Allocation Error"
+
 #endif // _CONFIG_H_

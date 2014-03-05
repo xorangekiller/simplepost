@@ -39,6 +39,12 @@ Boston, MA 021110-1307, USA.
 #include <dirent.h>
 #include <regex.h>
 
+/*
+Command header strings
+*/
+#define SP_COMMAND_HEADER_NAMESPACE         "SimplePost::Command"
+#define SP_COMMAND_HEADER_PROTOCOL_ERROR    "Local Protocol Error"
+
 /*****************************************************************************
  *                              Socket Support                               *
  *****************************************************************************/
@@ -115,7 +121,7 @@ static size_t __sock_recv( int sock, const char * command, char ** data )
     {
         if( i == sizeof( buffer ) )
         {
-            impact_printf_error( "%s: Local protocol error: invalid string size\n", SP_MAIN_DESCRIPTION );
+            impact_printf_error( "%s: %s: String size cannot be longer than %lu bytes\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, sizeof( buffer ) );
             return 0;
         }
         
@@ -125,15 +131,18 @@ static size_t __sock_recv( int sock, const char * command, char ** data )
     
     if( sscanf( buffer, "%lu", &length ) == EOF )
     {
-        impact_printf_error( "%s: Local protocol error: %s is not a number\n", SP_MAIN_DESCRIPTION, buffer );
+        impact_printf_error( "%s: %s: %s is not a valid string size\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer );
         return 0;
     }
     
     *data = (char *) malloc( sizeof( char ) * (length + 1) );
     if( *data == NULL )
     {
-        if( command ) impact_printf_error( "%s: Read buffer required for %s\n", SP_MAIN_DESCRIPTION, command );
-        else impact_printf_error( "%s: Read buffer required\n", SP_MAIN_DESCRIPTION );
+        impact_printf_debug( "%s: %s: Failed to allocate memory for command data buffer\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
+        
+        if( command ) impact_printf_error( "%s: Data buffer required for command %s\n", SP_COMMAND_HEADER_NAMESPACE, command );
+        else impact_printf_error( "%s: Buffer required to receive data\n", SP_COMMAND_HEADER_NAMESPACE );
+        
         return 0;
     }
     
@@ -150,9 +159,11 @@ static size_t __sock_recv( int sock, const char * command, char ** data )
         }
         else
         {
-            impact_printf_error( "%s: Read terminated before we received %zu bytes\n", SP_MAIN_DESCRIPTION, length );
+            impact_printf_error( "%s: Read terminated before we received %zu bytes\n", SP_COMMAND_HEADER_NAMESPACE, length );
+            
             free( *data );
             *data = NULL;
+            
             return 0;
         }
     }
@@ -232,14 +243,14 @@ size_t simplecmd_list_instances( simplecmd_list_t * sclp )
     dp = opendir( "/tmp/" );
     if( dp == NULL )
     {
-        impact_printf_error( "%s: Failed to open the temporary directory\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Failed to open the temporary directory\n", SP_COMMAND_HEADER_NAMESPACE );
         return 0;
     }
     
     sprintf( sock_name, "^%s_sock_[0-9]+$", SP_MAIN_SHORT_NAME );
     if( regcomp( &regex, sock_name, REG_EXTENDED | REG_NOSUB | REG_NEWLINE ) )
     {
-        impact_printf_error( "%s: Failed to compile the socket matching regular expression\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Failed to compile the socket matching regular expression\n", SP_COMMAND_HEADER_NAMESPACE );
         closedir( dp );
         return 0;
     }
@@ -258,10 +269,12 @@ size_t simplecmd_list_instances( simplecmd_list_t * sclp )
                     tail->next = simplecmd_list_init();
                     if( tail->next == NULL )
                     {
-                        impact_printf_error( "%s:%d: Failed to add a new element to the element list\n", __FILE__, __LINE__ );
+                        impact_printf_debug( "%s: %s: Failed to add a new element to the element list\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
+                        
                         simplecmd_list_free( *sclp );
                         *sclp = NULL;
                         count = 0;
+                        
                         break;
                     }
                     tail->next->prev = tail;
@@ -281,10 +294,12 @@ size_t simplecmd_list_instances( simplecmd_list_t * sclp )
                 tail->sock_name = (char *) malloc( sizeof( char ) * (strlen( "/tmp/" ) + strlen( ep->d_name ) + 1) );
                 if( tail->sock_name == NULL )
                 {
-                    impact_printf_debug( "%s:%d: Failed to allocate memory for socket name\n", __FILE__, __LINE__ );
+                    impact_printf_debug( "%s: %s: Failed to allocate memory for socket name\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
+                    
                     simplecmd_list_free( *sclp );
                     *sclp = NULL;
                     count = 0;
+                    
                     break;
                 }
                 sprintf( tail->sock_name, "/tmp/%s", ep->d_name );
@@ -298,7 +313,7 @@ size_t simplecmd_list_instances( simplecmd_list_t * sclp )
                 char buffer[1024]; // regerror() error message
                 
                 regerror( regex_ret, &regex, buffer, sizeof( buffer )/sizeof( buffer[0] ) );
-                impact_printf_error( "%s: %s\n", SP_MAIN_DESCRIPTION, buffer );
+                impact_printf_error( "%s: %s\n", SP_COMMAND_HEADER_NAMESPACE, buffer );
                 
                 if( *sclp )
                 {
@@ -474,6 +489,7 @@ Return Value:
 */
 static short __command_recv_file( simplecmd_t scp, int sock )
 {
+    char * url; // URL of the file being served
     char * file; // Name and path of the file to serve
     char * buffer; // Count as a string
     unsigned int count; // Number of times the file should be served
@@ -488,12 +504,16 @@ static short __command_recv_file( simplecmd_t scp, int sock )
     
     if( sscanf( buffer, "%u", &count ) == EOF )
     {
-        impact_printf_error( "%s: Local protocol error: %s is not a port number\n", SP_MAIN_DESCRIPTION, buffer );
+        impact_printf_error( "%s: %s: %s is not a port number\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC, buffer );
+        
         free( buffer );
         free( file );
+        
+        return 0;
     }
     
-    // TODO: simplepost_serve_file()
+    if( simplepost_serve_file( scp->spp, &url, file, NULL, count ) == 0 ) return 0;
+    if( url ) free( url );
     
     free( buffer );
     free( file );
@@ -533,7 +553,7 @@ static void * __process_request( void * p )
     {
         if( strcmp( command, __command_handlers[i].request ) == 0 )
         {
-            impact_printf_debug( "%s: Responding to %s command ...\n", SP_MAIN_DESCRIPTION, __command_handlers[i].request );
+            impact_printf_debug( "%s: Request 0x%lx: Responding to %s command ...\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), __command_handlers[i].request );
             response = (*__command_handlers[i].handler)( scp, sock );
             break;
         }
@@ -543,21 +563,22 @@ static void * __process_request( void * p )
     switch( response )
     {
         case -1:
-            impact_printf_debug( "%s:%d: %s is not a supported command\n", __FILE__, __LINE__, command );
+            impact_printf_debug( "%s: Request 0x%lx: %s is not a supported command\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), command );
             break;
         case 0:
-            impact_printf_debug( "%s:%d: Failed to process %s command\n", __FILE__, __LINE__, command );
+            impact_printf_debug( "%s: Request 0x%lx: Failed to process %s command\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), command );
             break;
         case 1:
-            impact_printf_debug( "%s:%d: Successfully processed %s command\n", __FILE__, __LINE__, command );
+            impact_printf_debug( "%s: Request 0x%lx: Successfully processed %s command\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), command );
             break;
         default:
-            impact_printf_debug( "%s:%d: %s returned with an invalid state: %d\n", __FILE__, __LINE__, command, response );
+            impact_printf_debug( "%s: Request 0x%lx: %s returned with an invalid state: %d\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), command, response );
             break;
     }
     #endif // DEBUG
     
     error:
+    impact_printf_debug( "%s: Request 0x%lx: Closing client %d ...\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), sock );
     close( sock );
     
     if( command ) free( command );
@@ -601,7 +622,7 @@ static void * __accept_requests( void * p )
         switch( pselect( scp->sock + 1, &fds, NULL, NULL, &timeout, NULL ) )
         {
             case -1:
-                impact_printf_error( "%s: Cannot accept connections on socket %d\n", SP_MAIN_DESCRIPTION, scp->sock );
+                impact_printf_error( "%s: Cannot accept connections on socket %d\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock );
                 scp->accpeting_clients = 0;
             case 0:
                 continue;
@@ -614,7 +635,7 @@ static void * __accept_requests( void * p )
         struct simplecmd_request * scrp = (struct simplecmd_request *) malloc( sizeof( struct simplecmd_request ) );
         if( scrp == NULL )
         {
-            impact_printf_error( "%s: Failed to allocate memory for a new command request thread\n", SP_MAIN_DESCRIPTION );
+            impact_printf_error( "%s: %s: Failed to allocate memory for a new command request thread\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
             scp->accpeting_clients = 0;
             continue;
         }
@@ -623,19 +644,21 @@ static void * __accept_requests( void * p )
         
         if( pthread_create( &client_thread, NULL, &__process_request, (void *) scrp ) == 0 )
         {
-            impact_printf_debug( "%s:%d: Launched command request processing thread 0x%lx\n", __FILE__, __LINE__, client_thread );
+            impact_printf_debug( "%s: Launched request processing thread 0x%lx for client %d\n", SP_COMMAND_HEADER_NAMESPACE, client_thread, client_sock );
             pthread_detach( client_thread );
         }
         else
         {
-            impact_printf_debug( "%s:%d: Failed to launch command request processing thread for client %lu\n", __FILE__, __LINE__, scp->client_count );
+            impact_printf_debug( "%s: Failed to launch request processing thread for client %d\n", SP_COMMAND_HEADER_NAMESPACE, client_sock );
             close( scrp->client_sock );
             free( scrp );
         }
     }
     
+    impact_printf_debug( "%s: Waiting for %lu clients to finish processing ...\n", SP_COMMAND_HEADER_NAMESPACE, scp->client_count );
     while( scp->client_count ) usleep( 1000 );
     
+    impact_printf_debug( "%s: Closing socket %d\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock );
     close( scp->sock );
     scp->sock = -1;
     
@@ -707,13 +730,13 @@ short simplecmd_activate( simplecmd_t scp, simplepost_t spp )
 {
     if( scp->sock != -1 )
     {
-        impact_printf_error( "%s: Command server already activated\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Server is already activated\n", SP_COMMAND_HEADER_NAMESPACE );
         return 0;
     }
     
     if( spp == NULL )
     {
-        impact_printf_error( "%s: Cannot activate command server without a SimplePost instance\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Cannot activate command server without a %s instance\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION );
         return 0;
     }
     
@@ -721,12 +744,12 @@ short simplecmd_activate( simplecmd_t scp, simplepost_t spp )
     {
         char buffer[2048]; // Buffer for the the socket name string
         
-        sprintf( buffer, "/tmp/%s_sock_%d", SP_MAIN_DESCRIPTION, getpid() );
+        sprintf( buffer, "/tmp/%s_sock_%d", SP_COMMAND_HEADER_NAMESPACE, getpid() );
         
         scp->sock_name = (char *) malloc( sizeof( char ) * (strlen( buffer ) + 1) );
         if( scp->sock_name == NULL )
         {
-            impact_printf_error( "%s: Failed to allocate memory for the socket name\n", SP_MAIN_DESCRIPTION );
+            impact_printf_error( "%s: %s: Failed to allocate memory for the socket name\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
             return 0;
         }
         strcpy( scp->sock_name, buffer );
@@ -735,7 +758,7 @@ short simplecmd_activate( simplecmd_t scp, simplepost_t spp )
     scp->sock = socket( AF_UNIX, SOCK_STREAM, 0 );
     if( scp->sock == -1 )
     {
-        impact_printf_error( "%s: Socket could not be allocated\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Socket could not be created\n", SP_COMMAND_HEADER_NAMESPACE );
         return 0;
     }
     
@@ -746,23 +769,23 @@ short simplecmd_activate( simplecmd_t scp, simplepost_t spp )
     
     if( bind( scp->sock, (struct sockaddr *) &sock_addr, sizeof( struct sockaddr_un ) ) == -1 )
     {
-        impact_printf_error( "%s: Failed to bind %s to socket %d\n", SP_MAIN_DESCRIPTION, scp->sock_name, scp->sock );
+        impact_printf_error( "%s: Failed to bind %s to socket %d\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock_name, scp->sock );
         goto error;
     }
     
     if( listen( scp->sock, 30 ) == -1 )
     {
-        impact_printf_error( "%s: Cannot listen on socket %d\n", SP_MAIN_DESCRIPTION, scp->sock );
+        impact_printf_error( "%s: Cannot listen on socket %d\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock );
         goto error;
     }
     
     if( pthread_create( &scp->accept_thread, NULL, &__accept_requests, (void *) scp ) != 0 )
     {
-        impact_printf_error( "%s: Failed to create listen thread for %s\n", SP_MAIN_DESCRIPTION, scp->sock_name );
+        impact_printf_error( "%s: Failed to create listen thread for %s\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock_name );
         goto error;
     }
     
-    impact_printf_debug( "%s: Now accepting commands on 0x%lx ...\n", SP_MAIN_DESCRIPTION, scp->accept_thread );
+    impact_printf_standard( "%s: Now accepting commands on %s\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock_name );
     
     return 1;
     
@@ -791,7 +814,7 @@ short simplecmd_deactivate( simplecmd_t scp )
 {
     if( scp->sock != -1 )
     {
-        impact_printf_error( "%s: Failed to shut down inactive command server\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Server is not active\n", SP_COMMAND_HEADER_NAMESPACE );
         return 0;
     }
     
@@ -799,11 +822,12 @@ short simplecmd_deactivate( simplecmd_t scp )
     pthread_t accept_thread = scp->accept_thread;
     #endif // DEBUG
     
+    impact_printf_standard( "%s: Shutting down ...\n", SP_COMMAND_HEADER_NAMESPACE );
+    
     scp->accpeting_clients = 0;
-    impact_printf_debug( "%s: Waiting for SimpleCommand clients to die ...\n", SP_MAIN_DESCRIPTION );
     pthread_join( scp->accept_thread, NULL );
     
-    impact_printf_debug( "%s: SimpleCommand 0x%lx cleanup complete\n", SP_MAIN_DESCRIPTION, accept_thread );
+    impact_printf_debug( "%s: 0x%lx cleanup complete\n", SP_COMMAND_HEADER_NAMESPACE, accept_thread );
     
     return 1;
 }
@@ -851,19 +875,19 @@ static int __open_sock_by_pid( pid_t server_pid )
     sprintf( sock_name, "/tmp/%s_sock_%d", SP_MAIN_SHORT_NAME, server_pid );
     if( stat( sock_name, &sock_status ) == -1 )
     {
-        impact_printf_error( "%s: Socket %d does not exist\n", SP_MAIN_DESCRIPTION, server_pid );
+        impact_printf_error( "%s: Socket %s does not exist\n", SP_COMMAND_HEADER_NAMESPACE, sock_name );
         return -2;
     }
     if( S_ISSOCK( sock_status.st_mode ) == 0 )
     {
-        impact_printf_error( "%s: %s is not a socket\n", SP_MAIN_DESCRIPTION, sock_name );
+        impact_printf_error( "%s: %s is not a socket\n", SP_COMMAND_HEADER_NAMESPACE, sock_name );
         return -2;
     }
     
     sock = open( sock_name, O_RDWR );
     if( sock == -1 )
     {
-        impact_printf_error( "%s: Failed to open socket %d for reading and writing\n", SP_MAIN_DESCRIPTION, server_pid );
+        impact_printf_error( "%s: Failed to open socket %s for reading and writing\n", SP_COMMAND_HEADER_NAMESPACE, sock_name );
         return -1;
     }
     
@@ -928,7 +952,7 @@ unsigned short simplecmd_get_port( pid_t server_pid )
     {
         if( sscanf( buffer, "%hu", &port ) == EOF )
         {
-            impact_printf_error( "%s: Local protocol error: %s is not a port number\n", SP_MAIN_DESCRIPTION, buffer );
+            impact_printf_error( "%s: %s: %s is not a port number\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer );
             port = 0;
         }
         free( buffer );

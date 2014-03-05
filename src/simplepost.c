@@ -40,6 +40,11 @@ Boston, MA 021110-1307, USA.
 #include <pthread.h>
 #include <magic.h>
 
+/*
+Server header strings
+*/
+#define SP_HTTP_HEADER_NAMESPACE        "SimplePost::HTTP"
+
 /*****************************************************************************
  *                              Socket Support                               *
  *****************************************************************************/
@@ -616,7 +621,7 @@ static void * __process_request( void * p )
     request_length = __recv_line_dynamic( client_sock, &request );
     if( request_length == 0 )
     {
-        impact_printf_error( "%s: Buffer is too small to receive the request\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Request 0x%lx: Buffer is too small to receive the request\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
         goto abort_request;
     }
     
@@ -627,14 +632,14 @@ static void * __process_request( void * p )
     
     if( !isspace( *request_ptr++ ) )
     {
-        impact_printf_error( "%s: Request does not specify a HTTP method\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Request 0x%lx: Request does not specify a HTTP method\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
         goto abort_request;
     }
     
     part_ptr = uri = (char *) malloc( sizeof( char ) * (strlen( request_ptr ) + 1) );
     if( uri == NULL )
     {
-        impact_printf_error( "%s: Request does not specify a HTTP URI\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Request 0x%lx: Request does not specify a HTTP URI\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
         goto abort_request;
     }
     while( !(isspace( *request_ptr ) || *request_ptr == '\0') ) *part_ptr++ = *request_ptr++;
@@ -649,7 +654,7 @@ static void * __process_request( void * p )
         
         if( *request_ptr != '\0' )
         {
-            impact_printf_error( "%s: Request does not specify a HTTP version\n", SP_MAIN_DESCRIPTION );
+            impact_printf_error( "%s: Request 0x%lx: Request does not specify a HTTP version\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
             goto abort_request;
         }
     }
@@ -659,9 +664,13 @@ static void * __process_request( void * p )
     }
     else
     {
-        impact_printf_error( "%s: Request does not specify a HTTP version\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Request 0x%lx: Request does not specify a HTTP version\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
         goto abort_request;
     }
+    
+    impact_printf_debug( "%s: Request 0x%lx: method: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), method );
+    impact_printf_debug( "%s: Request 0x%lx: URI: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), uri );
+    impact_printf_debug( "%s: Request 0x%lx: version: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), version );
     
     if( strcasecmp( method, "GET" ) == 0 )
     {
@@ -672,8 +681,8 @@ static void * __process_request( void * p )
         file_length = __get_filename_from_uri( spp, &file, uri );
         if( file_length == 0 || stat( file, &file_status ) == -1 )
         {
+            impact_printf_error( "%s: Request 0x%lx: Resource not found: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), uri );
             __http_resource_not_found( client_sock );
-            impact_printf_error( "%s: Resource not found: %s\n", SP_MAIN_DESCRIPTION, uri );
             if( file ) free( file );
             goto abort_request;
         }
@@ -688,8 +697,8 @@ static void * __process_request( void * p )
                 strcat( file, append_index );
                 if( stat( file, &file_status ) == -1 )
                 {
+                    impact_printf_debug( "%s: Request 0x%lx: File not found: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
                     __http_resource_not_found( client_sock );
-                    impact_printf_debug( "%s: File not found: %s\n", SP_MAIN_DESCRIPTION, file );
                     free( file );
                     goto abort_request;
                 }
@@ -698,8 +707,8 @@ static void * __process_request( void * p )
         
         if( S_ISDIR( file_status.st_mode ) )
         {
+            impact_printf_error( "%s: Request 0x%lx: Directory not supported: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
             __http_resource_not_found( client_sock );
-            impact_printf_error( "%s: Directory not supported: %s\n", SP_MAIN_DESCRIPTION, file );
             free( file );
             goto abort_request;
         }
@@ -714,12 +723,13 @@ static void * __process_request( void * p )
         // own peril!
         if( (file_status.st_mode & S_IXUSR) || (file_status.st_mode & S_IXGRP) || (file_status.st_mode & S_IXOTH) )
         {
+            impact_printf_error( "%s: Request 0x%lx: Executables cannot be served: %s\n", SP_MAIN_COPYRIGHT, pthread_self(), file );
             __http_resource_not_found( client_sock );
-            impact_printf_error( "%s: Executables cannot be served: %s\n", SP_MAIN_COPYRIGHT, file );
             free( file );
             goto abort_request;
         }
         
+        impact_printf_debug( "%s: Request 0x%lx: Serving FILE %s to client %d\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file, client_sock );
         __http_serve_file( client_sock, file );
         free( file );
     }
@@ -728,18 +738,19 @@ static void * __process_request( void * p )
         // POST is primarily used for CGI, which we don't support. However
         // since it is such a common request type, it gets its own dedicated
         // method handler anyway.
+        impact_printf_debug( "%s: Request 0x%lx: POST is not a supported HTTP method\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
         __http_unimplemented( client_sock );
-        impact_printf_error( "%s: POST is not a supported HTTP method\n", SP_MAIN_DESCRIPTION );
         goto abort_request;
     }
     else
     {
+        impact_printf_debug( "%s: Request 0x%lx: %s is not a supported HTTP method\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), method );
         __http_unimplemented( client_sock );
-        impact_printf_error( "%s: %s is not a supported HTTP method\n", SP_MAIN_DESCRIPTION, method );
         goto abort_request;
     }
     
     abort_request:
+    impact_printf_debug( "%s: Request 0x%lx: Closing client %d ...\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), client_sock );
     close( client_sock );
     
     if( request ) free( request );
@@ -795,7 +806,7 @@ static void * __accept_requests( void * p )
         switch( pselect( spp->httpd + 1, &fds, NULL, NULL, &timeout, NULL ) )
         {
             case -1:
-                impact_printf_error( "%s: Cannot accept connections on socket\n", SP_MAIN_DESCRIPTION );
+                impact_printf_error( "%s: Cannot accept connections on socket %d\n", SP_HTTP_HEADER_NAMESPACE, spp->httpd );
                 spp->accpeting_clients = 0;
             case 0:
                 continue;
@@ -808,7 +819,7 @@ static void * __accept_requests( void * p )
         struct simplepost_request * sprp = (struct simplepost_request *) malloc( sizeof( struct simplepost_request ) );
         if( sprp == NULL )
         {
-            impact_printf_error( "%s: Failed to allocate memory for a new HTTP request thread\n", SP_MAIN_DESCRIPTION );
+            impact_printf_error( "%s: %s: Failed to allocate memory for a new request thread\n", SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
             spp->accpeting_clients = 0;
             continue;
         }
@@ -817,19 +828,21 @@ static void * __accept_requests( void * p )
         
         if( pthread_create( &client_thread, NULL, &__process_request, (void *) sprp ) == 0 )
         {
-            impact_printf_debug( "%s:%d: Launched HTTP request processing thread 0x%lx\n", __FILE__, __LINE__, client_thread );
+            impact_printf_debug( "%s: Launched request processing thread 0x%lx for client %d\n", SP_HTTP_HEADER_NAMESPACE, client_thread, client_sock );
             pthread_detach( client_thread );
         }
         else
         {
-            impact_printf_debug( "%s:%d: Failed to launch HTTP request processing thread for client %lu\n", __FILE__, __LINE__, spp->client_count );
+            impact_printf_debug( "%s: Failed to launch request processing thread for client %d\n", SP_HTTP_HEADER_NAMESPACE, client_sock );
             close( sprp->client_sock );
             free( sprp );
         }
     }
     
+    impact_printf_debug( "%s: Waiting for %lu clients to finish processing ...\n", SP_HTTP_HEADER_NAMESPACE, spp->client_count );
     while( spp->client_count ) usleep( SP_HTTP_SLEEP * 1000 );
     
+    impact_printf_debug( "%s: Closing socket %d\n", SP_HTTP_HEADER_NAMESPACE, spp->httpd );
     close( spp->httpd );
     spp->httpd = -1;
     
@@ -910,14 +923,14 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
     
     if( spp->httpd != -1 )
     {
-        impact_printf_error( "%s: Server is already initialized\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Server is already initialized\n", SP_HTTP_HEADER_NAMESPACE );
         goto abort_unbound;
     }
     
     spp->httpd = socket( AF_INET, SOCK_STREAM, 0 );
     if( spp->httpd == -1 )
     {
-        impact_printf_error( "%s: Socket could not be created\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Socket could not be created\n", SP_HTTP_HEADER_NAMESPACE );
         goto abort_unbound;
     }
     
@@ -933,7 +946,7 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
         
         if( inet_pton( AF_INET, address, (void *) &sin_addr ) != 1 )
         {
-            impact_printf_error( "%s: Invalid source address specified\n", SP_MAIN_DESCRIPTION );
+            impact_printf_error( "%s: Invalid source address specified\n", SP_HTTP_HEADER_NAMESPACE );
             goto abort_bind;
         }
         name.sin_addr = sin_addr;
@@ -942,7 +955,7 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
         spp->address = (char *) malloc( sizeof( char ) * (strlen( address ) + 1) );
         if( spp->address == NULL )
         {
-            impact_printf_error( "%s: Failed to allocate memory for the source address\n", SP_MAIN_DESCRIPTION );
+            impact_printf_error( "%s: %s: Failed to allocate memory for the source address\n", SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
             goto abort_bind;
         }
         strcpy( spp->address, address );
@@ -962,7 +975,7 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
             spp->address = (char *) malloc( sizeof( char ) * (strlen( (const char *) address_info->ai_addr ) + 1) );
             if( spp->address == NULL )
             {
-                impact_printf_error( "%s: Failed to allocate memory for the source address\n", SP_MAIN_DESCRIPTION );
+                impact_printf_error( "%s: %s: Failed to allocate memory for the source address\n", SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
                 goto abort_bind;
             }
             strcpy( spp->address, (const char *) address_info->ai_addr );
@@ -974,7 +987,7 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
             spp->address = (char *) malloc( sizeof( char ) * (strlen( "127.0.0.1" ) + 1) );
             if( spp->address == NULL )
             {
-                impact_printf_error( "%s: Failed to allocate memory for the source address\n", SP_MAIN_DESCRIPTION );
+                impact_printf_error( "%s: %s: Failed to allocate memory for the source address\n", SP_HTTP_HEADER_NAMESPACE , SP_MAIN_HEADER_MEMORY_ALLOC );
                 goto abort_bind;
             }
             strcpy( spp->address, "127.0.0.1" );
@@ -983,7 +996,7 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
     
     if( bind( spp->httpd, (struct sockaddr *) &name, sizeof( name ) ) == -1 )
     {
-        impact_printf_error( "%s: Server failed to bind to socket\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Server failed to bind to socket\n", SP_HTTP_HEADER_NAMESPACE );
         goto abort_bind;
     }
     
@@ -992,7 +1005,7 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
         socklen_t name_len = sizeof( name ); // Length of the socket's address structure
         if( getsockname( spp->httpd, (struct sockaddr *) &name, &name_len ) == -1 )
         {
-            impact_printf_error( "%s: Port could not be allocated\n", SP_MAIN_DESCRIPTION );
+            impact_printf_error( "%s: Port could not be allocated\n", SP_HTTP_HEADER_NAMESPACE );
             goto abort_bind;
         }
         port = ntohs( name.sin_port );
@@ -1001,16 +1014,17 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
     
     if( listen( spp->httpd, SP_HTTP_BACKLOG ) == -1 )
     {
-        impact_printf_error( "%s: Cannot listen on socket\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Cannot listen on socket\n", SP_HTTP_HEADER_NAMESPACE );
         goto abort_bind;
     }
     
     if( pthread_create( &spp->accept_thread, NULL, &__accept_requests, (void *) spp ) != 0 )
     {
-        impact_printf_error( "%s: Cannot accept connections on socket\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Cannot accept connections on socket\n", SP_HTTP_HEADER_NAMESPACE );
         goto abort_bind;
     }
     
+    impact_printf_standard( "%s: Bound HTTP server to ADDRESS %s listening on PORT %u with PID %d\n", SP_HTTP_HEADER_NAMESPACE, spp->address, spp->port, getpid() );
     pthread_mutex_unlock( &spp->master_lock );
     
     return port;
@@ -1039,15 +1053,22 @@ short simplepost_unbind( simplepost_t spp )
 {
     if( spp->httpd != -1 )
     {
-        impact_printf_error( "%s: HTTP server is not running\n", SP_MAIN_DESCRIPTION );
+        impact_printf_error( "%s: Server is not running\n", SP_HTTP_HEADER_NAMESPACE );
         return 0;
     }
+    
+    #ifdef DEBUG
+    pthread_t accept_thread = spp->accept_thread;
+    #endif // DEBUG
+    
+    impact_printf_standard( "%s: Shutting down ...\n", SP_HTTP_HEADER_NAMESPACE );
     
     pthread_mutex_lock( &spp->client_lock );
     spp->accpeting_clients = 0;
     pthread_mutex_unlock( &spp->client_lock );
-    
     pthread_join( spp->accept_thread, NULL );
+    
+    impact_printf_debug( "%s: 0x%lx cleanup complete\n", SP_HTTP_HEADER_NAMESPACE, accept_thread );
     
     return 1;
 }
@@ -1083,6 +1104,10 @@ short simplepost_is_alive( simplepost_t spp )
 /*
 Add a file to the list of files being served.
 
+Remarks:
+    If and only if url != NULL the final status of this operation will be
+    printed to STDOUT upon successful completion.
+
 Arguments:
     spp [in]    SimplePost instance to act on
     url [out]   Address of the file being served
@@ -1116,32 +1141,32 @@ size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file, 
     struct stat file_status; // Status of the input file
     struct simplepost_serve * this_file = NULL; // New file to serve
     size_t url_length = 0; // Length of the URL
-    *url = NULL; // Failsafe
+    if( url ) *url = NULL; // Failsafe
     
     pthread_mutex_lock( &spp->files_lock );
     
     if( file == NULL )
     {
-        impact_printf_debug( "%s:%d: simplepost_serve_file() requires a file\n", __FILE__, __LINE__ );
+        impact_printf_debug( "%s:%d: simplepost_serve_file() requires a FILE\n", __FILE__, __LINE__ );
         goto abort_insert;
     }
     
     if( stat( file, &file_status ) == -1 )
     {
-        impact_printf_error( "%s: Cannot serve nonexistent file: %s\n", SP_MAIN_DESCRIPTION, file );
+        impact_printf_error( "%s: Cannot serve nonexistent FILE: %s\n", SP_HTTP_HEADER_NAMESPACE, file );
         goto abort_insert;
     }
     
     if( !(S_ISREG( file_status.st_mode ) || S_ISLNK( file_status.st_mode )) )
     {
-        impact_printf_error( "%s: File not supported: %s\n", SP_MAIN_DESCRIPTION, file );
+        impact_printf_error( "%s: FILE not supported: %s\n", SP_HTTP_HEADER_NAMESPACE, file );
         goto abort_insert;
     }
     
     #if (SP_HTTP_FILES_MAX > 0)
     if( spp->files_count == SP_HTTP_FILES_MAX )
     {
-        impact_printf_error( "%s: Cannot serve more than %u files simultaneously\n", SP_MAIN_DESCRIPTION, SP_HTTP_FILES_MAX );
+        impact_printf_error( "%s: Cannot serve more than %u files simultaneously\n", SP_HTTP_HEADER_NAMESPACE, SP_HTTP_FILES_MAX );
         goto abort_insert;
     }
     #endif
@@ -1161,7 +1186,7 @@ size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file, 
     {
         if( uri[0] != '/' || uri[0] == '\0' )
         {
-            impact_printf_error( "%s: Invalid URI: %s\n", SP_MAIN_DESCRIPTION, uri );
+            impact_printf_error( "%s: Invalid URI: %s\n", SP_HTTP_HEADER_NAMESPACE, uri );
             goto abort_insert;
         }
     }
@@ -1191,7 +1216,7 @@ size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file, 
     {
         if( strcmp( p->uri, uri ) == 0 )
         {
-            impact_printf_error( "%s: URI already in use: %s\n", SP_MAIN_DESCRIPTION, uri );
+            impact_printf_error( "%s: URI already in use: %s\n", SP_HTTP_HEADER_NAMESPACE, uri );
             goto abort_insert;
         }
     }
@@ -1215,15 +1240,30 @@ size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file, 
     strcpy( this_file->file, file );
     
     this_file->count = count;
-    
     spp->files_count++;
     
     pthread_mutex_unlock( &spp->files_lock );
     
+    if( url_length )
+    {
+        switch( count )
+        {
+            case 0:
+                impact_printf_standard( "%s: Serving %s on %s indefinitely\n", SP_HTTP_HEADER_NAMESPACE, file, *url );
+                break;
+            case 1:
+                impact_printf_standard( "%s: Serving %s on %s exactly once\n", SP_HTTP_HEADER_NAMESPACE, file, *url );
+                break;
+            default:
+                impact_printf_standard( "%s: Serving %s on %s %u times\n", SP_HTTP_HEADER_NAMESPACE, file, *url, count );
+                break;
+        }
+    }
+    
     return url_length;
     
     cannot_insert_file:
-    impact_printf_error( "%s: Cannot insert file: %s\n", SP_MAIN_DESCRIPTION, file );
+    impact_printf_error( "%s: Cannot insert FILE: %s\n", SP_HTTP_HEADER_NAMESPACE, file );
     
     abort_insert:
     if( this_file ) __simplepost_serve_remove( this_file, 1 );
@@ -1241,11 +1281,18 @@ Arguments:
                 Locator (URL) of the file to remove
 
 Return Value:
+    -1  Internal error
     0   The file was not being served.
     1   The file was successfully removed from the list.
 */
 short simplepost_purge_file( simplepost_t spp, const char * uri )
 {
+    if( uri == NULL )
+    {
+        impact_printf_debug( "%s:%d: simplepost_purge_file() requires a URI\n", __FILE__, __LINE__ );
+        return -1;
+    }
+    
     if( strncmp( "http://", uri, 7 ) == 0 )
     {
         unsigned short i = 0; // '/' count
@@ -1261,13 +1308,18 @@ short simplepost_purge_file( simplepost_t spp, const char * uri )
     {
         if( p->uri && strcmp( p->uri, uri ) == 0 )
         {
+            impact_printf_standard( "%s: Removing URI %s from service ...\n", SP_HTTP_HEADER_NAMESPACE, uri );
+            
             __simplepost_serve_remove( p, 1 );
             spp->files_count--;
+            
             pthread_mutex_unlock( &spp->files_lock );
             return 1;
         }
     }
     pthread_mutex_unlock( &spp->files_lock );
+    
+    impact_printf_error( "%s: Cannot purge nonexistent URI %s\n", SP_HTTP_HEADER_NAMESPACE, uri );
     
     return 0;
 }

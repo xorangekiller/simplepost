@@ -21,12 +21,20 @@ Boston, MA 021110-1307, USA.
 
 #include "simplearg.h"
 #include "impact.h"
+#include "config.h"
 
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
+
+/*
+Arguments header strings
+*/
+#define SP_ARGS_HEADER_NAMESPACE        "SimplePost::Arguments"
+#define SP_ARGS_HEADER_INVLAID_OPTION   "Invalid Option"
+#define SP_ARGS_HEADER_INVLAID_SYNTAX   "Invalid Syntax"
 
 /*
 Process the custom IP address argument.
@@ -39,7 +47,7 @@ static void __set_address( simplearg_t sap, const char * arg )
 {
     if( sap->address )
     {
-        impact_printf_error( "invalid option -- IP address already set\n" );
+        impact_printf_error( "%s: %s: ADDRESS already set\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION );
         sap->error = 1;
     }
     else
@@ -47,10 +55,13 @@ static void __set_address( simplearg_t sap, const char * arg )
         sap->address = (char *) malloc( sizeof( char ) * (strlen( arg ) + 1) );
         if( sap->address == NULL )
         {
+            impact_printf_debug( "%s: %s: Failed to allocate memory for the ADDRESS\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
             sap->error = 1;
             return;
         }
+        
         strcpy( sap->address, arg );
+        impact_printf_debug( "%s: Processed ADDRESS: %s\n", SP_ARGS_HEADER_NAMESPACE, sap->address );
     }
 }
 
@@ -65,7 +76,7 @@ static void __set_port( simplearg_t sap, const char * arg )
 {
     if( sap->port )
     {
-        impact_printf_error( "invalid option -- port already set\n" );
+        impact_printf_error( "%s: %s: PORT already set\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION );
         sap->error = 1;
     }
     else
@@ -73,12 +84,13 @@ static void __set_port( simplearg_t sap, const char * arg )
         int i = atoi( arg );
         if( i < 1 )
         {
-            impact_printf_error( "%d: PORT must be between 1 and %u\n", i, USHRT_MAX );
+            impact_printf_error( "%s: %s: PORT must be between 1 and %u: %d\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, USHRT_MAX, i );
             sap->error = 1;
         }
         else
         {
             sap->port = (unsigned short) i;
+            impact_printf_debug( "%s: Processed PORT: %u\n", SP_ARGS_HEADER_NAMESPACE, sap->port );
         }
     }
 }
@@ -94,12 +106,12 @@ static void __set_pid( simplearg_t sap, const char * arg )
 {
     if( sap->pid )
     {
-        impact_printf_error( "invalid option -- PID already specified\n" );
+        impact_printf_error( "%s: %s: PID already specified\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION );
         sap->error = 1;
     }
     else if( sap->new )
     {
-        impact_printf_error( "invalid option -- process identifier and new arguments are mutually exclusive\n" );
+        impact_printf_error( "%s: %s: The \"process identifier\" and \"new\" arguments are mutually exclusive\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION );
         sap->error = 1;
     }
     else
@@ -107,12 +119,13 @@ static void __set_pid( simplearg_t sap, const char * arg )
         int i = atoi( arg );
         if( i <= 1 )
         {
-            impact_printf_error( "%d: PID must be a valid process identifier\n", i );
+            impact_printf_error( "%s: %s: PID must be a valid process identifier: %d\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, i );
             sap->error = 1;
         }
         else
         {
             sap->pid = (pid_t) i;
+            impact_printf_debug( "%s: Processed PID: %d\n", SP_ARGS_HEADER_NAMESPACE, sap->pid );
         }
     }
 }
@@ -127,17 +140,18 @@ static void __set_new( simplearg_t sap )
 {
     if( sap->new )
     {
-        impact_printf_error( "invalid option -- new argument may only be specified once\n" );
+        impact_printf_error( "%s: %s: new argument may only be specified once\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION );
         sap->error = 1;
     }
     else if( sap->pid )
     {
-        impact_printf_error( "invalid option -- process identifier and new arguments are mutually exclusive\n" );
+        impact_printf_error( "%s: %s: The \"process identifier\" and \"new\" arguments are mutually exclusive\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION );
         sap->error = 1;
     }
     else
     {
         sap->new = 1;
+        impact_printf_debug( "%s: Processed new argument: %u\n", SP_ARGS_HEADER_NAMESPACE, sap->new );
     }
 }
 
@@ -151,12 +165,13 @@ static void __set_quiet( simplearg_t sap )
 {
     if( sap->quiet )
     {
-        impact_printf_error( "invalid option -- standard output already suppressed\n" );
+        impact_printf_error( "%s: %s: Standard output is already suppressed\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION );
         sap->error = 1;
     }
     else
     {
         sap->quiet = 1;
+        impact_printf_debug( "%s: Processed quiet argument: %u\n", SP_ARGS_HEADER_NAMESPACE, sap->quiet );
     }
 }
 
@@ -169,6 +184,7 @@ Arguments:
 static void __set_help( simplearg_t sap )
 {
     sap->help = 1;
+    impact_printf_debug( "%s: Processed help argument: %u\n", SP_ARGS_HEADER_NAMESPACE, sap->help );
 }
 
 /*
@@ -180,6 +196,7 @@ Arguments:
 static void __set_version( simplearg_t sap )
 {
     sap->version = 1;
+    impact_printf_debug( "%s: Processed version argument: %u\n", SP_ARGS_HEADER_NAMESPACE, sap->version );
 }
 
 /*
@@ -239,13 +256,14 @@ static void __set_count( simplearg_t sap, const char * arg )
     simplefile_t last = __get_last_file( sap );
     if( last == NULL )
     {
+        impact_printf_debug( "%s: %s: Failed to allocate memory for FILE\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
         sap->error = 1;
         return;
     }
     
     if( last->count )
     {
-        impact_printf_error( "invalid option -- COUNT already set for FILE\n" );
+        impact_printf_error( "%s: %s: COUNT already set for FILE\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION );
         sap->error = 1;
     }
     else
@@ -253,12 +271,13 @@ static void __set_count( simplearg_t sap, const char * arg )
         int i = atoi( arg );
         if( i < 0 )
         {
-            impact_printf_error( "%d: COUNT must be between 0 and %d\n", i, INT_MAX );
+            impact_printf_error( "%s: %s: COUNT must be between 0 and %d: %d\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, INT_MAX, i );
             sap->error = 1;
         }
         else
         {
             last->count = (unsigned int) i;
+            impact_printf_debug( "%s: Processed COUNT: %u\n", SP_ARGS_HEADER_NAMESPACE, last->count );
         }
     }
 }
@@ -276,12 +295,12 @@ static void __set_file( simplearg_t sap, const char * file )
     
     if( stat( file, &file_status ) == -1 )
     {
-        impact_printf_error( "%s: No such file or directory\n", file );
+        impact_printf_error( "%s: %s: No such file or directory: %s\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, file );
         sap->error = 1;
     }
     else if( !(S_ISREG( file_status.st_mode ) || S_ISLNK( file_status.st_mode )) )
     {
-        impact_printf_error( "%s: Must of a regular file or link to a one\n", file );
+        impact_printf_error( "%s: %s: Must of a regular file or link to a one: %s\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, file );
         sap->error = 1;
     }
     else
@@ -289,13 +308,14 @@ static void __set_file( simplearg_t sap, const char * file )
         simplefile_t last = __get_last_file( sap );
         if( last == NULL )
         {
+            impact_printf_debug( "%s: %s: Failed to allocate memory for FILE\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
             sap->error = 1;
             return;
         }
         
         if( last->file )
         {
-            impact_printf_error( "%s:%d => logic flaw or potential memory leak detected\n", __FILE__, __LINE__ );
+            impact_printf_debug( "%s:%d => logic flaw or potential memory leak detected\n", __FILE__, __LINE__ );
             sap->error = 1;
             return;
         }
@@ -303,10 +323,13 @@ static void __set_file( simplearg_t sap, const char * file )
         last->file = (char *) malloc( sizeof( char ) * (strlen( file ) + 1) );
         if( last->file == NULL )
         {
+            impact_printf_debug( "%s: %s: Failed to allocate memory for FILE\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
             sap->error = 1;
             return;
         }
+        
         strcpy( last->file, file );
+        impact_printf_debug( "%s: Processed FILE: %s\n", SP_ARGS_HEADER_NAMESPACE, last->file );
     }
 }
 
@@ -319,7 +342,7 @@ Arguments:
 */
 static void __set_invalid( simplearg_t sap, const char * arg )
 {
-    impact_printf_error( "invalid option -- %s\n", arg );
+    impact_printf_error( "%s: %s: %s\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, arg );
     impact_printf_error( "Try `simplepost --help` for more information.\n" );
     sap->error = 1;
 }
@@ -334,7 +357,11 @@ Return Value:
 simplearg_t simplearg_init()
 {
     simplearg_t sap = (simplearg_t) malloc( sizeof( struct simplearg ) );
-    if( sap == NULL ) return NULL;
+    if( sap == NULL )
+    {
+        impact_printf_debug( "%s: %s: Failed to allocate memory for simplearg instance\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
+        return NULL;
+    }
     
     sap->address = NULL;
     sap->port = 0;
@@ -387,7 +414,7 @@ void simplearg_parse( simplearg_t sap, int argc, char * argv[] )
 {
     if( argc < 2 )
     {
-        impact_printf_error( "invalid syntax\n" );
+        impact_printf_error( "%s: %s\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_SYNTAX );
         impact_printf_error( "Try `simplepost --help` for more information.\n" );
         sap->error = 1;
     }
@@ -442,14 +469,14 @@ void simplearg_parse( simplearg_t sap, int argc, char * argv[] )
         simplefile_t last = __get_last_file( sap );
         if( last == NULL || sap->files == NULL )
         {
-            impact_printf_error( "invalid syntax -- at least one FILE must be specified\n" );
+            impact_printf_error( "%s: %s: At least one FILE must be specified\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_SYNTAX );
             sap->error = 1;
             return;
         }
         
         if( last->file == NULL )
         {
-            impact_printf_error( "invalid syntax -- last argument must be a FILE\n" );
+            impact_printf_error( "%s: %s: Last argument must be a FILE\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_SYNTAX );
             
             if( sap->files == last ) sap->files = NULL;
             if( last->prev ) last->prev = NULL;
