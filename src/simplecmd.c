@@ -744,7 +744,7 @@ short simplecmd_activate( simplecmd_t scp, simplepost_t spp )
     {
         char buffer[2048]; // Buffer for the the socket name string
         
-        sprintf( buffer, "/tmp/%s_sock_%d", SP_COMMAND_HEADER_NAMESPACE, getpid() );
+        sprintf( buffer, "/tmp/%s_sock_%d", SP_MAIN_SHORT_NAME, getpid() );
         
         scp->sock_name = (char *) malloc( sizeof( char ) * (strlen( buffer ) + 1) );
         if( scp->sock_name == NULL )
