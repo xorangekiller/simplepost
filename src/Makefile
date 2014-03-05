@@ -92,7 +92,8 @@ CC := gcc
 SA := cppcheck
 OBJDUMP := objdump
 SIZE := size
-RM := rm -rf
+RM := rm -f
+RMDIR := rmdir
 INSTALL := install
 
 ###############################################################################
@@ -108,11 +109,11 @@ rebuild: clean build
 
 .PHONY: install
 install:
-	@[ -d $(DESTDIR)$(PREFIX)/bin ] || $(INSTALL) -d -m 0755 $(DESTDIR)$(PREFIX)/bin
+	$(INSTALL) -d -m 0755 $(DESTDIR)$(PREFIX)/bin
 	$(INSTALL) -m 0755 $(OUTPUT_PATH)$(TARGET) $(DESTDIR)$(PREFIX)/bin/$(TARGET)
 
 $(TARGET): $(OBJECTS)
-	@[ -n "$(OUTPUT_PATH)" -a ! -d $(OUTPUT_PATH) ] && $(INSTALL) -d -m 0755 $(OUTPUT_PATH)
+	@$(INSTALL) -d -m 0755 $(OUTPUT_PATH)
 	$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_PATH)$@
 
 .PHONY: stats
@@ -128,7 +129,7 @@ check:
 clean:
 	$(RM) $(OBJECTS)
 	$(RM) $(OUTPUT_PATH)$(TARGET)
-	@[ -n "$(OUTPUT_PATH)" -a -z $$(ls -A $(OUTPUT_PATH) 2>/dev/null) ] && $(RM) $(OUTPUT_PATH)
+	-@$(RMDIR) $(OUTPUT_PATH) 2>/dev/null
 
 ###############################################################################
 
