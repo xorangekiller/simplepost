@@ -129,6 +129,21 @@ static void __server_shutdown( int sig )
 }
 
 /*
+Safely handle SIGINT by cleanly shutting down the server.
+
+Side Effects:
+    This function exits the program.
+
+Arguments:
+    sig [in]    Signal to handle
+*/
+static void __server_terminal_interrupt( int sig )
+{
+    impact_printf_standard( "\n" ); // Terminate the ^C line
+    __server_shutdown( SIGTERM );
+}
+
+/*
 Initialize the server.
 */
 int main( int argc, char * argv[] )
@@ -289,6 +304,7 @@ int main( int argc, char * argv[] )
     }
     
     signal( SIGPIPE, &__server_reset_pipe );
+    signal( SIGINT, &__server_terminal_interrupt );
     signal( SIGTSTP, &__server_shutdown );
     signal( SIGQUIT, &__server_shutdown );
     signal( SIGTERM, &__server_shutdown );
