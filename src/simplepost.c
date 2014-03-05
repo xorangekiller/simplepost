@@ -1184,12 +1184,12 @@ size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file, 
     
     if( spp->files )
     {
-        this_file = spp->files = __simplepost_serve_init();
+        for( this_file = spp->files; this_file->next; this_file = this_file->next );
+        this_file = __simplepost_serve_insert_after( this_file, NULL );
     }
     else
     {
-        for( this_file = spp->files; this_file->next; this_file = this_file->next );
-        this_file = __simplepost_serve_insert_after( this_file, NULL );
+        this_file = spp->files = __simplepost_serve_init();
     }
     if( this_file == NULL ) goto cannot_insert_file;
     
