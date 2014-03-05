@@ -20,6 +20,7 @@ Boston, MA 021110-1307, USA.
 */
 
 #include <stdio.h>
+#include <stdarg.h>
 
 unsigned short impact_quiet = 0; // Don't print anything to stdout
 
