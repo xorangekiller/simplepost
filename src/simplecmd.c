@@ -813,7 +813,7 @@ Return Value:
 */
 short simplecmd_deactivate( simplecmd_t scp )
 {
-    if( scp->sock != -1 )
+    if( scp->sock == -1 )
     {
         impact_printf_error( "%s: Server is not active\n", SP_COMMAND_HEADER_NAMESPACE );
         return 0;
