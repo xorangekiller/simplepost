@@ -357,11 +357,7 @@ Return Value:
 simplearg_t simplearg_init()
 {
     simplearg_t sap = (simplearg_t) malloc( sizeof( struct simplearg ) );
-    if( sap == NULL )
-    {
-        impact_printf_debug( "%s: %s: Failed to allocate memory for simplearg instance\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
-        return NULL;
-    }
+    if( sap == NULL ) return NULL;
     
     sap->address = NULL;
     sap->port = 0;

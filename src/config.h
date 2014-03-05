@@ -27,7 +27,7 @@ Global configuration details
 */
 #define SP_MAIN_SHORT_NAME  "simplepost"                            // Short program name
 #define SP_MAIN_DESCRIPTION "SimplePost"                            // Description of the program
-#define SP_MAIN_VERSION     "0.2.1"                                 // Program version
+#define SP_MAIN_VERSION     "0.3.0"                                 // Program version
 #define SP_MAIN_COPYRIGHT   "Copyright (C) 2012-2014 Karl Lenz."    // Program copyright
 
 /*

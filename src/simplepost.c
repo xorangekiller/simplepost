@@ -1087,6 +1087,17 @@ void simplepost_block( simplepost_t spp )
 }
 
 /*
+Don't return until the server has no more files to serve.
+
+Arguments:
+    spp [in]    SimplePost instance to act on
+*/
+void simplepost_block_files( simplepost_t spp )
+{
+    while( spp->files_count > 0 ) usleep( SP_HTTP_SLEEP * 1000 );
+}
+
+/*
 Is the server running?
 
 Arguments:

@@ -65,7 +65,7 @@ int impact_printf_error( const char * format, ... )
     return ret;
 }
 
-#ifndef DEBUG
+#ifdef DEBUG
 
 /*
 Print debugging messages.

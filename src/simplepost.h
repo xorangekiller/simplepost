@@ -97,6 +97,7 @@ void simplepost_free( simplepost_t spp );
 unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned short port );
 short simplepost_unbind( simplepost_t spp );
 void simplepost_block( simplepost_t spp );
+void simplepost_block_files( simplepost_t spp );
 short simplepost_is_alive( simplepost_t spp );
 
 size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file,  const char * uri, unsigned int count );
