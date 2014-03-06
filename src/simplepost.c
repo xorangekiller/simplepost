@@ -438,6 +438,7 @@ static void __http_send_headers( int sock, const char * file )
     hmagic = magic_open( MAGIC_MIME_TYPE );
     if( hmagic )
     {
+        magic_load( hmagic, NULL );
         const char * mime_type = magic_file( hmagic, file );
         
         // According to RFC 2046, the content type should only be sent if it
@@ -481,15 +482,13 @@ static void __http_serve_file( int sock, const char * file )
     }
     else
     {
-        char bytes[512]; // Data read from the file
+        char bytes[1024]; // Data read from the file
         
         __http_send_headers( sock, file );
         
-        fgets( bytes, sizeof( bytes ), hfile );
-        while( feof( hfile ) == 0 )
+        while( fgets( bytes, sizeof( bytes ), hfile ) )
         {
             send( sock, bytes, strlen( bytes ), 0 );
-            fgets( bytes, sizeof( bytes ), hfile );
         }
         
         fclose( hfile );
