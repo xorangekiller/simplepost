@@ -624,6 +624,7 @@ static void * __process_request( void * p )
         impact_printf_error( "%s: Request 0x%lx: Buffer is too small to receive the request\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
         goto abort_request;
     }
+    impact_printf_debug( "%s: Request 0x%lx: request: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), request );
     
     request_ptr = request;
     part_ptr = method;
@@ -750,7 +751,7 @@ static void * __process_request( void * p )
     }
     
     abort_request:
-    impact_printf_debug( "%s: Request 0x%lx: Closing client %d ...\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), client_sock );
+    impact_printf_debug( "%s: Request 0x%lx: Closing client %d\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), client_sock );
     close( client_sock );
     
     if( request ) free( request );

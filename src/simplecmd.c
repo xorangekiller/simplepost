@@ -553,7 +553,7 @@ static void * __process_request( void * p )
     {
         if( strcmp( command, __command_handlers[i].request ) == 0 )
         {
-            impact_printf_debug( "%s: Request 0x%lx: Responding to %s command ...\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), __command_handlers[i].request );
+            impact_printf_debug( "%s: Request 0x%lx: Responding to %s command\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), __command_handlers[i].request );
             response = (*__command_handlers[i].handler)( scp, sock );
             break;
         }
@@ -578,7 +578,7 @@ static void * __process_request( void * p )
     #endif // DEBUG
     
     error:
-    impact_printf_debug( "%s: Request 0x%lx: Closing client %d ...\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), sock );
+    impact_printf_debug( "%s: Request 0x%lx: Closing client %d\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), sock );
     close( sock );
     
     if( command ) free( command );
