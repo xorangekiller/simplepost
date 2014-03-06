@@ -54,7 +54,7 @@ Get a line of text from a socket.
 
 Remarks:
     This function handles strings that end in LF, CR, or CRLF. Technically
-    HTTP/1.1 (RFC 2616) mandates that all lines end in CRLF, but non-conferment
+    HTTP/1.1 (RFC 2616) mandates that all lines end in CRLF, but non-conforming
     clients sometimes terminate with just one or the other.
 
 Arguments:
@@ -84,7 +84,8 @@ static size_t __recv_line( int sock, char * buffer, size_t size )
         {
             received = recv( sock, &byte, 1, MSG_PEEK );
             if( received == 0 || received == -1 ) break;
-            if( byte != '\n' ) break;
+            if( byte == '\n' ) continue;
+            break;
         }
         
         buffer[count++] = byte;
