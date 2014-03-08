@@ -52,7 +52,7 @@ INCLUDES :=
 LIB_PATH :=
 
 # List of libraries to use during linking
-LIBS := -lpthread -lmicrohttpd
+LIBS := -lpthread -lmagic -lmicrohttpd
 
 # C compiler options
 CFLAGS := -xc -c -std=c11

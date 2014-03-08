@@ -33,6 +33,7 @@ Boston, MA 021110-1307, USA.
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <magic.h>
 #include <microhttpd.h>
 
 /*
@@ -315,6 +316,7 @@ static struct MHD_Response * __response_prep_file( struct MHD_Connection * conne
 {
     struct MHD_Response * response; // Response to the request
     int fd; // File descriptor
+    magic_t hmagic; // Magic file handle
     
     fd = open( file, O_RDONLY );
     if( fd == -1 )
@@ -329,6 +331,23 @@ static struct MHD_Response * __response_prep_file( struct MHD_Connection * conne
         impact_printf_debug( "%s:%d: %s: Failed to allocate memory for the HTTP response %u\n", __FILE__, __LINE__, SP_MAIN_HEADER_MEMORY_ALLOC, status_code );
         close( fd );
         return NULL;
+    }
+    
+    hmagic = magic_open( MAGIC_MIME_TYPE );
+    if( hmagic )
+    {
+        magic_load( hmagic, NULL );
+        const char * mime_type = magic_file( hmagic, file );
+        
+        // According to RFC 2616 Section 7.2.1, the content type should only be sent if
+        // it can be determined. If not, the client should do its best to determine
+        // what to do with the content instead. Notably, Apache used to send
+        // application/octet-stream to indicate arbitrary binary data when it couldn't
+        // determine the file type, but that is not correct according to the HTTP/1.1
+        // specification.
+        if( mime_type ) MHD_add_response_header( response, "Content-Type", mime_type );
+        
+        magic_close( hmagic );
     }
     
     if( MHD_queue_response( connection, status_code, response ) == MHD_NO )
