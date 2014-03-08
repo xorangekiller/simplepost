@@ -252,7 +252,12 @@ HTTP response strings
 #define SP_HTTP_RESPONSE_NOT_IMPLEMENTED "<html><head><title>Method Not Implemented\r\n</title></head>\r\n<body><p>HTTP request method not supported.\r\n</body></html>\r\n"
 
 /*
-Send a response to the client from a data buffer.
+Prepare to send a response to the client from a data buffer.
+
+Remarks:
+    The data passed to this function MUST be available until the MHD_Response
+    instance returned by this function has been destroyed. DO NOT DESTROY THE
+    RESPONSE until AFTER libmicrohttpd has responded to the request!
 
 Arguments:
     connection [in]     Connection identifying the client
@@ -261,28 +266,39 @@ Arguments:
     data [in]           Data to send
 
 Return Value:
-    MHD_NO will be returned if the response cannot be sent.
-    MHD_YES will be returned if the response has been sent.
+    A libmicrohttpd response instance will be returned if the specified data
+    has been queued for transmission to the client. An error message will be
+    printed and NULL will be returned if an error occurs.
 */
-static int __response_send_data( struct MHD_Connection * connection, unsigned int status_code, size_t size, void * data )
+static struct MHD_Response * __response_prep_data( struct MHD_Connection * connection, unsigned int status_code, size_t size, void * data )
 {
     struct MHD_Response * response; // Response to the request
-    int ret; // Our return value
     
-    response = MHD_create_response_from_data( size, data, MHD_NO, MHD_YES );
+    response = MHD_create_response_from_data( size, data, MHD_NO, MHD_NO );
     if( response == NULL )
     {
         impact_printf_debug( "%s:%d: %s: Failed to allocate memory for the HTTP response %u\n", __FILE__, __LINE__, SP_MAIN_HEADER_MEMORY_ALLOC, status_code );
-        return MHD_NO;
+        return NULL;
     }
-    ret = MHD_queue_response( connection, status_code, response );
-    MHD_destroy_response( response );
     
-    return ret;
+    if( MHD_queue_response( connection, status_code, response ) == MHD_NO )
+    {
+        impact_printf_error( "%s: Request 0x%lx: Cannot queue response with status %u\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), status_code );
+        MHD_destroy_response( response );
+        return NULL;
+    }
+    
+    return response;
 }
 
 /*
-Send a response to the client from a file.
+Prepare to send a response to the client from a file.
+
+Remarks:
+    According to the MHD_create_response_from_fd() documentation, the file
+    descriptor this function opens for the sepecified file will be closed when
+    the MHD_Response instance returned by this function is destroyed. DO NOT
+    DESTROY THE RESPONSE until AFTER libmicrohttpd has responded to the request!
 
 Arguments:
     connection [in]     Connection identifying the client
@@ -291,20 +307,20 @@ Arguments:
     file [in]           Name and path of the file to send
 
 Return Value:
-    MHD_NO will be returned if the response cannot be sent.
-    MHD_YES will be returned if the response has been sent.
+    A libmicrohttpd response instance will be returned if the specified file
+    has been queued for transmission to the client. An error message will be
+    printed and NULL will be returned if an error occurs.
 */
-static int __response_send_file( struct MHD_Connection * connection, unsigned int status_code, size_t size, const char * file )
+static struct MHD_Response * __response_prep_file( struct MHD_Connection * connection, unsigned int status_code, size_t size, const char * file )
 {
     struct MHD_Response * response; // Response to the request
     int fd; // File descriptor
-    int ret; // Our return value
     
-    fd = open( file, O_RDWR );
+    fd = open( file, O_RDONLY );
     if( fd == -1 )
     {
-        impact_printf_error( "%s: Request 0x%lx: Cannot open FILE %s read-write\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
-        return MHD_NO;
+        impact_printf_error( "%s: Request 0x%lx: Cannot open FILE %s for reading\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
+        return NULL;
     }
     
     response = MHD_create_response_from_fd( size, fd );
@@ -312,18 +328,37 @@ static int __response_send_file( struct MHD_Connection * connection, unsigned in
     {
         impact_printf_debug( "%s:%d: %s: Failed to allocate memory for the HTTP response %u\n", __FILE__, __LINE__, SP_MAIN_HEADER_MEMORY_ALLOC, status_code );
         close( fd );
-        return MHD_NO;
+        return NULL;
     }
-    ret = MHD_queue_response( connection, status_code, response );
-    MHD_destroy_response( response );
-    close( fd );
     
-    return ret;
+    if( MHD_queue_response( connection, status_code, response ) == MHD_NO )
+    {
+        impact_printf_error( "%s: Request 0x%lx: Cannot queue FILE %s with status %u\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file, status_code );
+        close( fd );
+        MHD_destroy_response( response );
+        return NULL;
+    }
+    
+    return response;
 }
 
 /*****************************************************************************
  *                            SimplePost Private                             *
  *****************************************************************************/
+
+/*
+SimplePost request status structure
+*/
+struct simplepost_state
+{
+    struct MHD_Response * response; // Response to the request
+    
+    char * file; // Name and path of the file to serve
+    size_t file_length; // Length of the file name and path
+    
+    char * data; // Data to serve
+    size_t data_length; // Length of the data
+};
 
 /*
 SimplePost HTTP server status structure
@@ -459,8 +494,7 @@ Arguments:
                             Initially this must be the size of the data
                             provided. This function will update it to the
                             number of bytes NOT processed.
-    state [out]             Pointer to a data structure which will be preserved
-                            for future calls for this request.
+    state [out]             Data preserved for future calls of this request
 
 Return Value:
     MHD_NO will be returned if the socket must be closed due to a serious error
@@ -470,17 +504,42 @@ Return Value:
 static int __process_request( void * cls, struct MHD_Connection * connection, const char * uri, const char * method, const char * version, const char * data, size_t * data_size, void ** state )
 {
     simplepost_t spp = (simplepost_t) cls; // Instance to act on
-    int ret = MHD_NO; // Our return value
+    struct simplepost_state * spsp = NULL; // Request state
     
     impact_printf_debug( "%s: Request 0x%lx: method: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), method );
     impact_printf_debug( "%s: Request 0x%lx: URI: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), uri );
     impact_printf_debug( "%s: Request 0x%lx: version: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), version );
     
+    #ifdef DEBUG
     if( *state )
     {
         impact_printf_error( "%s: Request 0x%lx: Request should be stateless\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
-        goto abort_request;
+        goto finalize_request;
     }
+    #endif // DEBUG
+    
+    spsp = (struct simplepost_state *) malloc( sizeof( struct simplepost_state ) );
+    if( spsp == NULL )
+    {
+        impact_printf_debug( "%s: Request 0x%lx: %s: Failed to allocate memory for the request state\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), SP_MAIN_HEADER_MEMORY_ALLOC );
+        goto finalize_request;
+    }
+    *state = (void *) spsp;
+    
+    // struct simplepost_state should probably gets its own initialization and
+    // destruction methods. There is also probably a better way to implement
+    // __response_prep_data() and __response_prep_file(), one that would allow
+    // them to directly handle struct simplepost_state and alleviate this
+    // function of more responsibility.
+    //
+    // I'm still undecided on exactly how much control this function should
+    // delegate and how that interface should look. For now we are just going
+    // to handle construction here and destruction in __finalize_request().
+    spsp->response = NULL;
+    spsp->file = NULL;
+    spsp->file_length = 0;
+    spsp->data = NULL;
+    spsp->data_length = 0;
     
     // We really don't care what data the client sent us. Nothing handled by
     // SimplePost actually requires the client to send additional data.
@@ -488,43 +547,38 @@ static int __process_request( void * cls, struct MHD_Connection * connection, co
     
     if( strcmp( method, MHD_HTTP_METHOD_GET ) == 0 )
     {
-        char * file = NULL; // Name and path of the file to serve
-        size_t file_length; // Length of the file name and path
         struct stat file_status; // File status
         
-        file_length = __get_filename_from_uri( spp, &file, uri );
-        if( file_length == 0 || stat( file, &file_status ) == -1 )
+        spsp->file_length = __get_filename_from_uri( spp, &spsp->file, uri );
+        if( spsp->file_length == 0 || stat( spsp->file, &file_status ) == -1 )
         {
             impact_printf_error( "%s: Request 0x%lx: Resource not found: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), uri );
-            ret = __response_send_data( connection, MHD_HTTP_NOT_FOUND, strlen( SP_HTTP_RESPONSE_NOT_FOUND ), (void *) SP_HTTP_RESPONSE_NOT_FOUND );
-            free( file );
-            goto abort_request;
+            spsp->response = __response_prep_data( connection, MHD_HTTP_NOT_FOUND, strlen( SP_HTTP_RESPONSE_NOT_FOUND ), (void *) SP_HTTP_RESPONSE_NOT_FOUND );
+            goto finalize_request;
         }
         
         if( S_ISDIR( file_status.st_mode ) )
         {
             const char * append_index = "/index.html";
-            char * new_file = realloc( file, sizeof( char ) * (file_length + strlen( append_index ) + 1) );
+            char * new_file = realloc( spsp->file, sizeof( char ) * (spsp->file_length + strlen( append_index ) + 1) );
             if( new_file )
             {
-                file = new_file;
-                strcat( file, append_index );
-                if( stat( file, &file_status ) == -1 )
+                spsp->file = new_file;
+                strcat( spsp->file, append_index );
+                if( stat( spsp->file, &file_status ) == -1 )
                 {
-                    impact_printf_debug( "%s: Request 0x%lx: File not found: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
-                    ret = __response_send_data( connection, MHD_HTTP_NOT_FOUND, strlen( SP_HTTP_RESPONSE_NOT_FOUND ), (void *) SP_HTTP_RESPONSE_NOT_FOUND );
-                    free( file );
-                    goto abort_request;
+                    impact_printf_debug( "%s: Request 0x%lx: File not found: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), spsp->file );
+                    spsp->response = __response_prep_data( connection, MHD_HTTP_NOT_FOUND, strlen( SP_HTTP_RESPONSE_NOT_FOUND ), (void *) SP_HTTP_RESPONSE_NOT_FOUND );
+                    goto finalize_request;
                 }
             }
         }
         
         if( S_ISDIR( file_status.st_mode ) )
         {
-            impact_printf_error( "%s: Request 0x%lx: Directory not supported: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
-            ret = __response_send_data( connection, MHD_HTTP_FORBIDDEN, strlen( SP_HTTP_RESPONSE_FORBIDDEN ), (void *) SP_HTTP_RESPONSE_FORBIDDEN );
-            free( file );
-            goto abort_request;
+            impact_printf_error( "%s: Request 0x%lx: Directory not supported: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), spsp->file );
+            spsp->response = __response_prep_data( connection, MHD_HTTP_FORBIDDEN, strlen( SP_HTTP_RESPONSE_FORBIDDEN ), (void *) SP_HTTP_RESPONSE_FORBIDDEN );
+            goto finalize_request;
         }
         
         // Executables generally indicate CGI. Although HTTP/1.1 doesn't technically
@@ -535,25 +589,104 @@ static int __process_request( void * cls, struct MHD_Connection * connection, co
         // TODO: Allow the user to override this restriction at his own peril!
         if( (file_status.st_mode & S_IXUSR) || (file_status.st_mode & S_IXGRP) || (file_status.st_mode & S_IXOTH) )
         {
-            impact_printf_error( "%s: Request 0x%lx: Executables cannot be served: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
-            ret = __response_send_data( connection, MHD_HTTP_FORBIDDEN, strlen( SP_HTTP_RESPONSE_FORBIDDEN ), (void *) SP_HTTP_RESPONSE_FORBIDDEN );
-            free( file );
-            goto abort_request;
+            impact_printf_error( "%s: Request 0x%lx: Executables cannot be served: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), spsp->file );
+            spsp->response = __response_prep_data( connection, MHD_HTTP_FORBIDDEN, strlen( SP_HTTP_RESPONSE_FORBIDDEN ), (void *) SP_HTTP_RESPONSE_FORBIDDEN );
+            goto finalize_request;
         }
         
-        impact_printf_debug( "%s: Request 0x%lx: Serving FILE %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
-        ret = __response_send_file( connection, MHD_HTTP_OK, 2048, file );
-        free( file );
+        impact_printf_debug( "%s: Request 0x%lx: Serving FILE %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), spsp->file );
+        spsp->response = __response_prep_file( connection, MHD_HTTP_OK, file_status.st_size, spsp->file );
     }
     else
     {
         impact_printf_debug( "%s: Request 0x%lx: %s is not a supported HTTP method\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), method );
-        ret = __response_send_data( connection, MHD_HTTP_BAD_REQUEST, strlen( SP_HTTP_RESPONSE_BAD_REQUEST ), (void *) SP_HTTP_RESPONSE_BAD_REQUEST );
+        spsp->response = __response_prep_data( connection, MHD_HTTP_BAD_REQUEST, strlen( SP_HTTP_RESPONSE_BAD_REQUEST ), (void *) SP_HTTP_RESPONSE_BAD_REQUEST );
     }
     
-    abort_request:
-    impact_printf_debug( "%s: Request 0x%lx: Relinquishing queue to microhttpd\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
-    return ret;
+    finalize_request:
+    if( spsp == NULL )
+    {
+        impact_printf_debug( "%s: Request 0x%lx: Prematurely terminating response ...\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
+        return MHD_NO;
+    }
+    
+    if( spsp->response )
+    {
+        impact_printf_debug( "%s: Request 0x%lx: Sending response ...\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
+        return MHD_YES;
+    }
+    
+    impact_printf_debug( "%s: Request 0x%lx: Terminating response ...\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
+    
+    if( spsp->file ) free( spsp->file );
+    if( spsp->data ) free( spsp->data );
+    free( spsp );
+    *state = spsp = NULL;
+    
+    return MHD_NO;
+}
+
+/*
+Cleanup the resources allocated for the request.
+
+Arguments:
+    cls [in]        SimplePost instance to act on
+    connection [in] Connection handle
+    state [in]      Data preserved from the request handler
+    toe [in]        Reason the request was terminated
+*/
+void __finalize_request( void * cls, struct MHD_Connection * connection, void ** state, enum MHD_RequestTerminationCode toe )
+{
+    struct simplepost_state * spsp = (struct simplepost_state *) *state; // Request to cleanup
+    
+    #ifdef DEBUG
+    if( spsp == NULL )
+    {
+        impact_printf_debug( "%s: Request 0x%lx: Cannot cleanup stateless request\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
+        return;
+    }
+    #endif // DEBUG
+    
+    if( spsp->response ) MHD_destroy_response( spsp->response );
+    else impact_printf_debug( "%s:%d: BUG! __process_request() should have returned MHD_NO if it failed to queue a response!\n", __FILE__, __LINE__ );
+    
+    #ifdef DEBUG
+    if( spsp->file == NULL && spsp->file_length ) impact_printf_debug( "%s:%d: BUG! simplepost_state::file should NEVER be NULL while simplepost_state::file_length is non-zero\n", __FILE__, __LINE__ );
+    #endif // DEBUG
+    if( spsp->file ) free( spsp->file );
+    
+    #ifdef DEBUG
+    if( spsp->data == NULL && spsp->data_length ) impact_printf_debug( "%s:%d: BUG! simplepost_state::data should NEVER be NULL while simplepost_state::data_length is non-zero\n", __FILE__, __LINE__ );
+    #endif // DEBUG
+    if( spsp->data ) free( spsp->data );
+    
+    #ifdef DEBUG
+    impact_printf_debug( "%s: Request 0x%lx: ", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
+    switch( toe )
+    {
+        case MHD_REQUEST_TERMINATED_COMPLETED_OK:
+            impact_printf_debug( "Successfully sent the response\n" );
+            break;
+        case MHD_REQUEST_TERMINATED_WITH_ERROR:
+            impact_printf_debug( "Error handling the connection\n" );
+            break;
+        case MHD_REQUEST_TERMINATED_TIMEOUT_REACHED:
+            impact_printf_debug( "No activity on the connection until the timeout was reached\n" );
+            break;
+        case MHD_REQUEST_TERMINATED_DAEMON_SHUTDOWN:
+            impact_printf_debug( "Connection terminated because the server is shutting down\n" );
+            break;
+        case MHD_REQUEST_TERMINATED_READ_ERROR:
+            impact_printf_debug( "Connection died because the client did not send the expected data\n" );
+            break;
+        case MHD_REQUEST_TERMINATED_CLIENT_ABORT:
+            impact_printf_debug( "The client terminated the connection by closing the socket for writing (TCP half-closed)\n" );
+            break;
+        default:
+            impact_printf_debug( "Invalid Termination Code: %d\n", toe );
+            break;
+    }
+    #endif // DEBUG
 }
 
 /*****************************************************************************
@@ -693,6 +826,7 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
     spp->httpd = MHD_start_daemon( MHD_USE_THREAD_PER_CONNECTION, port,
         NULL, NULL,
         &__process_request, (void *) spp,
+        MHD_OPTION_NOTIFY_COMPLETED, &__finalize_request, (void *) spp,
         MHD_OPTION_CONNECTION_LIMIT, SP_HTTP_BACKLOG,
         MHD_OPTION_SOCK_ADDR, &source,
         MHD_OPTION_EXTERNAL_LOGGER, &__log_microhttpd_messages, (void *) spp,
