@@ -28,10 +28,9 @@ Boston, MA 021110-1307, USA.
 SimplePost HTTP configuration
 */
 #define SP_HTTP_PORT_MAX     65535      // Highest port number
-#define SP_HTTP_BACKLOG      5          // Maximum number of pending connections before clients start getting refused
+#define SP_HTTP_BACKLOG      16         // Maximum number of pending connections before clients start getting refused
 #define SP_HTTP_SLEEP        100        // Milliseconds to sleep between shutdown checks while blocking
 #define SP_HTTP_FILES_MAX    50         // Maximum number of files which may be served simultaneously
-#define SP_HTTP_VERSION     "HTTP/1.0"  // HTTP version implemented by the server
 
 /*
 SimplePost files type

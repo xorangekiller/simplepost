@@ -24,124 +24,22 @@ Boston, MA 021110-1307, USA.
 #include "config.h"
 
 #include <arpa/inet.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/select.h>
-#include <sys/time.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
-#include <strings.h>
-#include <ctype.h>
 #include <pthread.h>
-#include <magic.h>
+#include <microhttpd.h>
 
 /*
 Server header strings
 */
 #define SP_HTTP_HEADER_NAMESPACE        "SimplePost::HTTP"
-
-/*****************************************************************************
- *                              Socket Support                               *
- *****************************************************************************/
-
-/*
-Get a line of text from a socket.
-
-Remarks:
-    This function handles strings that end in LF, CR, or CRLF. Technically
-    HTTP/1.1 (RFC 2616) mandates that all lines end in CRLF, but non-conforming
-    clients sometimes terminate with just one or the other.
-
-Arguments:
-    sock [in]       Socket to retrieve the characters from
-    buffer [out]    Buffer that the NULL-terminated string will be written to
-                    If the end of the buffer is encountered before a newline,
-                    the buffer will be terminated with a NULL character.
-    size [in]       Length of the buffer, above
-
-Return Value:
-    The number of bytes written to the buffer, excluding the NULL character,
-    will be returned.
-*/
-static size_t __recv_line( int sock, char * buffer, size_t size )
-{
-    char byte; // Last character read from the socket
-    ssize_t received; // Number of characters received from a socket read operation
-    size_t count = 0; // Number of bytes written to the buffer
-    
-    while( count < (size - 1) )
-    {
-        received = recv( sock, &byte, 1, 0 );
-        if( received == 0 || received == -1 ) break;
-        
-        if( byte == '\n' || byte == '\0' ) break;
-        if( byte == '\r' )
-        {
-            received = recv( sock, &byte, 1, MSG_PEEK );
-            if( received == 0 || received == -1 ) break;
-            if( byte == '\n' ) continue;
-            break;
-        }
-        
-        buffer[count++] = byte;
-    }
-    buffer[count] = '\0';
-    
-    return count;
-}
-
-/*
-Get a line of text from a socket.
-
-Remarks:
-    This function is identical to __recv_line(), except that it dynamically
-    allocates the buffer instead of relying on a fixed size.
-
-Arguments:
-    sock [in]       Socket to retrieve the characters from
-    buffer [out]    Pointer to the buffer for the NULL-terminated output string
-                    The storage for this string will be dynamically allocated.
-                    You are responsible for freeing it (unless it is NULL, in
-                    which case an error occurred).
-
-Return Value:
-    The number of bytes written to the buffer, excluding the NULL character,
-    will be returned. The actual size of the buffer may be slightly larger than
-    this length, but not by much.
-*/
-static size_t __recv_line_dynamic( int sock, char ** buffer )
-{
-    size_t buffer_size; // Length of the buffer
-    size_t buffer_length; // Length of the line
-    const size_t buffer_base_size = 32; // Minimum buffer length
-    
-    buffer_size = buffer_base_size;
-    *buffer = (char *) malloc( sizeof( char ) * buffer_size );
-    if( *buffer == NULL ) return 0;
-    
-    buffer_length = __recv_line( sock, *buffer, buffer_size );
-    while( buffer_length + 1 == buffer_size )
-    {
-        char * new_buffer = realloc( *buffer, sizeof( char ) * (buffer_size + buffer_base_size) );
-        if( new_buffer == NULL )
-        {
-            free( *buffer );
-            *buffer = NULL;
-            return 0;
-        }
-        
-        *buffer = new_buffer;
-        buffer_length = __recv_line( sock, *buffer + (buffer_size - 1), buffer_base_size );
-        buffer_size += buffer_base_size;
-    }
-    
-    return buffer_length;
-}
+#define SP_HTTP_HEADER_MICROHTTPD       "microhttpd"
 
 /*****************************************************************************
  *                               File Support                                *
@@ -338,161 +236,89 @@ static size_t __simplepost_serve_length( struct simplepost_serve * spsp )
 }
 
 /*****************************************************************************
- *                Hypertext Transfer Protocol Implementation                 *
+ *                              HTTP Responses                               *
  *****************************************************************************/
 
 /*
-Inform the client that the request method has not been implemented.
+HTTP response strings
+*/
+#define SP_HTTP_RESPONSE_BAD_REQUEST "<html><head><title>Bad Request\r\n</title></head>\r\n<body><p>HTTP request method not supported.\r\n</body></html>\r\n"
+#define SP_HTTP_RESPONSE_FORBIDDEN "<html><head><title>Forbidden\r\n</title></head>\r\n<body><p>The request CANNOT be fulfilled.\r\n</body></html>\r\n"
+#define SP_HTTP_RESPONSE_NOT_FOUND "<html><head><title>Not Found\r\n</title></head>\r\n<body><p>There is no resource matching the specified URI.\r\n</body></html>\r\n"
+#define SP_HTTP_RESPONSE_NOT_ACCEPTABLE "<html><head><title>Not Acceptable\r\n</title></head>\r\n<body><p>HTTP headers request a resource we cannot satisfy.\r\n</body></html>\r\n"
+#define SP_HTTP_RESPONSE_GONE "<html><head><title>Not Available\r\n</title></head>\r\n<body><p>The requested resource is no longer available.\r\n</body></html>\r\n"
+#define SP_HTTP_RESPONSE_UNSUPPORTED_MEDIA_TYPE "<html><head><title>Unsupported Media Type\r\n</title></head>\r\n<body><p>The requested resource is not valid for the requested method.\r\n</body></html>\r\n"
+#define SP_HTTP_RESPONSE_INTERNAL_SERVER_ERROR "<html><head><title>Internal Server Error\r\n</title></head>\r\n<body><p>HTTP server encountered an unexpected condition which prevented it from fulfilling the request.\r\n</body></html>\r\n"
+#define SP_HTTP_RESPONSE_NOT_IMPLEMENTED "<html><head><title>Method Not Implemented\r\n</title></head>\r\n<body><p>HTTP request method not supported.\r\n</body></html>\r\n"
+
+/*
+Send a response to the client from a data buffer.
 
 Arguments:
-    sock [in]   Socket connected to the client
+    connection [in]     Connection identifying the client
+    status_code [in]    HTTP status code to send
+    size [in]           Size of the data array to send
+    data [in]           Data to send
+
+Return Value:
+    MHD_NO will be returned if the response cannot be sent.
+    MHD_YES will be returned if the response has been sent.
 */
-static void __http_unimplemented( int sock )
+static int __response_send_data( struct MHD_Connection * connection, unsigned int status_code, size_t size, void * data )
 {
-    char buffer[1024]; // Sent characters buffer
-    int buffer_length; // Length of the buffer
+    struct MHD_Response * response; // Response to the request
+    int ret; // Our return value
     
-    buffer_length = sprintf( buffer, "%s 501 Method Not Implemented\r\n", SP_HTTP_VERSION );
-    send( sock, buffer, buffer_length, 0 );
+    response = MHD_create_response_from_data( size, data, MHD_NO, MHD_YES );
+    if( response == NULL )
+    {
+        impact_printf_debug( "%s:%d: %s: Failed to allocate memory for the HTTP response %u\n", __FILE__, __LINE__, SP_MAIN_HEADER_MEMORY_ALLOC, status_code );
+        return MHD_NO;
+    }
+    ret = MHD_queue_response( connection, status_code, response );
+    MHD_destroy_response( response );
     
-    buffer_length = sprintf( buffer, "Server: %s/%s\r\n", SP_MAIN_SHORT_NAME, SP_MAIN_VERSION );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "Content-Type: text/html\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "<HTML><HEAD><TITLE>Method Not Implemented\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "</TITLE></HEAD>\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "<BODY><P>HTTP request method not supported.\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "</BODY></HTML>\r\n" );
-    send( sock, buffer, buffer_length, 0 );
+    return ret;
 }
 
 /*
-Send the client a 404 error message.
+Send a response to the client from a file.
 
 Arguments:
-    sock [in]   Socket connected to the client
-*/
-void __http_resource_not_found( int sock )
-{
-    char buffer[1024]; // Buffer of characters to send
-    int buffer_length; // Length of the buffer
-    
-    buffer_length = sprintf( buffer, "%s 404 NOT FOUND\r\n", SP_HTTP_VERSION );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "Server: %s/%s\r\n", SP_MAIN_SHORT_NAME, SP_MAIN_VERSION );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "Content-Type: text/html\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "<HTML><TITLE>Not Found</TITLE>\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "<BODY><P>The server could not fulfill\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "your request because the resource specified\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "is unavailable or nonexistent.\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "</BODY></HTML>\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-}
+    connection [in]     Connection identifying the client
+    status_code [in]    HTTP status code to send
+    size [in]           Size of the data portion of the response
+    file [in]           Name and path of the file to send
 
-/*
-Send the client informational HTTP headers about a file.
-
-Arguments:
-    sock [in]   Socket connected to the client
-    file [in]   Name and path of the file
+Return Value:
+    MHD_NO will be returned if the response cannot be sent.
+    MHD_YES will be returned if the response has been sent.
 */
-static void __http_send_headers( int sock, const char * file )
+static int __response_send_file( struct MHD_Connection * connection, unsigned int status_code, size_t size, const char * file )
 {
-    char buffer[1024]; // Buffer of characters to send
-    int buffer_length; // Length of the buffer
-    magic_t hmagic; // Magic file handle
+    struct MHD_Response * response; // Response to the request
+    int fd; // File descriptor
+    int ret; // Our return value
     
-    buffer_length = sprintf( buffer, "%s 200 OK\r\n", SP_HTTP_VERSION );
-    send( sock, buffer, buffer_length, 0 );
-    
-    buffer_length = sprintf( buffer, "Server: %s/%s\r\n", SP_MAIN_SHORT_NAME, SP_MAIN_VERSION );
-    send( sock, buffer, buffer_length, 0 );
-    
-    hmagic = magic_open( MAGIC_MIME_TYPE );
-    if( hmagic )
+    fd = open( file, O_RDWR );
+    if( fd == -1 )
     {
-        magic_load( hmagic, NULL );
-        const char * mime_type = magic_file( hmagic, file );
-        
-        // According to RFC 2046, the content type should only be sent if it
-        // can be determined. If not, the client should do its best to
-        // determine what to do with the content instead. Notably, Apache used
-        // to send application/octet-stream to indicate arbitrary binary data
-        // when it couldn't determine the file type, but that is not correct
-        // according to the specification.
-        if( mime_type )
-        {
-            buffer_length = sprintf( buffer, "Content-Type: %s\r\n", mime_type );
-            send( sock, buffer, buffer_length, 0 );
-        }
-        
-        magic_close( hmagic );
+        impact_printf_error( "%s: Request 0x%lx: Cannot open FILE %s read-write\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
+        return MHD_NO;
     }
     
-    buffer_length = sprintf( buffer, "\r\n" );
-    send( sock, buffer, buffer_length, 0 );
-}
-
-/*
-Send a file to the client.
-
-Arguments:
-    sock [in]   Socket connected to the client
-    file [in]   Name and path of the file to serve
-*/
-static void __http_serve_file( int sock, const char * file )
-{
-    char * line; // Line received from the socket or file
-    FILE * hfile; // File handle associated with the input file
-    
-    // Read and discard headers.
-    while( __recv_line_dynamic( sock, &line ) ) free( line );
-    
-    hfile = fopen( file, "rb" );
-    if( hfile == NULL )
+    response = MHD_create_response_from_fd( size, fd );
+    if( response == NULL )
     {
-        __http_resource_not_found( sock );
+        impact_printf_debug( "%s:%d: %s: Failed to allocate memory for the HTTP response %u\n", __FILE__, __LINE__, SP_MAIN_HEADER_MEMORY_ALLOC, status_code );
+        close( fd );
+        return MHD_NO;
     }
-    else
-    {
-        char bytes[1024]; // Data read from the file
-        
-        __http_send_headers( sock, file );
-        
-        while( fgets( bytes, sizeof( bytes ), hfile ) )
-        {
-            send( sock, bytes, strlen( bytes ), 0 );
-        }
-        
-        fclose( hfile );
-    }
+    ret = MHD_queue_response( connection, status_code, response );
+    MHD_destroy_response( response );
+    close( fd );
+    
+    return ret;
 }
 
 /*****************************************************************************
@@ -500,35 +326,20 @@ static void __http_serve_file( int sock, const char * file )
  *****************************************************************************/
 
 /*
-SimplePost container for processing client requests
-*/
-struct simplepost_request
-{
-    struct simplepost * spp;    // SimplePost instance to act on
-    int client_sock;            // Socket the client connected on
-};
-
-/*
 SimplePost HTTP server status structure
 */
 struct simplepost
 {
     /* Initialization */
-    int httpd;                          // Socket for the HTTP server
+    struct MHD_Daemon * httpd;          // HTTP server instance
     unsigned short port;                // Port for the HTTP server
     char * address;                     // Address of the HTTP server
-    pthread_t accept_thread;            // Handle of the primary thread
-    pthread_mutex_t master_lock;        // Mutex for entire structure
+    pthread_mutex_t master_lock;        // Mutex for port and address
     
     /* Files */
     struct simplepost_serve * files;    // List of files being served
     size_t files_count;                 // Number of files being served
     pthread_mutex_t files_lock;         // Mutex for files and files_count
-    
-    /* Clients */
-    short accpeting_clients;            // Are we accepting client connections?
-    size_t client_count;                // Number of clients currently being served
-    pthread_mutex_t client_lock;        // Mutex for accepting_clients and client_count
 };
 
 /*
@@ -538,6 +349,13 @@ Remarks:
     This function compares the given URI to the list of files we are serving.
     The URI does not necessarily correspond one-to-one to an actual file on
     the filesystem, hence the need for this function.
+
+Side Effects:
+    The file count is taken into consideration by this function. It will be
+    appropriately decremented if a file is found matching the URI and returned
+    by this function. The file will also be removed from the list of files
+    being served and the instance file count decremented if the file reaches
+    the maximum allowable times it may be served.
 
 Arguments:
     spp [in]    SimplePost instance to act on
@@ -558,122 +376,117 @@ static size_t __get_filename_from_uri( simplepost_t spp, char ** file, const cha
     *file = NULL; // Failsafe
     
     pthread_mutex_lock( &spp->files_lock );
+    
     if( spp->files )
     {
-        for( struct simplepost_serve * p = spp->files; p != NULL; p = p->next )
+        for( struct simplepost_serve * p = spp->files; p; p = p->next )
         {
             if( strcmp( uri, p->uri ) == 0 )
             {
                 *file = (char *) malloc( sizeof( char ) * (strlen( p->file ) + 1) );
-                if( !*file )
-                {
-                    pthread_mutex_unlock( &spp->files_lock );
-                    return file_length;
-                }
+                if( *file == NULL ) goto error;
                 
                 strcpy( *file, p->file );
                 file_length = strlen( *file );
                 
-                break;
+                if( p->count > 0 && --p->count == 0 )
+                {
+                    impact_printf_debug( "%s: FILE %s has reached its COUNT and will be removed\n", SP_HTTP_HEADER_NAMESPACE, p->file );
+                    __simplepost_serve_remove( p, 1 );
+                }
+                
+                goto error;
             }
         }
     }
-    pthread_mutex_unlock( &spp->files_lock );
     
+    error:
+    pthread_mutex_unlock( &spp->files_lock );
     return file_length;
+}
+
+/*
+Panic! Cleanup the SimplePost instance after libmicrohttpd encountered an
+unrecoverable error condition.
+
+Arguments:
+    cls [in]    SimplePost instance to act on
+    file [in]   C source file where the error occured
+    line [in]   Line of the C source file where the error occured
+    reason [in] Error message
+*/
+static void __panic( void * cls, const char * file, unsigned int line, const char * reason )
+{
+    simplepost_t spp = (simplepost_t) cls; // Instance to act on
+    
+    impact_printf_debug( "%s:%u: PANIC!\n", file, line );
+    impact_printf_error( "%s: %s: Emergency Shutdown: %s\n", SP_HTTP_HEADER_NAMESPACE, SP_HTTP_HEADER_MICROHTTPD, reason );
+    
+    simplepost_unbind( spp );
+}
+
+/*
+Print error messages from libmicrohttpd.
+
+Arguments:
+    cls [in]    SimplePost instance to act on
+    format [in] Format string
+    ap [in]     List of format arguments
+*/
+static void __log_microhttpd_messages( void * cls, const char * format, va_list ap )
+{
+    char buffer[2048]; // libmicrohttpd error message
+    int length; // Number of characters written to the buffer
+    
+    length = vsprintf( buffer, format, ap );
+    
+    if( length < 0 ) impact_printf_debug( "%s:%d: vsprintf() encountered a serious error condition processing a libmicrohttpd error message\n", __FILE__, __LINE__ );
+    else impact_printf_error( "%s: %s: %s\n", SP_HTTP_HEADER_NAMESPACE, SP_HTTP_HEADER_MICROHTTPD, buffer );
 }
 
 /*
 Process a request accepted by the server.
 
 Arguments:
-    p [in]      simplepost_request instance
-                Ideally we would accept each variable in the simplepost_request
-                struct as its own argument, but we are limited to a single
-                void pointer for pthreads compatibility.
+    cls [in]                SimplePost instance to act on
+    connection [in]         Connection handle
+    uri [in]                Uniform Resource Identifier of the request
+    method [in]             HTTP method
+    version [in]            HTTP version
+    data [in]               Data sent by the client (excluding HEADERS)
+    data_size [in] [out]    Size of the client-provided data
+                            
+                            Initially this must be the size of the data
+                            provided. This function will update it to the
+                            number of bytes NOT processed.
+    state [out]             Pointer to a data structure which will be preserved
+                            for future calls for this request.
 
 Return Value:
-    We require a return value only for pthreads compatibility.
-    NULL is always returned.
+    MHD_NO will be returned if the socket must be closed due to a serious error
+    we encountered while handling the request.
+    MHD_YES will be returned if the connection was handled successfully.
 */
-static void * __process_request( void * p )
+static int __process_request( void * cls, struct MHD_Connection * connection, const char * uri, const char * method, const char * version, const char * data, size_t * data_size, void ** state )
 {
-    struct simplepost_request * sprp = (struct simplepost_request *) p; // Convenience cast of our input parameter
-    simplepost_t spp = sprp->spp; // SimplePost instance to act on
-    int client_sock = sprp->client_sock; // Socket the client connected on
-    
-    free( sprp );
-    sprp = p = NULL;
-    
-    char * request = NULL; // Client's request to process
-    size_t request_length; // Length of the request
-    const char * request_ptr; // Place in our request buffer
-    
-    char method[20]; // HTTP method of the request
-    char * uri = NULL; // Uniform Resource Identifier of the request
-    char version[60]; // HTTP version of the request
-    char * part_ptr; // Place in the method, uri, or version buffer
-    
-    pthread_mutex_lock( &spp->client_lock );
-    spp->client_count++;
-    pthread_mutex_unlock( &spp->client_lock );
-    
-    request_length = __recv_line_dynamic( client_sock, &request );
-    if( request_length == 0 )
-    {
-        impact_printf_error( "%s: Request 0x%lx: Buffer is too small to receive the request\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
-        goto abort_request;
-    }
-    impact_printf_debug( "%s: Request 0x%lx: request: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), request );
-    
-    request_ptr = request;
-    part_ptr = method;
-    while( !(isspace( *request_ptr ) || *request_ptr == '\0') && part_ptr < (method + sizeof( method )/sizeof( method[0] ) - 1)) *part_ptr++ = *request_ptr++;
-    *part_ptr = '\0';
-    
-    if( !isspace( *request_ptr++ ) )
-    {
-        impact_printf_error( "%s: Request 0x%lx: Request does not specify a HTTP method\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
-        goto abort_request;
-    }
-    
-    part_ptr = uri = (char *) malloc( sizeof( char ) * (strlen( request_ptr ) + 1) );
-    if( uri == NULL )
-    {
-        impact_printf_error( "%s: Request 0x%lx: Request does not specify a HTTP URI\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
-        goto abort_request;
-    }
-    while( !(isspace( *request_ptr ) || *request_ptr == '\0') ) *part_ptr++ = *request_ptr++;
-    *part_ptr = '\0';
-    
-    if( isspace( *request_ptr ) )
-    {
-        request_ptr++;
-        part_ptr = version;
-        while( !(isspace( *request_ptr ) || *request_ptr == '\0') && part_ptr < (version + sizeof( version )/sizeof( version[0] ) - 1)) *part_ptr++ = *request_ptr++;
-        *part_ptr = '\0';
-        
-        if( *request_ptr != '\0' )
-        {
-            impact_printf_error( "%s: Request 0x%lx: Request does not specify a HTTP version\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
-            goto abort_request;
-        }
-    }
-    else if( *request_ptr == '\0' )
-    {
-        strcpy( version, SP_HTTP_VERSION );
-    }
-    else
-    {
-        impact_printf_error( "%s: Request 0x%lx: Request does not specify a HTTP version\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
-        goto abort_request;
-    }
+    simplepost_t spp = (simplepost_t) cls; // Instance to act on
+    int ret = MHD_NO; // Our return value
     
     impact_printf_debug( "%s: Request 0x%lx: method: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), method );
     impact_printf_debug( "%s: Request 0x%lx: URI: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), uri );
     impact_printf_debug( "%s: Request 0x%lx: version: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), version );
     
-    if( strcasecmp( method, "GET" ) == 0 )
+    if( *state )
+    {
+        impact_printf_error( "%s: Request 0x%lx: Request should be stateless\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
+        goto abort_request;
+    }
+    
+    // We really don't care what data the client sent us. Nothing handled by
+    // SimplePost actually requires the client to send additional data.
+    *data_size = 0;
+    
+    if( strcmp( method, MHD_HTTP_METHOD_GET ) == 0 )
     {
         char * file = NULL; // Name and path of the file to serve
         size_t file_length; // Length of the file name and path
@@ -683,8 +496,8 @@ static void * __process_request( void * p )
         if( file_length == 0 || stat( file, &file_status ) == -1 )
         {
             impact_printf_error( "%s: Request 0x%lx: Resource not found: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), uri );
-            __http_resource_not_found( client_sock );
-            if( file ) free( file );
+            ret = __response_send_data( connection, MHD_HTTP_NOT_FOUND, strlen( SP_HTTP_RESPONSE_NOT_FOUND ), (void *) SP_HTTP_RESPONSE_NOT_FOUND );
+            free( file );
             goto abort_request;
         }
         
@@ -699,7 +512,7 @@ static void * __process_request( void * p )
                 if( stat( file, &file_status ) == -1 )
                 {
                     impact_printf_debug( "%s: Request 0x%lx: File not found: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
-                    __http_resource_not_found( client_sock );
+                    ret = __response_send_data( connection, MHD_HTTP_NOT_FOUND, strlen( SP_HTTP_RESPONSE_NOT_FOUND ), (void *) SP_HTTP_RESPONSE_NOT_FOUND );
                     free( file );
                     goto abort_request;
                 }
@@ -709,145 +522,38 @@ static void * __process_request( void * p )
         if( S_ISDIR( file_status.st_mode ) )
         {
             impact_printf_error( "%s: Request 0x%lx: Directory not supported: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
-            __http_resource_not_found( client_sock );
+            ret = __response_send_data( connection, MHD_HTTP_FORBIDDEN, strlen( SP_HTTP_RESPONSE_FORBIDDEN ), (void *) SP_HTTP_RESPONSE_FORBIDDEN );
             free( file );
             goto abort_request;
         }
         
-        // Executables generally indicate CGI. Although HTTP/1.1 doesn't
-        // technically support CGI with GET requests, web servers sometimes
-        // support it anyway. However our lack of CGI support is far from the
-        // driving reason for not serving executable: it's a potential security
-        // risk.
+        // Executables generally indicate CGI. Although HTTP/1.1 doesn't technically
+        // support CGI with GET requests, web servers sometimes support it anyway.
+        // However our lack of CGI support is far from the driving reason for not
+        // serving executable: it's a potential security risk.
         //
-        // TODO: Allow the user to explicitly override this restriction at his
-        // own peril!
+        // TODO: Allow the user to override this restriction at his own peril!
         if( (file_status.st_mode & S_IXUSR) || (file_status.st_mode & S_IXGRP) || (file_status.st_mode & S_IXOTH) )
         {
-            impact_printf_error( "%s: Request 0x%lx: Executables cannot be served: %s\n", SP_MAIN_COPYRIGHT, pthread_self(), file );
-            __http_resource_not_found( client_sock );
+            impact_printf_error( "%s: Request 0x%lx: Executables cannot be served: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
+            ret = __response_send_data( connection, MHD_HTTP_FORBIDDEN, strlen( SP_HTTP_RESPONSE_FORBIDDEN ), (void *) SP_HTTP_RESPONSE_FORBIDDEN );
             free( file );
             goto abort_request;
         }
         
-        impact_printf_debug( "%s: Request 0x%lx: Serving FILE %s to client %d\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file, client_sock );
-        __http_serve_file( client_sock, file );
+        impact_printf_debug( "%s: Request 0x%lx: Serving FILE %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file );
+        ret = __response_send_file( connection, MHD_HTTP_OK, 2048, file );
         free( file );
-    }
-    else if( strcasecmp( method, "POST" ) == 0 )
-    {
-        // POST is primarily used for CGI, which we don't support. However
-        // since it is such a common request type, it gets its own dedicated
-        // method handler anyway.
-        impact_printf_debug( "%s: Request 0x%lx: POST is not a supported HTTP method\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
-        __http_unimplemented( client_sock );
-        goto abort_request;
     }
     else
     {
         impact_printf_debug( "%s: Request 0x%lx: %s is not a supported HTTP method\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), method );
-        __http_unimplemented( client_sock );
-        goto abort_request;
+        ret = __response_send_data( connection, MHD_HTTP_BAD_REQUEST, strlen( SP_HTTP_RESPONSE_BAD_REQUEST ), (void *) SP_HTTP_RESPONSE_BAD_REQUEST );
     }
     
     abort_request:
-    impact_printf_debug( "%s: Request 0x%lx: Closing client %d\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), client_sock );
-    close( client_sock );
-    
-    if( request ) free( request );
-    if( uri ) free( uri );
-    
-    pthread_mutex_lock( &spp->client_lock );
-    spp->client_count--;
-    pthread_mutex_unlock( &spp->client_lock );
-    
-    return NULL;
-}
-
-/*
-Start accepting requests from clients.
-
-Remarks:
-    This function is the master thread that actually *runs* the server. It is
-    responsible for accepting connections from clients and spawning a
-    processing thread as quickly as possible to handle each client. It is not
-    implemented in - or called directly from - simplepost_bind() so that the
-    server does not block the caller of the aforementioned function.
-
-Arguments:
-    p [in]      SimplePost instance to act on
-
-Return Value:
-    We require a return value only for pthreads compatibility.
-    NULL is always returned.
-*/
-static void * __accept_requests( void * p )
-{
-    simplepost_t spp = (simplepost_t) p; // Properly cast SimplePost handle
-    
-    int client_sock; // Socket the client connected on
-    struct sockaddr_in client_name; // Name of the client
-    socklen_t client_name_len; // Length of the client name structure
-    pthread_t client_thread; // Handle of the client thread
-    
-    struct timespec timeout; // Maximum time to wait for a connection before checking the shutdown sentinel
-    fd_set fds; // File descriptor set (for pselect() socket monitoring)
-    
-    spp->client_count = 0;
-    spp->accpeting_clients = 1;
-    
-    while( spp->accpeting_clients )
-    {
-        FD_ZERO( &fds );
-        FD_SET( spp->httpd, &fds );
-        
-        timeout.tv_sec = 2;
-        timeout.tv_nsec = 0;
-        
-        switch( pselect( spp->httpd + 1, &fds, NULL, NULL, &timeout, NULL ) )
-        {
-            case -1:
-                impact_printf_error( "%s: Cannot accept connections on socket %d\n", SP_HTTP_HEADER_NAMESPACE, spp->httpd );
-                spp->accpeting_clients = 0;
-            case 0:
-                continue;
-        }
-        
-        client_name_len = sizeof( client_name );
-        client_sock = accept( spp->httpd, (struct sockaddr *) &client_name, &client_name_len );
-        if( client_sock == -1 ) continue;
-        
-        struct simplepost_request * sprp = (struct simplepost_request *) malloc( sizeof( struct simplepost_request ) );
-        if( sprp == NULL )
-        {
-            impact_printf_error( "%s: %s: Failed to allocate memory for a new request thread\n", SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
-            spp->accpeting_clients = 0;
-            continue;
-        }
-        sprp->spp = spp;
-        sprp->client_sock = client_sock;
-        
-        if( pthread_create( &client_thread, NULL, &__process_request, (void *) sprp ) == 0 )
-        {
-            impact_printf_debug( "%s: Launched request processing thread 0x%lx for client %d\n", SP_HTTP_HEADER_NAMESPACE, client_thread, client_sock );
-            pthread_detach( client_thread );
-        }
-        else
-        {
-            impact_printf_debug( "%s: Failed to launch request processing thread for client %d\n", SP_HTTP_HEADER_NAMESPACE, client_sock );
-            close( sprp->client_sock );
-            free( sprp );
-        }
-    }
-    
-    impact_printf_debug( "%s: Waiting for %lu clients to finish processing ...\n", SP_HTTP_HEADER_NAMESPACE, spp->client_count );
-    while( spp->client_count ) usleep( SP_HTTP_SLEEP * 1000 );
-    
-    impact_printf_debug( "%s: Closing socket %d\n", SP_HTTP_HEADER_NAMESPACE, spp->httpd );
-    close( spp->httpd );
-    spp->httpd = -1;
-    
-    return NULL;
+    impact_printf_debug( "%s: Request 0x%lx: Relinquishing queue to microhttpd\n", SP_HTTP_HEADER_NAMESPACE, pthread_self() );
+    return ret;
 }
 
 /*****************************************************************************
@@ -866,19 +572,15 @@ simplepost_t simplepost_init()
     simplepost_t spp = (simplepost_t) malloc( sizeof( struct simplepost ) );
     if( spp == NULL ) return NULL;
     
-    spp->httpd = -1;
+    spp->httpd = NULL;
     spp->port = 0;
     spp->address = NULL;
     
     spp->files = NULL;
     spp->files_count = 0;
     
-    spp->accpeting_clients = 0;
-    spp->client_count = 0;
-    
     pthread_mutex_init( &spp->master_lock, NULL );
     pthread_mutex_init( &spp->files_lock, NULL );
-    pthread_mutex_init( &spp->client_lock, NULL );
     
     return spp;
 }
@@ -891,14 +593,13 @@ Arguments:
 */
 void simplepost_free( simplepost_t spp )
 {
-    if( spp->httpd != -1 ) simplepost_unbind( spp );
+    if( spp->httpd ) simplepost_unbind( spp );
     if( spp->address ) free( spp->address );
     
     if( spp->files ) __simplepost_serve_free( spp->files );
     
     pthread_mutex_destroy( &spp->master_lock );
     pthread_mutex_destroy( &spp->files_lock );
-    pthread_mutex_destroy( &spp->client_lock );
     
     free( spp );
 }
@@ -922,24 +623,17 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
 {
     pthread_mutex_lock( &spp->master_lock );
     
-    if( spp->httpd != -1 )
+    if( spp->httpd )
     {
         impact_printf_error( "%s: Server is already initialized\n", SP_HTTP_HEADER_NAMESPACE );
-        goto abort_unbound;
+        goto error;
     }
     
-    spp->httpd = socket( AF_INET, SOCK_STREAM, 0 );
-    if( spp->httpd == -1 )
-    {
-        impact_printf_error( "%s: Socket could not be created\n", SP_HTTP_HEADER_NAMESPACE );
-        goto abort_unbound;
-    }
+    struct sockaddr_in source; // Source address and port the server should be bound to
+    memset( &source, 0, sizeof( source ) );
     
-    struct sockaddr_in name; // Address structure bound to the socket
-    memset( &name, 0, sizeof( name ) );
-    
-    name.sin_family = AF_INET;
-    name.sin_port = htons( port );
+    source.sin_family = AF_INET;
+    source.sin_port = htons( port );
     
     if( address )
     {
@@ -948,22 +642,22 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
         if( inet_pton( AF_INET, address, (void *) &sin_addr ) != 1 )
         {
             impact_printf_error( "%s: Invalid source address specified\n", SP_HTTP_HEADER_NAMESPACE );
-            goto abort_bind;
+            goto error;
         }
-        name.sin_addr = sin_addr;
+        source.sin_addr = sin_addr;
         
         if( spp->address ) free( spp->address );
         spp->address = (char *) malloc( sizeof( char ) * (strlen( address ) + 1) );
         if( spp->address == NULL )
         {
             impact_printf_error( "%s: %s: Failed to allocate memory for the source address\n", SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
-            goto abort_bind;
+            goto error;
         }
         strcpy( spp->address, address );
     }
     else
     {
-        name.sin_addr.s_addr = htonl( INADDR_ANY );
+        source.sin_addr.s_addr = htonl( INADDR_ANY );
         
         struct addrinfo hints; // Criteria for selecting socket addresses
         memset( (void *) &hints, 0, sizeof( hints ) );
@@ -977,7 +671,7 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
             if( spp->address == NULL )
             {
                 impact_printf_error( "%s: %s: Failed to allocate memory for the source address\n", SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
-                goto abort_bind;
+                goto error;
             }
             strcpy( spp->address, (const char *) address_info->ai_addr );
             freeaddrinfo( address_info );
@@ -989,52 +683,60 @@ unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned
             if( spp->address == NULL )
             {
                 impact_printf_error( "%s: %s: Failed to allocate memory for the source address\n", SP_HTTP_HEADER_NAMESPACE , SP_MAIN_HEADER_MEMORY_ALLOC );
-                goto abort_bind;
+                goto error;
             }
             strcpy( spp->address, "127.0.0.1" );
         }
     }
     
-    if( bind( spp->httpd, (struct sockaddr *) &name, sizeof( name ) ) == -1 )
+    MHD_set_panic_func( &__panic, (void *) spp );
+    spp->httpd = MHD_start_daemon( MHD_USE_THREAD_PER_CONNECTION, port,
+        NULL, NULL,
+        &__process_request, (void *) spp,
+        MHD_OPTION_CONNECTION_LIMIT, SP_HTTP_BACKLOG,
+        MHD_OPTION_SOCK_ADDR, &source,
+        MHD_OPTION_EXTERNAL_LOGGER, &__log_microhttpd_messages, (void *) spp,
+        MHD_OPTION_END );
+    if( spp->httpd == NULL )
     {
-        impact_printf_error( "%s: Server failed to bind to socket\n", SP_HTTP_HEADER_NAMESPACE );
-        goto abort_bind;
+        impact_printf_error( "%s: Failed to initialize the server on port %u\n", SP_HTTP_HEADER_NAMESPACE, port );
+        goto error;
     }
     
     if( port == 0 )
     {
-        socklen_t name_len = sizeof( name ); // Length of the socket's address structure
-        if( getsockname( spp->httpd, (struct sockaddr *) &name, &name_len ) == -1 )
+        socklen_t source_len = sizeof( source ); // Length of the socket's source address
+        const union MHD_DaemonInfo * httpd_sock; // Socket the server is listening on
+        
+        httpd_sock = MHD_get_daemon_info( spp->httpd, MHD_DAEMON_INFO_LISTEN_FD );
+        if( httpd_sock == NULL )
+        {
+            impact_printf_error( "%s: Failed to lock the socket the server is listening on\n", SP_HTTP_HEADER_NAMESPACE );
+            goto error;
+        }
+        
+        if( getsockname( httpd_sock->listen_fd, (struct sockaddr *) &source, &source_len ) == -1 )
         {
             impact_printf_error( "%s: Port could not be allocated\n", SP_HTTP_HEADER_NAMESPACE );
-            goto abort_bind;
+            goto error;
         }
-        port = ntohs( name.sin_port );
+        
+        port = ntohs( source.sin_port );
     }
     spp->port = port;
-    
-    if( listen( spp->httpd, SP_HTTP_BACKLOG ) == -1 )
-    {
-        impact_printf_error( "%s: Cannot listen on socket\n", SP_HTTP_HEADER_NAMESPACE );
-        goto abort_bind;
-    }
-    
-    if( pthread_create( &spp->accept_thread, NULL, &__accept_requests, (void *) spp ) != 0 )
-    {
-        impact_printf_error( "%s: Cannot accept connections on socket\n", SP_HTTP_HEADER_NAMESPACE );
-        goto abort_bind;
-    }
     
     impact_printf_standard( "%s: Bound HTTP server to ADDRESS %s listening on PORT %u with PID %d\n", SP_HTTP_HEADER_NAMESPACE, spp->address, spp->port, getpid() );
     pthread_mutex_unlock( &spp->master_lock );
     
     return port;
     
-    abort_bind:
-    close( spp->httpd );
-    spp->httpd = -1;
+    error:
+    if( spp->httpd )
+    {
+        MHD_stop_daemon( spp->httpd );
+        spp->httpd = NULL;
+    }
     
-    abort_unbound:
     pthread_mutex_unlock( &spp->master_lock );
     
     return 0;
@@ -1052,24 +754,21 @@ Return Value:
 */
 short simplepost_unbind( simplepost_t spp )
 {
-    if( spp->httpd != -1 )
+    if( spp->httpd == NULL )
     {
         impact_printf_error( "%s: Server is not running\n", SP_HTTP_HEADER_NAMESPACE );
         return 0;
     }
     
     #ifdef DEBUG
-    pthread_t accept_thread = spp->accept_thread;
+    uintptr_t server_id = (uintptr_t) spp->httpd;
     #endif // DEBUG
     
     impact_printf_standard( "%s: Shutting down ...\n", SP_HTTP_HEADER_NAMESPACE );
+    MHD_stop_daemon( spp->httpd );
+    spp->httpd = NULL;
     
-    pthread_mutex_lock( &spp->client_lock );
-    spp->accpeting_clients = 0;
-    pthread_mutex_unlock( &spp->client_lock );
-    pthread_join( spp->accept_thread, NULL );
-    
-    impact_printf_debug( "%s: 0x%lx cleanup complete\n", SP_HTTP_HEADER_NAMESPACE, accept_thread );
+    impact_printf_debug( "%s: 0x%lx cleanup complete\n", SP_HTTP_HEADER_NAMESPACE, server_id );
     
     return 1;
 }
@@ -1082,9 +781,7 @@ Arguments:
 */
 void simplepost_block( simplepost_t spp )
 {
-    // NOTE: simplepost::httpd is atomic, so we don't need to worry about
-    // acquiring simplepost::master_lock before reading it.
-    while( spp->httpd != -1 ) usleep( SP_HTTP_SLEEP * 1000 );
+    while( spp->httpd ) usleep( SP_HTTP_SLEEP * 1000 );
 }
 
 /*
@@ -1110,7 +807,7 @@ Return Value:
 */
 short simplepost_is_alive( simplepost_t spp )
 {
-    return (spp->httpd == -1) ? 0 : 1;
+    return (spp->httpd == NULL) ? 0 : 1;
 }
 
 /*
@@ -1398,7 +1095,7 @@ size_t simplepost_get_address( simplepost_t spp, char ** address )
     size_t address_length = 0; // Length of the server address
     *address = NULL; // Failsafe
     
-    if( spp->address == NULL || spp->httpd == -1 ) return 0;
+    if( spp->address == NULL || spp->httpd == NULL ) return 0;
     
     address_length = strlen( spp->address );
     *address = (char *) malloc( sizeof( char ) * (address_length + 1) );
