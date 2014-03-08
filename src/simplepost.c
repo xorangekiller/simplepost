@@ -214,7 +214,7 @@ static void __simplepost_serve_remove( struct simplepost_serve * spsp, size_t n 
             free( p );
         }
         
-        prev->next = top;
+        if( prev ) prev->next = top;
     }
 }
 
