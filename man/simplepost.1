@@ -1,41 +1,39 @@
 \" TROFF Macro Summary: http://www.fileformat.info/info/man-pages/macro.htm
 
-.TH SIMPLEPOST "1" "February 2014" "SimplePost 0.2" "User Commands"
+.TH SIMPLEPOST "1" "March 2014" "SimplePost 0.3" "User Commands"
 
 \" Completely disable hyphenation. It is a very annoying feature while reading man pages, in my opinion.
 .nh
 
 .SH NAME
-SimplePost \- Serve \fIFILE\fR \fICOUNT\fR times via HTTP on port \fIPORT\fR with ip address \fIADDRESS\fR.
+SimplePost \- Serve \fIFILE\fR \fICOUNT\fR times via HTTP on port \fIPORT\fR with IP address \fIADDRESS\fR.
 
 .SH SYNOPSIS
 .B simplepost
-[\fIOPTIONS\fR]
+[\fIGLOBAL_OPTIONS\fR]
+[\fIFILE_OPTIONS\fR]
 \fIFILE\fR
 
 .SH DESCRIPTION
-SimplePost is an extremely lightweight Hypertext Transfer Protocol (HTTP) server. It is missing many of the features of more established web servers such as Apache, nGenx, and Lighttpd. SimplePost has no intention of competing with these more established projects on features or speed. Its goal is to be a highly portable, fast, and low-resource web server for quickly transferring files from one computer to another on the same network with minimal setup.
+SimplePost is an extremely lightweight Hypertext Transfer Protocol (HTTP) server based on GNU libmicrohttpd. It is missing many of the features of more established web servers such as Apache, nGenx, and Lighttpd. SimplePost has no intention of competing with these more established projects on features or speed. Its goal is to be a highly portable, fast, and low-resource web server for quickly transferring files from one computer to another on the same network with minimal setup.
 
-.SH OPTIONS
-.IP \fB-c\fR\ \fICOUNT\fR,\ \fB--count=\fR\fICOUNT\fR
-Serve \fIFILE\fR exactly \fICOUNT\fR times. Once the file has been served to a client (or multiple clients) \fICOUNT\fR times, it will no longer be served by the web server. (SimplePost will return a 404 error if the file is requested by a client after it has already been served \fICOUNT\fR times.) This does not necessarily guarantee that every client has received a complete copy of \fIFILE\fR. If a client disconnects (whether or not that was their intention) \fICOUNT\fR is decremented.
+.SH GLOBAL_OPTIONS
+The global options described below apply to the program as a whole. Each option may be specified only once, and they must be specified before any \fIFILE\fR or \fIFILE_OPTIONS\fR. All global options are completely optional; SimplePost maintains sane defaults.
 
-If this option is not specified, \fIFILE\fR will be served until \fBsimplepost\fR is sent the TERM signal.
+.IP \fB-i\fR\ \fIADDRESS\fR,\ \fB--address\fR=\fIADDRESS\fR
+Serve \fIFILE\fR on \fIADDRESS\fR, where \fIADDRESS\fR is the server's Internet Protocol version 4 (IPv4) address. If no adapter on the host claims \fIADDRESS\fR, this program will print an error message (unless \fI--quiet\fR is in effect) and return with an error code.
 
-.IP \fB-i\fR\ \fIADDRESS\fR,\ \fB--ip-address=\fR\fIADDRESS\fR
-Serve \fIFILE\fR on \fIADDRESS\fR, where \fIADDRESS\fR is the server's Internet Protocol version 4 (IPv4) address. If no adapter on the host claims \fIADDRESS\fR, \fBsimplepost\fR fail to launch.
+If this option is not specified, the server will bind to all addresses assigned to network adapters on the host accessible by the current user. (netstat will claim its "Local Address" is "0.0.0.0:\fIPORT\fR".)
 
-If this option is not specified, the server will listen on all active adapters. (netstat will claim its "Local Address" is "0.0.0.0:\fIPORT\fR".)
-
-.IP \fB-p\fR\ \fIPORT\fR,\ \fB--port=\fR\fIPORT\fR
-Bind to \fIPORT\fR on the host. If \fIPORT\fR is not available, \fBsimplepost\fR fail to launch.
+.IP \fB-p\fR\ \fIPORT\fR,\ \fB--port\fR=\fIPORT\fR
+Listen on port \fIPORT\fR on the host. If \fIPORT\fR is not available, this program will print an error message (unless \fI--quiet\fR is in effect) and return with an error code.
 
 If this option is not specified, a random, available port will be chosen. As long as \fI--quiet\fR is not specified, the chosen port will be printed to STDOUT when the program is launched.
 
-.IP \fB--pid=\fR\fIPID\fR
-Act on the instance of SimplePost with the process identifier \fIPID\fR rather than seeking the most recent instance with the same \fIADDRESS\fR and \fIPORT\fR or creating a new instance. If there is no process attached to \fIPID\fR or the process attached to \fIPID\fR is not compatible with this version of SimplePost, the program will fail to launch.
+.IP \fB--pid\fR=\fIPID\fR
+Act on the instance of SimplePost with the process identifier \fIPID\fR rather than seeking the most recent instance with the same \fIADDRESS\fR and \fIPORT\fR or creating a new instance. If there is no process attached to \fIPID\fR or the process attached to \fIPID\fR is not compatible with this version of SimplePost, this program will print an error message (unless \fI--quiet\fR is in effect) and return with an error code.
 
-Although the first line that SimplePost prints to STDOUT typically contains its current PID (unless there is an initialization error or \fI--quiet\fR has been invoked), sometimes it is helpful to retrieve the PID of all running \fBsimplepost\fR instances. There are many ways to go about this, but a selection of the more common commands are listed below for your convenience.
+Although the first line that SimplePost prints to STDOUT typically contains its current PID (unless there is an initialization error or \fI--quiet\fR has been invoked), sometimes it is helpful to retrieve the PID of all running SimplePost instances. There are many ways to go about this, but a selection of the more common commands are listed below for your convenience.
 
 .br
     \fBps -A | grep simplepost\fR
@@ -43,6 +41,15 @@ Although the first line that SimplePost prints to STDOUT typically contains its 
     \fBps -eo pid,user,args | head -n -3 | grep simplepost\fR
 .br
     \fBsudo netstat -tlpn | grep simplepost\fR
+
+This option and \fI--new\fR are mutually exclusive.
+
+.IP \fB--new\fR
+Act exclusively on the current instance of this program.
+
+This option might not seem particularly useful at first glance, but that is only because it doesn't necessarily modify this program's default behavior. By default, if neither \fI--pid\fR nor \fI--new\fR is specified, this program will look for all instances of SimplePost accessible by the effective user with the same \fIADDRESS\fR and \fIPORT\fR as was specified on this command line for this instance. If no \fIADDRESS\fR or \fIPORT\fR was specified, then \fIFILE\fR will be served on the first SimplePost instance accessible by the current user. If there are no active instances of this program that meet those criteria, then the current instance will spawn its internal HTTP server to sever \fIFILE\fR. If the \fI--new\fR option is specified, the aforementioned discovery process will be short-circuited, and the current SimplePost instance will just try to server \fIFILE\fR itself.
+
+This option and \fI--pid\fR are mutually exclusive.
 
 .IP \fB-q\fR,\ \fB--quiet\fR
 Reduce verbosity with extreme prejudice. Do not print anything to STDOUT.
@@ -53,26 +60,46 @@ Print the program's built-in help documentation.
 .IP \fB--version\fR
 Print the program's build and version information.
 
+.SH FILE_OPTIONS
+The file options described below correspond to a specific \fIFILE\fR. Each option may be specified only once per \fIFILE\fR, although no options are strictly necessary for a \fIFILE\fR to be served. Each file option applies to the \fIFILE\fR immediately following it.
+
+.IP \fB-c\fR\ \fICOUNT\fR,\ \fB--count\fR=\fICOUNT\fR
+Serve \fIFILE\fR exactly \fICOUNT\fR times.
+
+Once the file has been served to a client (or multiple clients) \fICOUNT\fR times, it will no longer be served by the web server. (SimplePost will return a 404 error if the file is requested by a client after it has already been served \fICOUNT\fR times.) This does not necessarily guarantee that every client has received a complete copy of \fIFILE\fR. If a client disconnects (whether or not that was their intention) \fICOUNT\fR is decremented.
+
+Once all files being served by this SimplePost instance have been downloaded the maximum allowable number of times, SimplePost will shut down the web server and exit. If this option is not specified, \fIFILE\fR will be served until this instance of SimplePost is sent the TERM signal.
+
 .SH FILE
-At least one \fIFILE\fR must be specified to serve. If more than one \fIFILE\fR is specified, it will also be served the specified number of times. If there is already an instance of SimplePost running on \fIADDRESS\fR:\fIPORT\fR, all specified files will be added to the original instance.
+At least one \fIFILE\fR must be specified to serve. More than one \fIFILE\fR may be specified, preceded by the \fIFILE_OPTIONS\fR you want to apply to it.
+
+If there is already an instance of SimplePost bound to \fIADDRESS\fR listening on \fIPORT\fR, all specified files will be served by the original instance. The \fI--pid\fR and \fI--new\fR options have a much more detailed description of how this discovery process works.
+
+.SH EXIT\ CODES
+This program will exit with one of several error codes. If it returns \fB0\fR, everything was shutdown cleanly. All other exit codes indicate an error. If it returns with \fB1\fR, the error was not too severe. Higher error codes, up to a maximum of \fB255\fR, sequentially, indicate increasingly more severe errors.
 
 .SH EXAMPLES
 The following examples demonstrate the proper syntax for performing various common operations. If you need more help interpreting them, read the documentation above, and use common sense.
 
-Serve the file ~/.bashrc on port 80 exactly once, then exit. Since port 80 is a privileged port, you will most likely need to run this command with superuser privileges; typically this involves prefixing the command with \fBsudo\fR.
+\fB1.\fR Serve the current user's BASH configuration file on port 80 exactly once before shutting down the web server. (Note that since port 80 is a privileged port, you will most likely need to run this command with superuser privileges, which typically involves prefixing the command with \fBsudo\fR.)
 
 .br
-    \fBsimplepost -p 80 -c 1 -q ~/.bashrc\fR
+    \fBsimplepost -q -p 80 -c 1 ~/.bashrc\fR
 
-Serve the file ~/.bash_aliases exactly twice on the instance of SimplePost with the process identifier 99031. Note that if no SimplePost instance has the PID 99031 when this command is run, it will fail.
+\fB2.\fR Serve the current user's BASH aliases file exactly twice on the instance of SimplePost with the process identifier 99031. (Note that if no SimplePost instance has the \fIPID\fR 99031 when this command is run, it will fail. See the \fI--pid\fR and \fIEXIT CODES\fR entries in this manual for more information.)
 
 .br
     \fBsimplepost --pid=99031 --count=2 ~/.bash_aliases\fR
 
-Serve the file "~/Documents/Manuals/Walk-in Support Training Manual.pdf" on a random port until \fBsimplepost\fR receives the TERM signal.
+\fB3.\fR Serve the \fIFILE\fR "Training Manual.pdf" on a random port until the SimplePost process receives the TERM signal.
 
 .br
-    \fBsimplepost "~/Documents/Manuals/Walk-in Support Training Manual.pdf"\fR
+    \fBsimplepost "Training Manual.pdf"\fR
+
+\fB4.\fR Create a new instance of SimplePost listening on port 55555, and serve the \fIFILE\fR test.txt five times and the \fIFILE\fR test.log twice before shutting down the web server.
+
+.br
+    \fBsimplepost --new --port=55555 --count=5 test.txt --count=2 test.log\fR
 
 .SH AUTHOR
 This manual was written by Karl Lenz <xorangekiller@gmail.com>.
@@ -86,6 +113,8 @@ SimplePost is free software; see the COPYING file distributed with the source fo
 
 .SH SEE\ ALSO
 .BR woof (1),
+.BR wget (1),
+.BR curl (1),
 .BR kill (1),
 .BR ps (1),
 .BR netstat (8)
