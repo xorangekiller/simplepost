@@ -4,36 +4,28 @@
   are permitted in any medium without royalty provided the copyright
   notice and this notice are preserved.
 
-Allow entire directories to be hosted, not simply individual files. This
-support can be handled externally by other programs making use of the
-SimplePost class, but it would be cleaner to integrate it instead.
-Integration would also allow the front-end program to handle directories
-so the user no longer has to resort to gziping them prior to being
-served.
+Allow entire directories to be hosted, not simply individual files. There are
+a few ways to handle this, and I'm not sure which would be best. One option
+would be to recursively search the directory and host all files in it, then
+display a web page listing all the files in the directory (with hyperlinks,
+obviously) when it is requested by a client. Another option would be to gzip
+the directory and serve the archive to the client when it is requested.
 
-Add IPv6 support to the server. Most modern POSIX networking functions
-have the support included already, but it needs to be explicitly
-integrated into the server class.
+Add IPv6 support to the server. Most modern POSIX networking functions have the
+support included already, but it needs to be explicitly enabled in the HTTP
+server. It would probably be a good idea to also give the user the choice of
+using IPv4, IPv6, or both.
 
 Add configuration file support. It would be nice to be able to launch
-SimplePost with a pre-determined set of files to serve. The program
-does not need to be capable of generating this configuration file, but
-it obviously must be able to parse it. Like most UNIX configuration
-files, SimplePost's config file should be easy to edit by hand. A well-
-commented default config file, or at least an example, should be created
-for this feature. Explicit documentation would also be good. Libconfig
-is probably the best, least error-prone way to implement this support.
-http://www.hyperrealm.com/libconfig
+SimplePost with a pre-determined set of files to serve. The program does not
+need to be capable of generating this configuration file, but it obviously must
+be able to parse it. Like most UNIX configuration files, SimplePost's config
+file should be easy to edit by hand. A well-commented default config file, or
+at least an example, should be created for this feature. Explicit documentation
+would also be good. Libconfig is probably the best, least error-prone way to
+implement this support. http://www.hyperrealm.com/libconfig
 
-Add support for specifying the number of times each file should be
-served. The SimplePost class currently has support for specifying the
-number of times each file should be served but the front end does not.
-This limitation can be worked around by using the '--pid' switch, but
-explicit front end support would be much better. See commit
-73992c3a1ac540852b91e2893c34d913f6424bd4 for a more detail explanation.
-
-Implement support for custom URLs. Currently URLs are delegated by the
-SimplePost class. While they work and are fairly readable, it would be
-nice to be able to specify a custom URL for a file. This will require
-changes to both the SimplePost class and the front end (to expose the
-functionality), but it shouldn't entail a significant amount of work.
+Implement support for custom URLs. Currently URLs are designated by the
+SimplePost HTTP server. While they work and are fairly readable, it would be
+nice to be able to specify a custom URL for a file. simplepost_serve_file()
+already implements this feature, it just need to be exposed to the user.
