@@ -231,7 +231,8 @@ size_t simplecmd_list_instances( simplecmd_list_t * sclp )
 {
     DIR * dp; // Directory handle
     struct dirent * ep; // Entity in the directory
-    struct stat file_status; // Status of the current entity
+    char suspect[512]; // File name and path of the current entity
+    struct stat suspect_status; // Status of the current entity
     
     char sock_name[512]; // Name of our socket
     regex_t regex; // Compiled SimplePost socket matching regular expression
@@ -259,7 +260,10 @@ size_t simplecmd_list_instances( simplecmd_list_t * sclp )
     
     while( (ep = readdir( dp )) )
     {
-        if( stat( ep->d_name, &file_status ) == 0 && S_ISFIFO( file_status.st_mode ) )
+        strncpy( suspect, "/tmp/", sizeof( suspect )/sizeof( suspect[0] ) );
+        strncat( suspect, ep->d_name, sizeof( suspect )/sizeof( suspect[0] ) );
+        
+        if( stat( suspect, &suspect_status ) == 0 && S_ISSOCK( suspect_status.st_mode ) )
         {
             int regex_ret = regexec( &regex, ep->d_name, 0, NULL, 0 );
             if( regex_ret == 0 && strcmp( sock_name, ep->d_name ) != 0 )
@@ -291,7 +295,7 @@ size_t simplecmd_list_instances( simplecmd_list_t * sclp )
                 }
                 count++;
                 
-                tail->sock_name = (char *) malloc( sizeof( char ) * (strlen( "/tmp/" ) + strlen( ep->d_name ) + 1) );
+                tail->sock_name = (char *) malloc( sizeof( char ) * (strlen( suspect ) + 1) );
                 if( tail->sock_name == NULL )
                 {
                     impact_printf_debug( "%s: %s: Failed to allocate memory for socket name\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
@@ -302,11 +306,13 @@ size_t simplecmd_list_instances( simplecmd_list_t * sclp )
                     
                     break;
                 }
-                sprintf( tail->sock_name, "/tmp/%s", ep->d_name );
+                strcpy( tail->sock_name, suspect );
                 
-                const char * pid_ptr = tail->sock_name;
-                while( isdigit( pid_ptr ) == 0 ) pid_ptr++;
+                const char * pid_ptr = suspect;
+                while( isdigit( *pid_ptr ) == 0 ) pid_ptr++;
                 sscanf( pid_ptr, "%d", &tail->instance_pid );
+                
+                impact_printf_debug( "%s: Found %s:%d socket %s\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, tail->instance_pid, tail->sock_name );
             }
             else if( regex_ret != REG_NOMATCH )
             {

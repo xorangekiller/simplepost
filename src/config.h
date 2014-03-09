@@ -33,7 +33,7 @@ Global configuration details
 /*
 Global header strings
 */
-#define SP_MAIN_HEADER_NAMESPACE            "SimplePost"
+#define SP_MAIN_HEADER_NAMESPACE            "SimplePost::Main"
 #define SP_MAIN_HEADER_MEMORY_ALLOC         "Memory Allocation Error"
 
 #endif // _CONFIG_H_

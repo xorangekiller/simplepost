@@ -221,6 +221,16 @@ int main( int argc, char * argv[] )
         }
         simplecmd_list_free( sclp );
         
+        #ifdef DEBUG
+        if( lowest_pid == 0 )
+        {
+            impact_printf_debug( "%s: No %s instances with open pipes", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION );
+            if( args->address ) impact_printf_debug( " bound to ADDRESS %s", args->address );
+            if( args->port ) impact_printf_debug( " listening on PORT %u", args->port );
+            impact_printf_debug( "\n" );
+        }
+        #endif // DEBUG
+        
         args->pid = lowest_pid;
     }
     
@@ -228,6 +238,8 @@ int main( int argc, char * argv[] )
     {
         char * address; // Destination server's address
         unsigned short port; // Destination server's port
+        
+        impact_printf_debug( "%s: Trying to connect to the %s instance with PID %d ...\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid );
         
         if( simplecmd_get_address( args->pid, &address ) == 0 )
         {
