@@ -746,6 +746,7 @@ short simplecmd_activate( simplecmd_t scp, simplepost_t spp )
         impact_printf_error( "%s: Cannot activate command server without a %s instance\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION );
         return 0;
     }
+    scp->spp = spp;
     
     if( scp->sock_name == NULL )
     {
