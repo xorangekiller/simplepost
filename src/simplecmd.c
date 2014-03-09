@@ -261,7 +261,7 @@ size_t simplecmd_list_instances( simplecmd_list_t * sclp )
     while( (ep = readdir( dp )) )
     {
         strncpy( suspect, "/tmp/", sizeof( suspect )/sizeof( suspect[0] ) );
-        strncat( suspect, ep->d_name, sizeof( suspect )/sizeof( suspect[0] ) );
+        strncat( suspect, ep->d_name, sizeof( suspect )/sizeof( suspect[0] ) - strlen( suspect ) );
         
         if( stat( suspect, &suspect_status ) == 0 && S_ISSOCK( suspect_status.st_mode ) )
         {
