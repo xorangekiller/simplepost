@@ -192,30 +192,45 @@ Arguments:
                 If the list has fewer than n elements (from spsp forward), every
                 element will be removed from spsp to the end of the list. n = 0
                 invokes the same behavior.
+
+Return Value:
+    The new first element in the list will be returned, which is ordinarily the
+    element before spsp. If NULL is returned there are no more elements in the
+    list (either before spsp or after spsp + n).
 */
-static void __simplepost_serve_remove( struct simplepost_serve * spsp, size_t n )
+static struct simplepost_serve * __simplepost_serve_remove( struct simplepost_serve * spsp, size_t n )
 {
+    struct simplepost_serve * prev = spsp->prev; // Last element in the original list
+    
     if( n == 0 )
     {
         __simplepost_serve_free( spsp );
     }
     else
     {
-        struct simplepost_serve * top = spsp; // Top element in the list
-        struct simplepost_serve * prev = spsp->prev; // Last element in the original list
-        
-        for( size_t i = 0; i < n && top; i++ )
+        for( size_t i = 0; i < n && spsp; i++ )
         {
-            struct simplepost_serve * p = top;
-            top = top->next;
+            struct simplepost_serve * p = spsp;
+            spsp = spsp->next;
             
             if( p->file ) free( p->file );
             if( p->uri ) free( p->uri );
             free( p );
         }
         
-        if( prev ) prev->next = top;
+        if( prev )
+        {
+            prev->next = spsp;
+            if( spsp ) spsp->prev = prev;
+        }
+        else if( spsp )
+        {
+            prev = spsp;
+            spsp->prev = NULL;
+        }
     }
+    
+    return prev;
 }
 
 /*
@@ -446,7 +461,10 @@ static size_t __get_filename_from_uri( simplepost_t spp, char ** file, const cha
                 if( p->count > 0 && --p->count == 0 )
                 {
                     impact_printf_debug( "%s: FILE %s has reached its COUNT and will be removed\n", SP_HTTP_HEADER_NAMESPACE, p->file );
-                    __simplepost_serve_remove( p, 1 );
+                    
+                    if( p == spp->files ) spp->files = __simplepost_serve_remove( p, 1 );
+                    else __simplepost_serve_remove( p, 1 );
+                    spp->files_count--;
                 }
                 
                 goto error;
@@ -1172,7 +1190,8 @@ short simplepost_purge_file( simplepost_t spp, const char * uri )
         {
             impact_printf_standard( "%s: Removing URI %s from service ...\n", SP_HTTP_HEADER_NAMESPACE, uri );
             
-            __simplepost_serve_remove( p, 1 );
+            if( p == spp->files ) spp->files = __simplepost_serve_remove( p, 1 );
+            else __simplepost_serve_remove( p, 1 );
             spp->files_count--;
             
             pthread_mutex_unlock( &spp->files_lock );
