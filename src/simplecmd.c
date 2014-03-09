@@ -215,8 +215,13 @@ void simplecmd_list_free( simplecmd_list_t sclp )
 }
 
 /*
-Get a list of all SimplePost instances on the system with open sockets,
-excluding this one.
+Get a list of all SimplePost instances on the system with open sockets.
+
+Remarks:
+    This function has two very important exclusions. (1) First, it will not
+    include the socket created by this SimplePost instance in the resulting
+    list. (2) Second, it will only include sockets that we have read/write
+    access to.
 
 Arguments:
     sclp [out]  List of all open SimplePost sockets (excluding ours)
@@ -263,7 +268,7 @@ size_t simplecmd_list_instances( simplecmd_list_t * sclp )
         strncpy( suspect, "/tmp/", sizeof( suspect )/sizeof( suspect[0] ) );
         strncat( suspect, ep->d_name, sizeof( suspect )/sizeof( suspect[0] ) - strlen( suspect ) );
         
-        if( stat( suspect, &suspect_status ) == 0 && S_ISSOCK( suspect_status.st_mode ) )
+        if( stat( suspect, &suspect_status ) == 0 && S_ISSOCK( suspect_status.st_mode ) && access( suspect, R_OK | W_OK ) == 0 )
         {
             int regex_ret = regexec( &regex, ep->d_name, 0, NULL, 0 );
             if( regex_ret == 0 && strcmp( sock_name, ep->d_name ) != 0 )
