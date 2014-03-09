@@ -155,7 +155,7 @@ static size_t __sock_recv( int sock, const char * command, char ** data )
     {
         if( read( sock, (void *) &b, 1 ) == 1 )
         {
-            *data[i] = b;
+            (*data)[i] = b;
         }
         else
         {
@@ -167,7 +167,7 @@ static size_t __sock_recv( int sock, const char * command, char ** data )
             return 0;
         }
     }
-    *data[length] = '\0';
+    (*data)[length] = '\0';
     
     return length;
 }
