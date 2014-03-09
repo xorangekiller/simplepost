@@ -433,6 +433,7 @@ void simplearg_parse( simplearg_t sap, int argc, char * argv[] )
                     {
                         case '-':
                             if( strncmp( "--count=", argv[i], 8 ) == 0 ) __set_count( sap, argv[i] + 8 );
+                            else if( strncmp( "--address=", argv[i], 10 ) == 0 ) __set_address( sap, argv[i] + 10 );
                             else if( strncmp( "--ip-address=", argv[i], 13 ) == 0 ) __set_address( sap, argv[i] + 13 );
                             else if( strncmp( "--port=", argv[i], 7 ) == 0 ) __set_port( sap, argv[i] + 7 );
                             else if( strncmp( "--pid=", argv[i], 6 ) == 0 ) __set_pid( sap, argv[i] + 6 );

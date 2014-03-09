@@ -45,7 +45,7 @@ static void __print_help()
     printf( "Serve FILE COUNT times via HTTP on port PORT with IP address ADDRESS.\n" );
     printf( "Multiple FILE and FILE_OPTIONS may be specified in sequence after GLOBAL_OPTIONS.\n\n" );
     printf( "Global Options:\n" );
-    printf( "  -i, --ip-address=ADDRESS use ADDRESS as the server's ip address\n" );
+    printf( "  -i, --address=ADDRESS    use ADDRESS as the server's ip address\n" );
     printf( "  -p, --port=PORT          bind to PORT on the local machine\n" );
     printf( "                           a random port will be chosen if this is not specified\n" );
     printf( "      --pid=PID            act on the instance of this program with process identifier PID\n" );
