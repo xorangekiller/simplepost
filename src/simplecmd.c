@@ -876,8 +876,9 @@ Return Value:
 static int __open_sock_by_pid( pid_t server_pid )
 {
     int sock; // Socket descritor
-    struct stat sock_status; // Status of the socket
+    struct sockaddr_un sock_addr; // Address to assign to the socket
     char sock_name[512]; // Name of the socket
+    struct stat sock_status; // Status of the socket
     
     sprintf( sock_name, "/tmp/%s_sock_%d", SP_MAIN_SHORT_NAME, server_pid );
     if( stat( sock_name, &sock_status ) == -1 )
@@ -891,10 +892,21 @@ static int __open_sock_by_pid( pid_t server_pid )
         return -2;
     }
     
-    sock = open( sock_name, O_RDWR );
+    sock = socket( AF_UNIX, SOCK_STREAM, 0 );
     if( sock == -1 )
     {
-        impact_printf_error( "%s: Failed to open socket %s for reading and writing\n", SP_COMMAND_HEADER_NAMESPACE, sock_name );
+        impact_printf_error( "%s: Failed to open socket %s\n", SP_COMMAND_HEADER_NAMESPACE, sock_name );
+        return -1;
+    }
+    
+    memset( &sock_addr, 0, sizeof( struct sockaddr_un ) );
+    sock_addr.sun_family = AF_UNIX;
+    strncpy( sock_addr.sun_path, sock_name, sizeof( sock_addr.sun_path ) - 1 );
+    
+    if( connect( sock, (struct sockaddr *) &sock_addr, sizeof( sock_addr ) ) == -1 )
+    {
+        impact_printf_error( "%s: Failed to connect to socket %s\n", SP_COMMAND_HEADER_NAMESPACE, sock_name );
+        close( sock );
         return -1;
     }
     
