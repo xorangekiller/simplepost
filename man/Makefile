@@ -17,27 +17,49 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 021110-1307, USA.
 
+###############################################################################
+
+# Project name
+PROJECT_NAME := simplepost
+
+# Target binary to be produced
+TARGET := $(PROJECT_NAME).1.gz
+
+# Binary output directory (must include a trailing / if set)
+OUTPUT_PATH :=
+
+# Installation directories
+PREFIX ?= /usr/local
+
+# Executable definitions
+GUNZIP := gzip
+RM := rm -f
+RMDIR := rmdir
+INSTALL := install
+
+###############################################################################
+
 .PHONY: all
 all: build
 
 .PHONY: build
-build:
-	$(MAKE) -C src -f Makefile $@
-	$(MAKE) -C man -f Makefile $@
+build: $(TARGET)
 
 .PHONY: rebuild
 rebuild: clean build
 
 .PHONY: install
 install:
-	$(MAKE) -C src -f Makefile $@
-	$(MAKE) -C man -f Makefile $@
+	$(INSTALL) -d -m 0755 $(DESTDIR)$(PREFIX)/share/man/man1
+	$(INSTALL) -m 0644 $(OUTPUT_PATH)$(TARGET) $(DESTDIR)$(PREFIX)/share/man/man1/$(TARGET)
 
-.PHONY: stats
-stats:
-	$(MAKE) -C src -f Makefile $@
+$(TARGET):
+	@[ "x$(OUTPUT_PATH)" = "x" ] || $(INSTALL) -d -m 0755 $(OUTPUT_PATH)
+	$(GUNZIP) -c $(PROJECT_NAME).1 > $(OUTPUT_PATH)$@
 
 .PHONY: clean
 clean:
-	$(MAKE) -C src -f Makefile $@
-	$(MAKE) -C man -f Makefile $@
+	$(RM) $(OUTPUT_PATH)$(TARGET)
+	-@$(RMDIR) $(OUTPUT_PATH) 2>/dev/null
+
+###############################################################################
