@@ -4,12 +4,17 @@
   are permitted in any medium without royalty provided the copyright
   notice and this notice are preserved.
 
-J. David Blackstone wrote a program called tinyhttpd in 1990 for a
-networking class and posted it on SourceForge. This program is based on
-tinyhttpd 0.1.0, the first (and only) release.
+J. David Blackstone wrote a program called tinyhttpd in 1990 for a networking
+class and posted it on SourceForge. The first two versions of this program,
+SimplePost 0.1 and SimplePost 0.2.x, were based on his tinyhttpd 0.1.0 HTTP
+server code, which was the first and only tinyhttpd release.
 
-Karl Lenz modified tinyhttpd in 2012 to create the first version of
-SimplePost. Basically, it was updated to better support Linux and use
-newer POSIX standards, ported to C++ so it can be easily embedded into
-other applications, and stripped of CGI support since CGI is largely
-irrelevant in 2012.
+Karl Lenz modified tinyhttpd in 2012 to create the first version of SimplePost.
+It was just a simple hack, which was intended to be single-use, to serve a file
+over HTTP once. Once the first version was working, Karl found more uses for it
+and decided to add new front-end features and make the program more reliable.
+Although SimplePost 0.2.x was much more robust, its HTTP standards support was
+severely lacking. Therefore in early 2014 Karl decided to refactor the program
+and improve HTTP/1.1 support. This morphed into SimplePost 0.3.0, which
+constituted a rewrite in C and complete replacement of J. David Blackstone's
+HTTP server code with GNU libmicrohttpd.
