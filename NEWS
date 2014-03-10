@@ -1,18 +1,59 @@
 SimplePost NEWS
 
+* Noteworthy changes in release 0.3.0 (2014-03-10) [stable]
+
+** Replaced minimally compliant HTTP/1.0 implementation with HTTP/1.1
+
+  The original HTTP implementation in SimplePost was not very complete and
+  barely HTTP/1.0 compliant. Since there are more than a few good HTTP servers
+  already in existance, we completely replaced the extremely basic, internal
+  HTTP/1.0 server with the much more complete and robust GNU libmicrohttpd
+  HTTP/1.1 server library. The library requires its consumers to implement
+  handlers for certain requests, so SimplePost still does not support many of
+  the features of the standard, but its core HTTP/1.1 support and error
+  handling is drastically more complete.
+
+** Serve files on an equivalent instance of this program by default
+
+  In the last version of this program it was possible host files using another
+  instance of it by specifying the process identifier of the other instance
+  using the --pid option. The --pid option still works the same way, but now
+  SimplePost will try to find another instance of itself running somewhere on
+  the system which the current user has access to and is bound to the ADDRESS
+  and listening on the PORT specified by the --address and --port options,
+  respectively. The old default behavior can be invoked using the --new option.
+
+** Rewrote the messages produced by this program
+
+  There was absolutely nothing wrong with most of the messages produced by the
+  last version of this program from a user's perspective, but there were
+  relatively few of them, and they did not help developers identify where in
+  the code the message originated.
+
+  Now each message printed to standard output or standard error is prefixed
+  with the a header - referred to internally as the "namespace" - which
+  identifies which component the message originated from. Since the program is
+  highly modular (logically so at that), the namespace header should make
+  messages easier to identify for both end users and developers.
+
+  This program also prints significantly more messages now. Formerly all
+  messages were either errors or purely informational. There are now warning
+  messages, for potential or non-crictical issues, printed. If this program is
+  compiled in debug mode, additional sanity checks are performed internally and
+  signficantly more messages are be printed to standard output.
+
 * Noteworthy changes in release 0.2.0 (2013-03-31) [stable]
 
 ** Serve more than one file simultaneously
 
-  While this probably seems like an obvious addition, more than one file
-  can now be served simultaneously! There are two ways to do this. The
-  first - and easiest - is to specify more than one file on the command
-  line. The second is to add files to a running instance of the program
-  using the '--pid' switch.
+  While this probably seems like an obvious addition, more than one file can
+  now be served simultaneously! There are two ways to do this. The first - and
+  easiest - is to specify more than one file on the command line. The second is
+  to add files to a running instance of the program using the '--pid' switch.
 
 * Noteworthy changes in release 0.1.0 (2012-12-20) [stable]
 
 ** Intial release
 
-  Since this is the initial release of SimplePost, there are no changes
-  of note. See the README for release details; EVERYTHING's NEW!
+  Since this is the initial release of SimplePost, there are no changes of
+  note. See the README for release details; EVERYTHING's NEW!

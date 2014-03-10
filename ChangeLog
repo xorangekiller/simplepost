@@ -1,3 +1,17 @@
+2014-03-10  Karl Lenz  <xorangekiller@gmail.com>
+
+    version 0.3.0
+    * Transition: Refactored and rewrote the program in C
+    * Transition: Replaced the internal HTTP/1.0 server with GNU libmicrohttpd
+    * Transition: COUNT may be specified for each FILE instead of globally
+    * Transition: Find an equivalent program instance to act on if appropriate
+    * New Feature: Added new, informative warning and error messages
+    * New Feature: Added namespace header to log where a message originated
+    * New Feature: Added a man page
+    * New Feature: Added --new option to force a new program instance 
+    * New Feature: Renamed --ip-address to --address
+    * Bugfix: Determine the HTTP Content-Type using libmagic not file extension
+
 2014-01-08  Karl Lenz  <xorangekiller@gmail.com>
 
     version 0.2.1
@@ -8,8 +22,8 @@
 2013-03-31  Karl Lenz  <xorangekiller@gmail.com>
 
     version 0.2.0
-    * New Feature: Support for specifying more than one file to serve
-    * New Feature: Files to serve can be added to a running instance!
+    * New Feature: Support for specifying more than one FILE to serve
+    * New Feature: FILE to serve can be added to a running instance
     * Bugfix: Eliminated a memory leak on response thread creation
 
 2012-12-20  Karl Lenz  <xorangekiller@gmail.com>
