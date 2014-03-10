@@ -113,7 +113,7 @@ install:
 	$(INSTALL) -m 0755 $(OUTPUT_PATH)$(TARGET) $(DESTDIR)$(PREFIX)/bin/$(TARGET)
 
 $(TARGET): $(OBJECTS)
-	@$(INSTALL) -d -m 0755 $(OUTPUT_PATH)
+	@[ "x$(OUTPUT_PATH)" = "x" ] || $(INSTALL) -d -m 0755 $(OUTPUT_PATH)
 	$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_PATH)$@
 
 .PHONY: stats
