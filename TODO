@@ -25,7 +25,26 @@ at least an example, should be created for this feature. Explicit documentation
 would also be good. Libconfig is probably the best, least error-prone way to
 implement this support. http://www.hyperrealm.com/libconfig
 
+Add log file support. Like most web servers, it would be extremely useful,
+particularly for security monitoring, if SimplePost could write its status out
+to a file. Keeping with the spirit of this program, the log support should be
+completely optional. There are many situations that this program handles well
+which larger, more complete web servers do not, and requiring the user to work
+through more configuration settings before getting their basic web server
+up-and-running goes against its design philosophy.
+
 Implement support for custom URLs. Currently URLs are designated by the
 SimplePost HTTP server. While they work and are fairly readable, it would be
 nice to be able to specify a custom URL for a file. simplepost_serve_file()
 already implements this feature, it just need to be exposed to the user.
+
+Allow the user to query the current status of the server. Ideally this function
+should not be interactive, but should instead use the program's existing
+functionality to target another running instance and query its status over the
+existing socket interface (which will probably need to have its command set
+extended). This status should include at least the number of files being
+served and the number of times they may still be downloaded. Other statistics
+such as the number of files already downloaded and the number of active
+connections might also be useful. The query function should make the server
+more scriptable, thereby potentially making it more appealing to system
+administrators.
