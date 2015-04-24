@@ -10,7 +10,7 @@ GNU General Public License, in the file COPYING.
 
 SimplePost is an extremely lightweight Hypertext Transfer Protocol (HTTP)
 server based on GNU libmicrohttpd. It is missing many of the features of more
-established web servers such as Apache, nGenx, and Lighttpd. SimplePost has no
+established web servers such as Apache, Nginx, and Lighttpd. SimplePost has no
 intention of competing with these more established projects on features or
 speed. Its goal is to be a highly portable, fast, and low-resource web server
 for quickly transferring files from one computer to another on the same network
