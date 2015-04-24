@@ -18,8 +18,8 @@ with minimal setup.
 
 The server is HTTP/1.1 compilant, but it does not implement the entire
 specification. Since SimplePost is only intended to be a simple file server, it
-handles that use case well, but has no support for user authentication, CGI
-scripting, plugins, and other advanced features of modern web servers.
+handles that use case well. However, it has no support for user authentication,
+CGI scripting, plugins, and other advanced features of modern web servers.
 Unimplemented features are handled gracefully by sending the client a
 '501 Method Not Implemented' error message, as mandated by the standard.
 
