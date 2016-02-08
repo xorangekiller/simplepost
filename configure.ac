@@ -114,53 +114,33 @@ AC_OUTPUT([Makefile
 # Print a summary of the enabled features after configuration.
 echo "************************************************************"
 echo "$PACKAGE_NAME $PACKAGE_VERSION will be built with following features:"
-echo "  Debug build:                            $enable_debug"
-echo -n "  Doxygen documentation:                  "
+printf "  %-39s $enable_debug\n" "Debug build:"
+printf "  %-39s " "Doxygen documentation:"
 if test "$DX_FLAG_doc" = 1; then
     echo "yes"
 
-    echo -n "  Graphics for Doxygen documentation:     "
-    if test "$DX_FLAG_dot" = 1; then
-        echo "yes"
-    else
-        echo "no"
-    fi
+    printf "  %-39s " "Graphics for Doxygen documentation:"
+    AS_IF([test "$DX_FLAG_dot" = 1], [echo "yes"], [echo "no"])
 
-    echo -n "  Doxygen manual pages:                   "
-    if test "$DX_FLAG_man" = 1; then
-        echo "yes"
-    else
-        echo "no"
-    fi
+    printf "  %-39s " "Doxygen manual pages:"
+    AS_IF([test "$DX_FLAG_man" = 1], [echo "yes"], [echo "no"])
 
-    echo -n "  Doxygen RTF documentation:              "
-    if test "$DX_FLAG_rtf" = 1; then
-        echo "yes"
-    else
-        echo "no"
-    fi
+    printf "  %-39s " "Doxygen RTF documentation:"
+    AS_IF([test "$DX_FLAG_rtf" = 1], [echo "yes"], [echo "no"])
 
-    echo -n "  Doxygen XML documentation:              "
-    if test "$DX_FLAG_xml" = 1; then
-        echo "yes"
-    else
-        echo "no"
-    fi
+    printf "  %-39s " "Doxygen XML documentation:"
+    AS_IF([test "$DX_FLAG_xml" = 1], [echo "yes"], [echo "no"])
 
-    echo -n "  Doxygen plain HTML documentation:       "
+    printf "  %-39s " "Doxygen plain HTML documentation:"
     if test "$DX_FLAG_html" = 1; then
         echo "yes"
 
-        echo -n "  Doxygen compressed HTML help:           "
+        printf "  %-39s " "Doxygen compressed HTML help:"
         if test "$DX_FLAG_chm" = 1; then
             echo "yes"
 
-            echo -n "  Doxygen seperate HTML index file:       "
-            if test "$DX_FLAG_chi" = 1; then
-                echo "yes"
-            else
-                echo "no"
-            fi
+            printf "  %-39s " "Doxygen seperate HTML index file:"
+            AS_IF([test "$DX_FLAG_chi" = 1], [echo "yes"], [echo "no"])
         else
             echo "no"
         fi
@@ -168,24 +148,16 @@ if test "$DX_FLAG_doc" = 1; then
         echo "no"
     fi
 
-    echo -n "  Doxygen PostScript documentation:       "
-    if test "$DX_FLAG_ps" = 1; then
-        echo "yes"
-    else
-        echo "no"
-    fi
+    printf "  %-39s " "Doxygen PostScript documentation:"
+    AS_IF([test "$DX_FLAG_ps" = 1], [echo "yes"], [echo "no"])
 
-    echo -n "  Doxygen PDF documentation:              "
-    if test "$DX_FLAG_pdf" = 1; then
-        echo "yes"
-    else
-        echo "no"
-    fi
+    printf "  %-39s " "Doxygen PDF documentation:"
+    AS_IF([test "$DX_FLAG_pdf" = 1], [echo "yes"], [echo "no"])
 else
     echo "no"
 fi
-#echo "  Content-Type support (libmagic):        $with_libmagic"
-#echo "  Configuration file support (libconfig): $with_libconfig"
-#echo "  Build examples:                         $use_examples"
-#echo "  Build unit tests:                       $enable_tests"
+#printf "  %-39s $with_libmagic" "Content-Type support (libmagic):"
+#printf "  %-39s $with_libconfig" "Configuration file support (libconfig):"
+#printf "  %-39s $use_examples" "Build examples:"
+#printf "  %-39s $enable_tests" "Build unit tests:"
 echo "************************************************************"
