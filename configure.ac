@@ -65,9 +65,18 @@ DX_INIT_DOXYGEN([SimplePost], [Doxyfile], [doxygen])
 srcdir="$my_save_srcdir"
 
 # Check for libraries.
-AC_CHECK_LIB([magic], [magic_load])
-AC_CHECK_LIB([microhttpd], [MHD_get_daemon_info])
-AC_CHECK_LIB([pthread], [pthread_self])
+AC_CHECK_LIB([magic], [magic_load],
+    [AC_DEFINE([HAVE_LIBmagic], [1], [Define if you have libmagic.])
+        LIBS="-lmagic $LIBS"],
+    [AC_MSG_ERROR([libmagic not found.])])
+AC_CHECK_LIB([microhttpd], [MHD_get_daemon_info],
+    [AC_DEFINE([HAVE_LIBmicrohttpd], [1], [Define if you have libmicrohttpd.])
+        LIBS="-lmicrohttpd $LIBS"],
+    [AC_MSG_ERROR([libmicrohttpd not found.])])
+AC_CHECK_LIB([pthread], [pthread_self],
+    [AC_DEFINE([HAVE_LIBpthread], [1], [Define if you have libpthread.])
+        LIBS="-lpthread $LIBS"],
+    [AC_MSG_ERROR([libpthread not found.])])
 
 # Check for header files.
 AC_CHECK_HEADERS([arpa/inet.h  \
