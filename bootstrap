@@ -2,7 +2,7 @@
 #
 # Bootstrap the SimplePost configure script with GNU autotools.
 #
-# Copyright (C) 2015 Karl Lenz.  All rights reserved.
+# Copyright (C) 2015-2016 Karl Lenz.  All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public
@@ -56,6 +56,10 @@ env_find_ac()
 	echo -n "checking for autoreconf... " 1>&2
 	unset ac
 	for __file in $(echo $PATH | tr ':' ' '); do
+		if [ ! -d $__file ]; then
+			continue
+		fi
+
 		for __ac in $(find $__file -executable -name 'autoreconf*'); do
 			__ac_ver=$($__ac --version | grep -Eo '([0-9]+\.)[0-9]+' | head -n 1)
 			if [ "x$__ac_ver" != "x" ] && verlte $ac_prereq $__ac_ver; then
@@ -69,6 +73,162 @@ env_find_ac()
 		exit 1
 	else
 		echo "$__ac_ver" 1>&2
+	fi
+}
+
+## Get a space-delmited list of the automake macro files required to bootstrap.
+env_get_m4_req()
+{
+	# Unfortunately this is a hard-coded list. It must be kept up-to-date
+	# when automake dependencies are added or dropped.
+	m4_req='ax_prog_doxygen.m4'
+}
+
+## Set the search path for automake macro files.
+env_set_m4_path()
+{
+	unset m4_search_path
+
+	# This function attempts to build the list of directories to search for
+	# automake macro files the same way that aclocal itself does. The
+	# algorithm is explained in some detail in the automake manual.
+	# https://www.gnu.org/software/automake/manual/html_node/Macro-Search-Path.html
+
+	__ac_dir="$($aclocal --print-ac-dir)"
+	if [ "x$__ac_dir" = 'x' ]; then
+		echo "Error: Cannot determine autoconf macro search path" 1>&2
+		exit 1
+	fi
+
+	if [ ! -d "${__ac_dir}-${aclocal_ver}" ]; then
+		echo "Error: Missing primary autoconf macro search path ${__ac_dir}-${aclocal_ver}" 1>&2
+		exit 1
+	fi
+	m4_search_path="${__ac_dir}-${aclocal_ver}"
+
+	if [ -d "$__ac_dir" ]; then
+		m4_search_path="${m4_search_path}:${__ac_dir}"
+
+		if [ -r "$__ac_dir/dirlist" ]; then
+			for __file in $(cat $__ac_dir/dirlist); do
+				if [ -d $__file ]; then
+					m4_search_path="${m4_search_path}:${__file}"
+				fi
+			done
+		fi
+	fi
+
+	if [ "x$ACLOCAL_PATH" != 'x' ]; then
+		for __file in $(echo $ACLOCAL_PATH | tr ':' '\n'); do
+			if [ ! -d $__file ]; then
+				continue
+			fi
+
+			m4_search_path="${m4_search_path}:${__file}"
+
+			# WORKAROUND: There is a bug is some versions of autoreconf where
+			# they neither respect the $ACLOCAL_PATH nor $ACLOCAL_FLAGS
+			# environment variables. They do, however, respect the $ACLOCAL
+			# environment variable. Therefore we can work around this bug by
+			# exporting an appropriate $ACLOCAL with the "-I" flag to include
+			# each of the m4 search paths that aclocal would normally read
+			# from $ACLOCAL_PATH.
+			#
+			# Discussion about this bug:
+			# https://lists.gnu.org/archive/html/bug-autoconf/2005-03/msg00041.html
+			# https://github.com/Homebrew/homebrew/issues/10824
+			#
+			if [ "x$ACLOCAL" = 'x' ]; then
+				export ACLOCAL="$aclocal -I$__file"
+			else
+				export ACLOCAL="$ACLOCAL -I$__file"
+			fi
+		done
+	fi
+
+	if [ "x$m4_search_path" = 'x' ]; then
+		echo "env_set_m4_path: BUG! m4_search_path is still empty?!" 1>&2
+		exit 1
+	fi
+}
+
+## Try to find the given automake macro file in the search path.
+#
+# Note: This function requires $m4_search_path to contain a colon-delimited
+# list of the paths that you want to search for automake macro files. Call
+# env_set_m4_path() first to properly setup those paths.
+#
+env_find_m4_file()
+{
+	if [ "x$1" = 'x' ]; then
+		echo "env_find_m4_file: BUG! No m4 macro file to find" 1>&2
+		exit 1
+	fi
+	__file="$1"
+
+	if [ "x$m4_search_path" = 'x' ]; then
+		echo "env_find_m4_file: BUG! No search path for m4 macro files" 1>&2
+		exit 1
+	fi
+
+	echo -n "checking for ${__file}... " 1>&2
+	__file_found=0
+	for __path in $(echo $m4_search_path | tr ':' '\n'); do
+		if [ -e "${__path}/${__file}" ]; then
+			__file_found=1
+			break
+		fi
+	done
+	if [ $__file_found -eq 0 ]; then
+		echo "not found" 1>&2
+		exit 1
+	else
+		echo "found" 1>&2
+	fi
+}
+
+## Try to find the automake macro files required to bootstrap.
+env_find_m4_req()
+{
+	env_set_m4_path
+	env_get_m4_req
+
+	for __req_file in $m4_req; do
+		env_find_m4_file $__req_file
+	done
+}
+
+## Get the minimum automake version required for bootstrap.
+env_get_am_prereq()
+{
+	aclocal_prereq=1.11
+}
+
+## Try to find an appropriate automake to bootstrap.
+env_find_am()
+{
+	env_get_am_prereq
+	echo -n "checking for aclocal... " 1>&2
+	unset aclocal
+	for __file in $(echo $PATH | tr ':' ' '); do
+		if [ ! -d $__file ]; then
+			continue
+		fi
+
+		for __aclocal in $(find $__file -executable -name 'aclocal*'); do
+			__aclocal_ver=$($__aclocal --version | grep -Eo '([0-9]+\.)[0-9]+' | head -n 1)
+			if [ "x$__aclocal_ver" != "x" ] && verlte $aclocal_prereq $__aclocal_ver; then
+				aclocal=$__aclocal
+				aclocal_ver=$__aclocal_ver
+				break
+			fi
+		done
+	done
+	if [ "x$aclocal" = "x" ]; then
+		echo "not found" 1>&2
+		exit 1
+	else
+		echo "$aclocal_ver" 1>&2
 	fi
 }
 
@@ -102,6 +262,9 @@ action_clean()
 action_generate()
 {
 	env_find_ac
+	env_find_am
+	env_find_m4_req
+
 	echo -n "generating configure... " 1>&2
 	if $ac --force --install; then
 		echo "yes" 1>&2
