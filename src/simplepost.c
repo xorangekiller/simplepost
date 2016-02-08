@@ -1,7 +1,7 @@
 /*
  * SimplePost - A Simple HTTP Server
  *
- * Copyright (C) 2012-2015 Karl Lenz.  All rights reserved.
+ * Copyright (C) 2012-2016 Karl Lenz.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -652,21 +652,6 @@ static int __process_request(void* cls, struct MHD_Connection* connection, const
 		if(S_ISDIR(file_status.st_mode))
 		{
 			impact_printf_error("%s: Request 0x%lx: Directory not supported: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), spsp->file);
-			spsp->response = __response_prep_data(connection, MHD_HTTP_FORBIDDEN, strlen(SP_HTTP_RESPONSE_FORBIDDEN), (void*) SP_HTTP_RESPONSE_FORBIDDEN);
-			goto finalize_request;
-		}
-
-		/* Executables generally indicate CGI. Although HTTP/1.1 doesn't
-		 * technically support CGI with GET requests, web servers sometimes
-		 * support it anyway. However our lack of CGI support is far from the
-		 * driving reason for not serving executable: it's a potential
-		 * security risk.
-		 *
-		 * TODO: Allow the user to override this restriction at his own peril!
-		 */
-		if((file_status.st_mode & S_IXUSR) || (file_status.st_mode & S_IXGRP) || (file_status.st_mode & S_IXOTH))
-		{
-			impact_printf_error("%s: Request 0x%lx: Executables cannot be served: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), spsp->file);
 			spsp->response = __response_prep_data(connection, MHD_HTTP_FORBIDDEN, strlen(SP_HTTP_RESPONSE_FORBIDDEN), (void*) SP_HTTP_RESPONSE_FORBIDDEN);
 			goto finalize_request;
 		}
