@@ -1,7 +1,7 @@
 /*
  * SimplePost - A Simple HTTP Server
  *
- * Copyright (C) 2012-2015 Karl Lenz.  All rights reserved.
+ * Copyright (C) 2012-2016 Karl Lenz.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -39,10 +39,10 @@
 #include <dirent.h>
 #include <regex.h>
 
-//! Command namespace header
+/// Command namespace header
 #define SP_COMMAND_HEADER_NAMESPACE      "SimplePost::Command"
 
-//! Protocol error string
+/// Protocol error string
 #define SP_COMMAND_HEADER_PROTOCOL_ERROR "Local Protocol Error"
 
 /*****************************************************************************
@@ -57,14 +57,14 @@
  * is not opened for reading on the other end, SIGPIPE will be sent to this
  * program. See socket(2).
  *
- * \param sock[in]    Socket descriptor
- * \param command[in]
+ * \param[in] sock    Socket descriptor
+ * \param[in] command
  * \parblock
  * Command to send to the client
  *
  * If this parameter is NULL, no command will be sent.
  * \endparblock
- * \param data[in]
+ * \param[in] data
  * \parblock
  * Data to send to the client
  *
@@ -105,14 +105,14 @@ static void __sock_send(int sock, const char* command, const char* data)
 /*!
  * \brief Send a command to the client and read the response.
  *
- * \param sock[in]    Socket descriptor
- * \param command[in]
+ * \param[in] sock    Socket descriptor
+ * \param[in] command
  * \parblock
  * Command to send to the client
  *
  * If this parameter is NULL, no command will be sent.
  * \endparblock
- * \param data[out]
+ * \param[out] data
  * \parblock
  * NULL-terminated string from the client
  *
@@ -120,7 +120,7 @@ static void __sock_send(int sock, const char* command, const char* data)
  * \endparblock
  *
  * \return the number of bytes written to the read buffer. If an error
- * occurred (or the operation timed out), zero will be returned instead.
+ * occurred (or the operation timed out), zero will be returned instead
  */
 static size_t __sock_recv(int sock, const char* command, char** data)
 {
@@ -214,7 +214,7 @@ simplecmd_list_t simplecmd_list_init()
 /*!
  * \brief Free the given SimplePost Command List instance.
  *
- * \param sclp[in] Instance to act on
+ * \param[in] sclp Instance to act on
  */
 void simplecmd_list_free(simplecmd_list_t sclp)
 {
@@ -235,7 +235,7 @@ void simplecmd_list_free(simplecmd_list_t sclp)
  * list. (2) Second, it will only include sockets that we have read/write
  * access to.
  *
- * \param sclp[out]
+ * \param[out] sclp
  * \parblock
  * List of all open SimplePost sockets (excluding ours)
  *
@@ -244,7 +244,7 @@ void simplecmd_list_free(simplecmd_list_t sclp)
  *
  * \return the number of instances in the list. If zero is returned, either a
  * memory allocation error occurred, or, more likely, there are no other
- * instances of SimplePost currently active.
+ * instances of SimplePost currently active
  */
 size_t simplecmd_list_instances(simplecmd_list_t* sclp)
 {
@@ -367,10 +367,10 @@ size_t simplecmd_list_instances(simplecmd_list_t* sclp)
  */
 struct simplecmd_handler
 {
-	//! Request sent by the client
+	/// Request sent by the client
 	const char* request;
 
-	//! Function to process the command
+	/// Function to process the command
 	short (*handler) (simplecmd_t, int);
 };
 
@@ -409,10 +409,10 @@ static struct simplecmd_handler __command_handlers[] =
  */
 struct simplecmd_request
 {
-	//! SimplePost command instance to act on
+	/// SimplePost command instance to act on
 	struct simplecmd * scp;
 
-	//! Socket the client connected on
+	/// Socket the client connected on
 	int client_sock;
 };
 
@@ -425,26 +425,26 @@ struct simplecmd
 	 * Initialization *
 	 ******************/
 
-	//! Socket for local commands
+	/// Socket for local commands
 	int sock;
 
-	//! Absolute file name of the socket
+	/// Absolute file name of the socket
 	char* sock_name;
 
-	//! Handle of the primary thread
+	/// Handle of the primary thread
 	pthread_t accept_thread;
 
 	/***********
 	 * Clients *
 	 ***********/
 
-	//! Are we accepting client connections?
+	/// Are we accepting client connections?
 	short accpeting_clients;
 
-	//! Number of clients currently being served
+	/// Number of clients currently being served
 	size_t client_count;
 
-	//! SimplePost handle
+	/// SimplePost handle
 	simplepost_t spp;
 };
 
@@ -455,11 +455,11 @@ struct simplecmd
  * See the related comments in __sock_send() and __sock_recv() to get a better
  * understanding of how this contingency is handled.
  *
- * \param scp[in]  Instance to act on
- * \param sock[in] Client socket
+ * \param[in] scp  Instance to act on
+ * \param[in] sock Client socket
  *
- * \return 0 if we failed to respond to the request or
- * 1 if the requested information was sent successfully.
+ * \retval 0 failed to respond to the request
+ * \retval 1 the requested information was sent successfully
  */
 static short __command_send_address(simplecmd_t scp, int sock)
 {
@@ -481,11 +481,11 @@ static short __command_send_address(simplecmd_t scp, int sock)
  * \note If the web server is not running, zero will be sent as the port
  * number.
  *
- * \param scp[in]  Instance to act on
- * \param sock[in] Client socket
+ * \param[in] scp  Instance to act on
+ * \param[in] sock Client socket
  *
- * \return 0 if we failed to respond to the request or
- * 1 if the requested information was sent successfully.
+ * \retval 0 failed to respond to the request
+ * \retval 1 the requested information was sent successfully
  */
 static short __command_send_port(simplecmd_t scp, int sock)
 {
@@ -504,11 +504,11 @@ static short __command_send_port(simplecmd_t scp, int sock)
 /*!
  * \brief Send the current program version to the client.
  *
- * \param scp[in]  Instance to act on
- * \param sock[in] Client socket
+ * \param[in] scp  Instance to act on
+ * \param[in] sock Client socket
  *
- * \return 0  if we failed to respond to the request or
- * 1 if the requested information was sent successfully.
+ * \retval 0 failed to respond to the request
+ * \retval 1 the requested information was sent successfully
  */
 static short __command_send_version(simplecmd_t scp, int sock)
 {
@@ -519,11 +519,11 @@ static short __command_send_version(simplecmd_t scp, int sock)
 /*!
  * \brief Receive a file and count from the client and add it our web server.
  *
- * \param scp[in]  Instance to act on
- * \param sock[in] Client socket
+ * \param[in] scp  Instance to act on
+ * \param[in] sock Client socket
  *
- * \return 0 if we failed to respond to the request or
- * 1 if the requested information was sent successfully.
+ * \retval 0 failed to respond to the request
+ * \retval 1 the requested information was sent successfully
  */
 static short __command_recv_file(simplecmd_t scp, int sock)
 {
@@ -562,7 +562,7 @@ static short __command_recv_file(simplecmd_t scp, int sock)
 /*!
  * \brief Process a request accepted by the server.
  *
- * \param  p[in] SimplePost command + client socket wrapper
+ * \param[in] p SimplePost command + client socket wrapper
  *
  * \return NULL
  */
@@ -630,7 +630,7 @@ error:
 /*!
  * \brief Start accepting requests from clients.
  *
- * \param p[in] Instance to act on
+ * \param[in] p Instance to act on
  *
  * \return NULL
  */
@@ -735,7 +735,7 @@ simplecmd_t simplecmd_init()
 /*!
  * \brief Free the given SimplePost command instance.
  *
- * \param scp[in] Instance to act on
+ * \param[in] scp Instance to act on
  */
 void simplecmd_free(simplecmd_t scp)
 {
@@ -757,11 +757,11 @@ void simplecmd_free(simplecmd_t scp)
 /*!
  * \brief Start accepting client commands.
  *
- * \param scp[in] Instance to act on
- * \param spp[in] SimplePost instance to back our client requests
+ * \param[in] scp Instance to act on
+ * \param[in] spp SimplePost instance to back our client requests
  *
- * \return 0 if the command server is already running or could not be started
- * or 1 if the command server was successfully started.
+ * \retval 0 the command server is already running or could not be started
+ * \retval 1 the command server was successfully started
  */
 short simplecmd_activate(simplecmd_t scp, simplepost_t spp)
 {
@@ -841,10 +841,10 @@ error:
 /*!
  * \brief Stop accepting client commands.
  *
- * \param scp[in] Instance to act on
+ * \param[in] scp Instance to act on
  *
- * \return 0 if the command server is not running or could not be shut down or
- *  1 if the command server has been successfully killed.
+ * \retval 0 the command server is not running or could not be shut down
+ * \retval 1 the command server has been successfully killed
  */
 short simplecmd_deactivate(simplecmd_t scp)
 {
@@ -871,10 +871,10 @@ short simplecmd_deactivate(simplecmd_t scp)
 /*!
  * \brief Are we listening for client connections?
  *
- * \param scp[in] Instance to act on
+ * \param[in] scp Instance to act on
  *
- * \return 0 if the server is not running or
- * 1 if the server is online.
+ * \retval 0 the server is not running
+ * \retval 1 the server is online
  */
 short simplecmd_is_alive(simplecmd_t scp)
 {
@@ -890,11 +890,11 @@ short simplecmd_is_alive(simplecmd_t scp)
  *
  * \note This functions prints error messages so its consumers don't have to.
  *
- * \param server_pid[in] Process identifier of the server
+ * \param[in] server_pid Process identifier of the server
  *
  * \return an open socket descriptor if the specified PID belongs to a
  * compatible SimplePost server with an open local socket, -1 if POSIX open()
- * encounters an error, or -2 if this function encounters an error.
+ * encounters an error, or -2 if this function encounters an error
  */
 static int __open_sock_by_pid(pid_t server_pid)
 {
@@ -943,8 +943,8 @@ static int __open_sock_by_pid(pid_t server_pid)
 /*!
  * \brief Get the address the specified server is bound to.
  *
- * \param server_pid[in] Process identifier of the server to query
- * \param address[out]
+ * \param[in]  server_pid Process identifier of the server to query
+ * \param[out] address
  * \parblock
  * Address of the server
  *
@@ -954,7 +954,7 @@ static int __open_sock_by_pid(pid_t server_pid)
  * \endparblock
  *
  * \return the number of characters written to the address (excluding the NULL-
- * terminating character).
+ * terminating character)
  */
 size_t simplecmd_get_address(pid_t server_pid, char** address)
 {
@@ -975,9 +975,9 @@ size_t simplecmd_get_address(pid_t server_pid, char** address)
 /*!
  * \brief Get the port the specified server is listening on.
  *
- * \param server_pid[in] Process identifier of the server to query
+ * \param[in] server_pid Process identifier of the server to query
  *
- * \return the server's port number.
+ * \return the server's port number
  */
 unsigned short simplecmd_get_port(pid_t server_pid)
 {
@@ -1011,8 +1011,8 @@ unsigned short simplecmd_get_port(pid_t server_pid)
 /*!
  * \brief Get the version of the specified server.
  *
- * \param server_pid[in] Process identifier of the server to query
- * \param version[out]
+ * \param[in]  server_pid Process identifier of the server to query
+ * \param[out] version
  * \parblock
  * Version of the server
  *
@@ -1022,7 +1022,7 @@ unsigned short simplecmd_get_port(pid_t server_pid)
  * \endparblock
  *
  * \return the number of characters written to the version string (excluding
- * the NULL-terminating character).
+ * the NULL-terminating character)
  */
 size_t simplecmd_get_version(pid_t server_pid, char** version)
 {
@@ -1043,12 +1043,12 @@ size_t simplecmd_get_version(pid_t server_pid, char** version)
 /*!
  * \brief Add a file to the specified server.
  *
- * \param server_pid[in] Process identifier of the server to act on
- * \param file[in]       Name and path of the file to serve
- * \param count[in]      Number of times the file should be served
+ * \param[in] server_pid Process identifier of the server to act on
+ * \param[in] file       Name and path of the file to serve
+ * \param[in] count      Number of times the file should be served
  *
- * \return 0 if something went wrong (i.e. the file was not added to the
- * server) or 1 if the file was successfully added to the server.
+ * \retval 0 something went wrong (i.e. the file was not added to the server)
+ * \retval 1 the file was successfully added to the server
  */
 short simplecmd_set_file(pid_t server_pid, const char* file, unsigned int count)
 {

@@ -1,7 +1,7 @@
 /*
  * SimplePost - A Simple HTTP Server
  *
- * Copyright (C) 2012-2015 Karl Lenz.  All rights reserved.
+ * Copyright (C) 2012-2016 Karl Lenz.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-//! Don't print anything to stdout
+/// Don't print anything to stdout
 unsigned short impact_quiet = 0;
 
 /* All of the functions below are nearly identical. They each take the same

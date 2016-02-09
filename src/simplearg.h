@@ -1,7 +1,7 @@
 /*
  * SimplePost - A Simple HTTP Server
  *
- * Copyright (C) 2012-2015 Karl Lenz.  All rights reserved.
+ * Copyright (C) 2012-2016 Karl Lenz.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -29,17 +29,17 @@
  */
 typedef struct simplefile
 {
-	//! Name and path of the file to be served
+	/// Name and path of the file to be served
 	char* file;
 
-	//! Number of times the file may be downloaded
+	/// Number of times the file may be downloaded
 	unsigned int count;
 
 
-	//! Next file in the linked list
+	/// Next file in the linked list
 	struct simplefile* next;
 
-	//! Previous file in the linked list
+	/// Previous file in the linked list
 	struct simplefile* prev;
 } * simplefile_t;
 
@@ -48,35 +48,35 @@ typedef struct simplefile
  */
 typedef struct simplearg
 {
-	//! IP address of the HTTP server
+	/// IP address of the HTTP server
 	char* address;
 
-	//! Port the server will be bound to
+	/// Port the server will be bound to
 	unsigned short port;
 
-	//! PID of the instance of this program to act on
+	/// PID of the instance of this program to act on
 	pid_t pid;
 
 
-	//! Only act on this program instance
+	/// Only act on this program instance
 	unsigned short new     :1;
 
-	//! Don't print anything to stdout
+	/// Don't print anything to stdout
 	unsigned short quiet   :1;
 
-	//! Print our help information
+	/// Print our help information
 	unsigned short help    :1;
 
-	//! Print our version information
+	/// Print our version information
 	unsigned short version :1;
 
-	//! An error occurred; abort!
+	/// An error occurred; abort!
 	unsigned short error   :1;
 
 	unsigned short :11;
 
 
-	//! List of files to serve
+	/// List of files to serve
 	simplefile_t files;
 } * simplearg_t;
 

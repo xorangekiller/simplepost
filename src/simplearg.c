@@ -1,7 +1,7 @@
 /*
  * SimplePost - A Simple HTTP Server
  *
- * Copyright (C) 2012-2015 Karl Lenz.  All rights reserved.
+ * Copyright (C) 2012-2016 Karl Lenz.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -29,20 +29,20 @@
 #include <limits.h>
 #include <string.h>
 
-//! Arguments namespace header
+/// Arguments namespace header
 #define SP_ARGS_HEADER_NAMESPACE      "SimplePost::Arguments"
 
-//! Invalid option error string
+/// Invalid option error string
 #define SP_ARGS_HEADER_INVLAID_OPTION "Invalid Option"
 
-//! Invalid syntax error string
+/// Invalid syntax error string
 #define SP_ARGS_HEADER_INVLAID_SYNTAX "Invalid Syntax"
 
 /*!
  * \brief Process the custom IP address argument.
  *
- * \param sap[out] Instance to act on
- * \param arg[in]  Argument string to process
+ * \param[out] sap Instance to act on
+ * \param[in] arg  Argument string to process
  */
 static void __set_address(simplearg_t sap, const char* arg)
 {
@@ -69,8 +69,8 @@ static void __set_address(simplearg_t sap, const char* arg)
 /*!
  * \brief Process the custom port argument.
  *
- * \param sap[out] Instance to act on
- * \param arg[in]  Argument string to process
+ * \param[out] sap Instance to act on
+ * \param[in] arg  Argument string to process
  */
 static void __set_port(simplearg_t sap, const char* arg)
 {
@@ -98,8 +98,8 @@ static void __set_port(simplearg_t sap, const char* arg)
 /*!
  * \brief Process the alternate instance argument.
  *
- * \param sap[out] Instance to act on
- * \param arg[in]  Argument string to process
+ * \param[out] sap Instance to act on
+ * \param[in] arg  Argument string to process
  */
 static void __set_pid(simplearg_t sap, const char* arg)
 {
@@ -132,7 +132,7 @@ static void __set_pid(simplearg_t sap, const char* arg)
 /*!
  * \brief Process the new argument.
  *
- * \param sap[out] Instance to act on
+ * \param[out] sap Instance to act on
  */
 static void __set_new(simplearg_t sap)
 {
@@ -156,7 +156,7 @@ static void __set_new(simplearg_t sap)
 /*!
  * \brief Process the quiet argument.
  *
- * \param sap[out] Instance to act on
+ * \param[out] sap Instance to act on
  */
 static void __set_quiet(simplearg_t sap)
 {
@@ -175,7 +175,7 @@ static void __set_quiet(simplearg_t sap)
 /*!
  * \brief Process the help argument.
  *
- * \param sap[out] Instance to act on
+ * \param[out] sap Instance to act on
  */
 static void __set_help(simplearg_t sap)
 {
@@ -186,7 +186,7 @@ static void __set_help(simplearg_t sap)
 /*!
  * \brief Process the version argument.
  *
- * \param sap[out] Instance to act on
+ * \param[out] sap Instance to act on
  */
 static void __set_version(simplearg_t sap)
 {
@@ -197,8 +197,8 @@ static void __set_version(simplearg_t sap)
 /*!
  * \brief Get the last file in the list.
  *
- * \param sap[out] Instance to act on
- * \param new[in]  Add a new entry to the end of the list if appropriate?
+ * \param[out] sap Instance to act on
+ * \param[in] new  Add a new entry to the end of the list if appropriate?
  *
  * \return the last file in the list. If the list is empty or a valid entry
  * does not exist, a new entry will be added to the end of the list.
@@ -248,8 +248,8 @@ static simplefile_t __get_last_file(simplearg_t sap, short new)
 /*!
  * \brief Process the count argument.
  *
- * \param sap[out] Instance to act on
- * \param arg[in]  Argument string to process
+ * \param[out] sap Instance to act on
+ * \param[in] arg  Argument string to process
  */
 static void __set_count(simplearg_t sap, const char* arg)
 {
@@ -285,8 +285,8 @@ static void __set_count(simplearg_t sap, const char* arg)
 /*!
  * Process the FILE argument.
  *
- * \param sap[out] Instance to act on
- * \param file[in] File to add to the list of files to serve
+ * \param[out] sap Instance to act on
+ * \param[in] file File to add to the list of files to serve
  */
 static void __set_file(simplearg_t sap, const char* file)
 {
@@ -335,8 +335,8 @@ static void __set_file(simplearg_t sap, const char* file)
 /*!
  * \brief Process an invalid argument.
  *
- * \param sap[out] Instance to act on
- * \param arg[in]  Argument string to process
+ * \param[out] sap Instance to act on
+ * \param[in] arg  Argument string to process
  */
 static void __set_invalid(simplearg_t sap, const char* arg)
 {
@@ -373,7 +373,7 @@ simplearg_t simplearg_init()
 /*!
  * \brief Free the given SimplePost Arguments instance.
  *
- * \param sap[in] Instance to act on
+ * \param[in] sap Instance to act on
  */
 void simplearg_free(simplearg_t sap)
 {
@@ -396,9 +396,9 @@ void simplearg_free(simplearg_t sap)
 /*!
  * \brief Parse the arguments passed to this program.
  *
- * \param sap[out] Instance to act on
- * \param argc[in] Number of arguments in the array below
- * \param argv[in] Array of arguments
+ * \param[out] sap Instance to act on
+ * \param[in] argc Number of arguments in the array below
+ * \param[in] argv Array of arguments
  */
 void simplearg_parse(simplearg_t sap, int argc, char* argv[])
 {

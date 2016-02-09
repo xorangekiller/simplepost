@@ -1,7 +1,7 @@
 /*
  * SimplePost - A Simple HTTP Server
  *
- * Copyright (C) 2012-2015 Karl Lenz.  All rights reserved.
+ * Copyright (C) 2012-2016 Karl Lenz.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -33,17 +33,17 @@
  */
 typedef struct simplecmd_list
 {
-	//! Absolute file name of the local socket
+	/// Absolute file name of the local socket
 	char* sock_name;
 
-	//! PID of the SimplePost instance listening on the socket
+	/// PID of the SimplePost instance listening on the socket
 	pid_t instance_pid;
 
 
-	//! Next instance in the linked list
+	/// Next instance in the linked list
 	struct simplecmd_list* next;
 
-	//! Previous instance in the linked list
+	/// Previous instance in the linked list
 	struct simplecmd_list* prev;
 } * simplecmd_list_t;
 

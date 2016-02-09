@@ -36,10 +36,10 @@
 #include <magic.h>
 #include <microhttpd.h>
 
-//! SimplePost namespace header
+/// SimplePost namespace header
 #define SP_HTTP_HEADER_NAMESPACE  "SimplePost::HTTP"
 
-//! libmicrohttpd error message header
+/// libmicrohttpd error message header
 #define SP_HTTP_HEADER_MICROHTTPD "microhttpd"
 
 /*****************************************************************************
@@ -51,20 +51,20 @@
  */
 struct simplepost_serve
 {
-	//! Name and path of the file on the filesystem
+	/// Name and path of the file on the filesystem
 	char* file;
 
-	//! Uniform Resource Identifier assigned to the file
+	/// Uniform Resource Identifier assigned to the file
 	char* uri;
 
-	//! Number of times the file may be downloaded
+	/// Number of times the file may be downloaded
 	unsigned int count;
 
 
-	//! Next file in the doubly-linked list
+	/// Next file in the doubly-linked list
 	struct simplepost_serve* next;
 
-	//! Previous file in the doubly-linked list
+	/// Previous file in the doubly-linked list
 	struct simplepost_serve* prev;
 };
 
@@ -72,7 +72,7 @@ struct simplepost_serve
  * \brief Initialize a blank SimpleServe instance.
  *
  * \return a new instance on success, or NULL if we failed to allocate the
- * requested memory.
+ * requested memory
  */
 static struct simplepost_serve* __simplepost_serve_init()
 {
@@ -97,7 +97,7 @@ static struct simplepost_serve* __simplepost_serve_init()
  * beginning of the list (the part this function won't free) will be properly
  * terminated.
  *
- * \param spsp[in] List to free
+ * \param[in] spsp List to free
  */
 static void __simplepost_serve_free(struct simplepost_serve* spsp)
 {
@@ -117,8 +117,8 @@ static void __simplepost_serve_free(struct simplepost_serve* spsp)
 /*!
  * \brief Insert the second list before the current element in the first list.
  *
- * \param spsp1[in] List to insert into
- * \param spsp2[in]
+ * \param[in] spsp1 List to insert into
+ * \param[in] spsp2
  * \parblock
  * List to insert
  *
@@ -126,7 +126,7 @@ static void __simplepost_serve_free(struct simplepost_serve* spsp)
  * \endparblock
  *
  * \return the modified list at the inserted element on success, or NULL if
- * something went wrong.
+ * something went wrong
  */
 static struct simplepost_serve* __simplepost_serve_insert_before(struct simplepost_serve* spsp1, struct simplepost_serve* spsp2)
 {
@@ -156,8 +156,8 @@ static struct simplepost_serve* __simplepost_serve_insert_before(struct simplepo
 /*!
  * \brief Insert the second list after the current element in the first list.
  *
- * \param spsp1[in] List to insert into
- * \param spsp2[in]
+ * \param[in] spsp1 List to insert into
+ * \param[in] spsp2
  * \parblock
  * List to insert
  *
@@ -165,7 +165,7 @@ static struct simplepost_serve* __simplepost_serve_insert_before(struct simplepo
  * \endparblock
  *
  * \return the modified list at the inserted element on success, or NULL if
- * something went wrong.
+ * something went wrong
  */
 static struct simplepost_serve* __simplepost_serve_insert_after(struct simplepost_serve* spsp1, struct simplepost_serve* spsp2)
 {
@@ -194,14 +194,15 @@ static struct simplepost_serve* __simplepost_serve_insert_after(struct simplepos
 /*!
  * \brief Remove the specified number of elements from the list.
  *
- * \param spsp[in]
+ * \param[in] spsp
  * \parblock
  * List to modify
  *
  * The element assigned to this parameter will be the first element in the
  * list to be removed. THIS FUNCTION ONLY TRAVERSES THE LIST FORWARD, NEVER
  * BACKWARD.
- * \param n[in]
+ * \endparblock
+ * \param[in] n
  * \parblock
  * Number of elements to remove
  *
@@ -253,9 +254,9 @@ static struct simplepost_serve* __simplepost_serve_remove(struct simplepost_serv
  * \brief Calculate the number of elements in the list (from the current
  * element forward).
  *
- * \param spsp[in] First element in the list to count
+ * \param[in] spsp First element in the list to count
  *
- * \return the number of elements in the list.
+ * \return the number of elements in the list
  */
 static size_t __simplepost_serve_length(struct simplepost_serve* spsp)
 {
@@ -289,14 +290,14 @@ static size_t __simplepost_serve_length(struct simplepost_serve* spsp)
  * MHD_Response instance returned by this function has been destroyed. DO NOT
  * DESTROY THE RESPONSE until AFTER libmicrohttpd has responded to the request!
  *
- * \param connection[in]  Connection identifying the client
- * \param status_code[in] HTTP status code to send
- * \param size[in]        Size of the data array to send
- * \param data[in]        Data to send
+ * \param[in] connection  Connection identifying the client
+ * \param[in] status_code HTTP status code to send
+ * \param[in] size        Size of the data array to send
+ * \param[in] data        Data to send
  *
  * \return a libmicrohttpd response instance if the specified data has been
  * queued for transmission to the client, or print an error message and return
- * NULL if an error occurs.
+ * NULL if an error occurs
  */
 static struct MHD_Response* __response_prep_data(struct MHD_Connection* connection, unsigned int status_code, size_t size, void* data)
 {
@@ -328,14 +329,14 @@ static struct MHD_Response* __response_prep_data(struct MHD_Connection* connecti
  * NOT DESTROY THE RESPONSE until AFTER libmicrohttpd has responded to the
  * request!
  *
- * \param connection[in]  Connection identifying the client
- * \param status_code[in] HTTP status code to send
- * \param size[in]        Size of the data portion of the response
- * \param file[in]        Name and path of the file to send
+ * \param[in] connection  Connection identifying the client
+ * \param[in] status_code HTTP status code to send
+ * \param[in] size        Size of the data portion of the response
+ * \param[in] file        Name and path of the file to send
  *
  * \return a libmicrohttpd response instance if the specified file has been
  * queued for transmission to the client, or print an error message and return
- * NULL if an error occurs.
+ * NULL if an error occurs
  */
 static struct MHD_Response* __response_prep_file(struct MHD_Connection* connection, unsigned int status_code, size_t size, const char* file)
 {
@@ -396,21 +397,21 @@ static struct MHD_Response* __response_prep_file(struct MHD_Connection* connecti
  */
 struct simplepost_state
 {
-	//! Response to the request
+	/// Response to the request
 	struct MHD_Response* response;
 
 
-	//! Name and path of the file to serve
+	/// Name and path of the file to serve
 	char* file;
 
-	//! Length of the file name and path
+	/// Length of the file name and path
 	size_t file_length;
 
 
-	//! Data to serve
+	/// Data to serve
 	char* data;
 
-	//! Length of the data
+	/// Length of the data
 	size_t data_length;
 };
 
@@ -423,29 +424,29 @@ struct simplepost
 	 * Initialization *
 	 ******************/
 
-	//! HTTP server instance
+	/// HTTP server instance
 	struct MHD_Daemon* httpd;
 
-	//! Port for the HTTP server
+	/// Port for the HTTP server
 	unsigned short port;
 
-	//! Address of the HTTP server
+	/// Address of the HTTP server
 	char* address;
 
-	//! Mutex for port and address
+	/// Mutex for port and address
 	pthread_mutex_t master_lock;
 
 	/*********
 	 * Files *
 	 *********/
 
-	//! List of files being served
+	/// List of files being served
 	struct simplepost_serve* files;
 
-	//! Number of files being served
+	/// Number of files being served
 	size_t files_count;
 
-	//! Mutex for files and files_count
+	/// Mutex for files and files_count
 	pthread_mutex_t files_lock;
 };
 
@@ -462,8 +463,8 @@ struct simplepost
  * files being served and the instance file count decremented if the file
  * reaches the maximum allowable times it may be served.
  *
- * \param spp[in]   SimplePost instance to act on
- * \param file[out]
+ * \param[in] spp   SimplePost instance to act on
+ * \param[out] file
  * \parblock
  * Name and path of the file on the filesystem
  *
@@ -471,11 +472,11 @@ struct simplepost
  * responsible for freeing it (unless it is NULL, in which case an error
  * occurred).
  * \endparblock
- * \param uri[in]   Uniform Resource Identifier to parse
+ * \param[in] uri   Uniform Resource Identifier to parse
  *
  * \return the number of characters written to the output string. If the
  * return value is zero, either the URI does not specify a valid file, or
- * another (more serious) error occurred.
+ * another (more serious) error occurred
  */
 static size_t __get_filename_from_uri(simplepost_t spp, char** file, const char* uri)
 {
@@ -519,10 +520,10 @@ error:
  * \brief Panic! Cleanup the SimplePost instance after libmicrohttpd
  * encountered an unrecoverable error condition.
  *
- * \param cls[in]    SimplePost instance to act on
- * \param file[in]   C source file where the error occured
- * \param line[in]   Line of the C source file where the error occured
- * \param reason[in] Error message
+ * \param[in] cls    SimplePost instance to act on
+ * \param[in] file   C source file where the error occured
+ * \param[in] line   Line of the C source file where the error occured
+ * \param[in] reason Error message
  */
 static void __panic(void* cls, const char* file, unsigned int line, const char* reason)
 {
@@ -537,9 +538,9 @@ static void __panic(void* cls, const char* file, unsigned int line, const char* 
 /*!
  * \brief Print error messages from libmicrohttpd.
  *
- * \param cls[in]    SimplePost instance to act on
- * \param format[in] Format string
- * \param ap[in]     List of format arguments
+ * \param[in] cls    SimplePost instance to act on
+ * \param[in] format Format string
+ * \param[in] ap     List of format arguments
  */
 static void __log_microhttpd_messages(void* cls, const char* format, va_list ap)
 {
@@ -555,24 +556,24 @@ static void __log_microhttpd_messages(void* cls, const char* format, va_list ap)
 /*!
  * \brief Process a request accepted by the server.
  *
- * \param cls[in]            SimplePost instance to act on
- * \param connection[in]     Connection handle
- * \param uri[in]            Uniform Resource Identifier of the request
- * \param method[in]         HTTP method
- * \param version[in]        HTTP version
- * \param data[in]           Data sent by the client (excluding HEADERS)
- * \param data_size[in][out]
+ * \param[in] cls            SimplePost instance to act on
+ * \param[in] connection     Connection handle
+ * \param[in] uri            Uniform Resource Identifier of the request
+ * \param[in] method         HTTP method
+ * \param[in] version        HTTP version
+ * \param[in] data           Data sent by the client (excluding HEADERS)
+ * \param[inout] data_size
  * \parblock
  * Size of the client-provided data
  *
  * Initially this must be the size of the data provided. This function will
  * update it to the number of bytes NOT processed.
  * \endparblock
- * \param state[out]         Data preserved for future calls of this request
+ * \param[out] state         Data preserved for future calls of this request
  *
  * \retval MHD_NO will be returned if the socket must be closed due to a
- * serious error we encountered while handling the request.
- * \retval MHD_YES will be returned if the connection was handled successfully.
+ *         serious error we encountered while handling the request
+ * \retval MHD_YES will be returned if the connection was handled successfully
  */
 static int __process_request(void* cls, struct MHD_Connection* connection, const char* uri, const char* method, const char* version, const char* data, size_t* data_size, void** state)
 {
@@ -691,10 +692,10 @@ finalize_request:
 /*!
  * \brief Cleanup the resources allocated for the request.
  *
- * \param cls[in]        SimplePost instance to act on
- * \param connection[in] Connection handle
- * \param state[in]      Data preserved from the request handler
- * \param toe[in]        Reason the request was terminated
+ * \param[in] cls        SimplePost instance to act on
+ * \param[in] connection Connection handle
+ * \param[in] state      Data preserved from the request handler
+ * \param[in] toe        Reason the request was terminated
  */
 void __finalize_request(void* cls, struct MHD_Connection* connection, void** state, enum MHD_RequestTerminationCode toe)
 {
@@ -764,7 +765,7 @@ void __finalize_request(void* cls, struct MHD_Connection* connection, void** sta
  * \brief Initialize a new SimplePost instance.
  *
  * \return a pointer to the new instance on success, or NULL if we failed to
- * allocate the requested memory.
+ * allocate the requested memory
  */
 simplepost_t simplepost_init()
 {
@@ -787,7 +788,7 @@ simplepost_t simplepost_init()
 /*!
  * \brief Free the given SimplePost instance.
  *
- * \param spp[in] SimplePost instance to act on
+ * \param[in] spp SimplePost instance to act on
  */
 void simplepost_free(simplepost_t spp)
 {
@@ -805,14 +806,14 @@ void simplepost_free(simplepost_t spp)
 /*!
  * \brief Start the web server on the specified port.
  *
- * \param spp[in]     SimplePost instance to act on
- * \param port[in]
+ * \param[in] spp     SimplePost instance to act on
+ * \param[in] port
  * \parblock
  * Port to initialize the server on
  * 
  * If the port is 0, a port will be dynamically allocated.
  * \endparblock
- * \param address[in]
+ * \param[in] address
  * \parblock
  * Network address to bind the server to
  *
@@ -950,7 +951,7 @@ error:
 /*!
  * \brief Shut down the web server.
  *
- * \param spp[in] SimplePost instance to act on
+ * \param[in] spp SimplePost instance to act on
  *
  * \retval 0 The server is not running or could not be shut down.
  * \retval 1 The server has been successfully killed.
@@ -979,7 +980,7 @@ short simplepost_unbind(simplepost_t spp)
 /*!
  * \brief Don't return until the server is shut down.
  *
- * \param spp[in] SimplePost instance to act on
+ * \param[in] spp SimplePost instance to act on
  */
 void simplepost_block(simplepost_t spp)
 {
@@ -989,7 +990,7 @@ void simplepost_block(simplepost_t spp)
 /*!
  * \brief Don't return until the server has no more files to serve.
  *
- * \param spp[in] SimplePost instance to act on
+ * \param[in] spp SimplePost instance to act on
  */
 void simplepost_block_files(simplepost_t spp)
 {
@@ -999,7 +1000,7 @@ void simplepost_block_files(simplepost_t spp)
 /*!
  * \brief Is the server running?
  *
- * \param spp[in] SimplePost instance to act on
+ * \param[in] spp SimplePost instance to act on
  *
  * \retval 0 The server is not running.
  * \retval 1 The server is alive!
@@ -1015,8 +1016,8 @@ short simplepost_is_alive(simplepost_t spp)
  * \note If and only if url != NULL the final status of this operation will be
  * printed to STDOUT upon successful completion.
  *
- * \param spp[in]   SimplePost instance to act on
- * \param url[out]
+ * \param[in] spp   SimplePost instance to act on
+ * \param[out] url
  * \parblock
  * Address of the file being served
  *
@@ -1028,8 +1029,8 @@ short simplepost_is_alive(simplepost_t spp)
  * responsible for freeing it (unless it is NULL, in which case an error
  * occurred).
  * \endparblock
- * \param file[in]  Name and path of the file to serve
- * \param uri[in]
+ * \param[in] file  Name and path of the file to serve
+ * \param[in] uri
  * \parblock
  * Uniform Resource Identifier of the file to serve
  *
@@ -1039,7 +1040,7 @@ short simplepost_is_alive(simplepost_t spp)
  * already be in use, and it must start with a "/". See the HTTP/1.1
  * specification (RFC 2616) for the requirements of valid URIs.
  * \endparblock
- * \param count[in]
+ * \param[in] count
  * \parblock
  * Number of times the file should be served
  *
@@ -1047,7 +1048,7 @@ short simplepost_is_alive(simplepost_t spp)
  * \endparblock
  *
  * \return the number of characters written to the url (excluding the NULL-
- * terminating character).
+ * terminating character)
  */
 size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, const char* uri, unsigned int count)
 {
@@ -1190,16 +1191,16 @@ abort_insert:
 /*!
  * \brief Remove a file from the list of files being served.
  *
- * \param spp[in]  SimplePost instance to act on
- * \param uri[out]
+ * \param[in] spp  SimplePost instance to act on
+ * \param[out] uri
  * \parblock
  * Uniform Resource Identifier (URI) or Uniform Resource Locator (URL) of the
  * file to remove
  * \endparblock
  *
  * \retval -1 Internal error
- * \retval  0 The file was not being served.
- * \retval  1 The file was successfully removed from the list.
+ * \retval  0 The file was not being served
+ * \retval  1 The file was successfully removed from the list
  */
 short simplepost_purge_file(simplepost_t spp, const char* uri)
 {
@@ -1241,12 +1242,11 @@ short simplepost_purge_file(simplepost_t spp, const char* uri)
 	return 0;
 }
 
-/*
-Initialize a new SimplePost File instance.
-
-Return Value:
-    On success a pointer to the new instance will be returned.
-    If we failed to allocate the requested memory, a NULL pointer will be returned.
+/*!
+ * \brief Initialize a new SimplePost File instance.
+ *
+ * \return a pointer to the new instance will be returned on success, a NULL
+ * pointer if we failed to allocate the requested memory
 */
 simplepost_file_t simplepost_file_init()
 {
@@ -1265,7 +1265,7 @@ simplepost_file_t simplepost_file_init()
 /*!
  * \brief Free the given SimplePost File instance.
  *
- * \param spfp[in] SimplePost File instance to act on
+ * \param[in] spfp SimplePost File instance to act on
  */
 void simplepost_file_free(simplepost_file_t spfp)
 {
@@ -1285,8 +1285,8 @@ void simplepost_file_free(simplepost_file_t spfp)
 /*!
  * \brief Get the address the server is bound to.
  *
- * \param spp[in]      SimplePost instance to act on
- * \param address[out]
+ * \param[in] spp      SimplePost instance to act on
+ * \param[out] address
  * \parblock
  * Address of the server
  *
@@ -1296,7 +1296,7 @@ void simplepost_file_free(simplepost_file_t spfp)
  * \endparblock
  *
  * \return the number of characters written to the address (excluding the NULL-
- * terminating character).
+ * terminating character)
  */
 size_t simplepost_get_address(simplepost_t spp, char** address)
 {
@@ -1317,7 +1317,7 @@ size_t simplepost_get_address(simplepost_t spp, char** address)
 /*!
  * \brief Get the port the server is listening on.
  *
- * \param spp[in] SimplePost instance to act on
+ * \param[in] spp SimplePost instance to act on
  *
  * \return the server's port number. If this number is zero, an error occurred
  * or (more likely) the server is not running.
@@ -1330,8 +1330,8 @@ unsigned short simplepost_get_port(simplepost_t spp)
 /*!
  * \brief Get a list of the files currently being served.
  *
- * \param spp[in]    SimplePost instance to act on
- * \param files[out]
+ * \param[in] spp    SimplePost instance to act on
+ * \param[out] files
  * \parblock
  * List of files we are currently hosting
  *
@@ -1343,7 +1343,7 @@ unsigned short simplepost_get_port(simplepost_t spp)
  * \endparblock
  *
  * \return the number of files currently being served (or, more accurately,
- * unique URIs).
+ * unique URIs)
  */
 size_t simplepost_get_files(simplepost_t spp, simplepost_file_t* files)
 {

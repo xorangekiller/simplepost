@@ -1,7 +1,7 @@
 /*
  * SimplePost - A Simple HTTP Server
  *
- * Copyright (C) 2012-2015 Karl Lenz.  All rights reserved.
+ * Copyright (C) 2012-2016 Karl Lenz.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -24,16 +24,16 @@
 
 #include <sys/types.h>
 
-//! Highest port number
+/// Highest port number
 #define SP_HTTP_PORT_MAX     65535
 
-//! Maximum number of pending connections before clients start getting refused
+/// Maximum number of pending connections before clients start getting refused
 #define SP_HTTP_BACKLOG      16
 
-//! Milliseconds to sleep between shutdown checks while blocking
+/// Milliseconds to sleep between shutdown checks while blocking
 #define SP_HTTP_SLEEP        100
 
-//! Maximum number of files which may be served simultaneously
+/// Maximum number of files which may be served simultaneously
 #define SP_HTTP_FILES_MAX    50
 
 /*!
@@ -41,17 +41,17 @@
  */
 typedef struct simplepost_file
 {
-	//! Name and path of the file on the filesystem
+	/// Name and path of the file on the filesystem
 	char* file;
 
-	//! Uniform Resource Locator assigned to the file
+	/// Uniform Resource Locator assigned to the file
 	char* url;
 
 
-	//! Next file in the doubly-linked list
+	/// Next file in the doubly-linked list
 	struct simplepost_file* next;
 
-	//! Previous file in the doubly-linked list
+	/// Previous file in the doubly-linked list
 	struct simplepost_file* prev;
 } * simplepost_file_t;
 

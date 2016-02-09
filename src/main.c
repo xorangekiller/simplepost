@@ -1,7 +1,7 @@
 /*
  * SimplePost - A Simple HTTP Server
  *
- * Copyright (C) 2012-2015 Karl Lenz.  All rights reserved.
+ * Copyright (C) 2012-2016 Karl Lenz.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -30,10 +30,10 @@
 #include <string.h>
 #include <signal.h>
 
-//! Local command handler instance
+/// Local command handler instance
 static simplecmd_t cmdd = NULL;
 
-//! Web server instance
+/// Web server instance
 static simplepost_t httpd = NULL;
 
 /*!
@@ -84,7 +84,7 @@ static void __print_version()
  * damage control and start over), not Hiroshima (permanently wipe out
  * everything in sight), but it is definitely *not* subtle.
  *
- * \param sig[in] Signal to handle
+ * \param[in] sig Signal to handle
  */
 static void __server_reset_pipe(int sig)
 {
@@ -114,7 +114,7 @@ static void __server_reset_pipe(int sig)
  *
  * \warning This function exits the program!
  *
- * \param sig[in] Signal to handle
+ * \param[in] sig Signal to handle
  */
 static void __server_shutdown(int sig)
 {
@@ -128,7 +128,7 @@ static void __server_shutdown(int sig)
  *
  * \warning This function exits the program!
  *
- * \param sig[in] Signal to handle
+ * \param[in] sig Signal to handle
  */
 static void __server_terminal_interrupt(int sig)
 {
