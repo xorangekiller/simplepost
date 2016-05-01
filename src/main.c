@@ -61,7 +61,7 @@ static void __print_help()
 	printf("Examples:\n");
 	printf("  %s -p 80 -q -c 1 FILE            Serve FILE on port 80 one time.\n", SP_MAIN_SHORT_NAME);
 	printf("  %s --pid=99031 --count=2 FILE    Serve FILE twice on the instance of simplepost with the process identifier 99031.\n", SP_MAIN_SHORT_NAME);
-	printf("  %s FILE                          Serve FILE on a random port until SIGTERM is received.\n", SP_MAIN_SHORT_NAME);
+	printf("  %s FILE                          Serve FILE on a random port until SIGTERM is received.\n\n", SP_MAIN_SHORT_NAME);
 }
 
 /*!

@@ -100,6 +100,8 @@ AC_CHECK_HEADERS([arpa/inet.h  \
                   netinet/in.h \
                   stdlib.h     \
                   string.h     \
+                  getopt.h     \
+                  stdbool.h    \
                   sys/socket.h \
                   sys/time.h   \
                   unistd.h])
@@ -112,10 +114,12 @@ AC_TYPE_SIZE_T
 # Check for library functions.
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
-AC_CHECK_FUNCS([memset  \
-                regcomp \
-                socket  \
-                strchr])
+AC_CHECK_FUNCS([memset      \
+                regcomp     \
+                socket      \
+                strchr      \
+                getopt      \
+                getopt_long])
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_HEADERS([src/config.h:src/config.in])
