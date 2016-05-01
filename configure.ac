@@ -4,11 +4,24 @@ AC_CONFIG_SRCDIR([src/simplepost.c])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([no-define])
 
+# SP_REPLACE_CFLAG(PATTERN, FLAG)
+# -------------------------------------
+# Replace the given PATTERN with FLAG in $CFLAGS and $AM_CFLAGS
+AC_DEFUN([SP_REPLACE_CFLAG],
+    [if test "x$CFLAGS" != 'x'; then CFLAGS="$(eval echo \"$CFLAGS\" | sed -r 's/'"$1"'//g')"; fi;
+        if test "x$AM_CFLAGS" != 'x'; then AM_CFLAGS="$(eval echo \"$AM_CFLAGS\" | sed -r 's/'"$1"'//g')"; fi
+        AM_CFLAGS="$AM_CFLAGS $2"])
+
+# Save the original flags passed in from the environment, to be used to make
+# decisions later.
+ORIG_CFLAGS="$CFLAGS"
+
 # Check for programs.
 AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_EGREP
+AC_PROG_SED
 
 # Configure the debug feature.
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [disable optimizations and tune for debugging]),
@@ -31,7 +44,8 @@ if test "x$enable_debug" = xyes; then
     AS_IF([echo " $CPPFLAGS $AM_CPPFLAGS " | egrep -qs "\s+\-DEBUG\s+"], [], [AM_CPPFLAGS="$AM_CPPFLAGS -DDEBUG"])
     AS_IF([echo " $CFLAGS $AM_CFLAGS " | egrep -qs "\s+\-Wall\s+"], [], [AM_CFLAGS="$AM_CFLAGS -Wall"])
     AS_IF([echo " $CFLAGS $AM_CFLAGS " | egrep -qs "\s+\-Wextra\s+"], [], [AM_CFLAGS="$AM_CFLAGS -Wextra"])
-    AS_IF([echo " $CFLAGS $AM_CFLAGS " | egrep -qs "\s+\-(g|ggdb)\s+"], [], [AM_CFLAGS="$AM_CFLAGS -ggdb"])
+    AS_IF([echo " $ORIG_CFLAGS " | egrep -qs "\s+\-O[[0-9]]+\s+"], [], [SP_REPLACE_CFLAG([\s*\-O[[0-9]]+], [-O0])])
+    AS_IF([echo " $ORIG_CFLAGS " | egrep -qs "\s+\-(g[[0-9]]*|ggdb)\s+"], [], [SP_REPLACE_CFLAG([\s*\-(g[[0-9]]*|ggdb)], [-ggdb])])
 
     AC_SUBST([AM_CPPFLAGS])
     AC_SUBST([AM_CFLAGS])
