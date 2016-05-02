@@ -51,7 +51,7 @@ static void __set_missing(simplearg_t sap, const char* optstr)
 {
 	impact_printf_error("%s: %s: '%s' requires an argument\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_SYNTAX, optstr);
 	impact_printf_error("Try 'simplepost --help' for more information.\n");
-	sap->error = 1;
+	sap->options |= SA_OPT_ERROR;
 }
 
 /*!
@@ -64,7 +64,7 @@ static void __set_invalid(simplearg_t sap, const char* optstr)
 {
 	impact_printf_error("%s: %s: '%s'\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, optstr);
 	impact_printf_error("Try 'simplepost --help' for more information.\n");
-	sap->error = 1;
+	sap->options |= SA_OPT_ERROR;
 }
 
 /*!
@@ -79,14 +79,14 @@ static void __set_address(simplearg_t sap, const char* optstr, const char* arg)
 	if(sap->address)
 	{
 		impact_printf_error("%s: %s: ADDRESS already set\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
 	if(arg == NULL)
 	{
 		impact_printf_error("%s:%d: BUG! No ADDRESS given to process\n", __PRETTY_FUNCTION__, __LINE__);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
@@ -100,7 +100,7 @@ static void __set_address(simplearg_t sap, const char* optstr, const char* arg)
 	if(sap->address == NULL)
 	{
 		impact_printf_debug("%s: %s: Failed to allocate memory for the ADDRESS\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
@@ -120,14 +120,14 @@ static void __set_port(simplearg_t sap, const char* optstr, const char* arg)
 	if(sap->port)
 	{
 		impact_printf_error("%s: %s: PORT already set\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
 	if(arg == NULL)
 	{
 		impact_printf_error("%s:%d: BUG! No PORT given to process\n", __PRETTY_FUNCTION__, __LINE__);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
@@ -141,12 +141,12 @@ static void __set_port(simplearg_t sap, const char* optstr, const char* arg)
 	if(sscanf(arg, "%d", &i) != 1)
 	{
 		impact_printf_error("%s: %s: PORT must be a positive integer: %s\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, arg);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 	}
 	else if(i < 1)
 	{
 		impact_printf_error("%s: %s: PORT must be between 1 and %u: %d\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, USHRT_MAX, i);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 	}
 	else
 	{
@@ -167,21 +167,21 @@ static void __set_pid(simplearg_t sap, const char* optstr, const char* arg)
 	if(sap->pid)
 	{
 		impact_printf_error("%s: %s: PID already specified\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
-	if(sap->new)
+	if(sap->options & SA_OPT_NEW)
 	{
 		impact_printf_error("%s: %s: The \"process identifier\" and \"new\" arguments are mutually exclusive\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
 	if(arg == NULL)
 	{
 		impact_printf_error("%s:%d: BUG! No PID given to process\n", __PRETTY_FUNCTION__, __LINE__);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
@@ -195,12 +195,12 @@ static void __set_pid(simplearg_t sap, const char* optstr, const char* arg)
 	if(sscanf(arg, "%d", &i) != 1)
 	{
 		impact_printf_error("%s: %s: PID must be a positive integer: %s\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, arg);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 	}
 	else if(i <= 1)
 	{
 		impact_printf_error("%s: %s: PID must be a valid process identifier: %d\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, i);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 	}
 	else
 	{
@@ -216,20 +216,20 @@ static void __set_pid(simplearg_t sap, const char* optstr, const char* arg)
  */
 static void __set_new(simplearg_t sap)
 {
-	if(sap->new)
+	if(sap->options & SA_OPT_NEW)
 	{
 		impact_printf_error("%s: %s: new argument may only be specified once\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 	}
 	else if(sap->pid)
 	{
 		impact_printf_error("%s: %s: The \"process identifier\" and \"new\" arguments are mutually exclusive\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 	}
 	else
 	{
-		sap->new = 1;
-		impact_printf_debug("%s: Processed new argument: %u\n", SP_ARGS_HEADER_NAMESPACE, sap->new);
+		sap->options |= SA_OPT_NEW;
+		impact_printf_debug("%s: Processed new argument: 0x%02X\n", SP_ARGS_HEADER_NAMESPACE, sap->options & SA_OPT_NEW);
 	}
 }
 
@@ -240,15 +240,15 @@ static void __set_new(simplearg_t sap)
  */
 static void __set_quiet(simplearg_t sap)
 {
-	if(sap->quiet)
+	if(sap->options & SA_OPT_QUIET)
 	{
 		impact_printf_error("%s: %s: Standard output is already suppressed\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 	}
 	else
 	{
-		sap->quiet = 1;
-		impact_printf_debug("%s: Processed quiet argument: %u\n", SP_ARGS_HEADER_NAMESPACE, sap->quiet);
+		sap->options |= SA_OPT_QUIET;
+		impact_printf_debug("%s: Processed quiet argument: 0x%02X\n", SP_ARGS_HEADER_NAMESPACE, sap->options & SA_OPT_QUIET);
 	}
 }
 
@@ -259,8 +259,8 @@ static void __set_quiet(simplearg_t sap)
  */
 static void __set_help(simplearg_t sap)
 {
-	sap->help = 1;
-	impact_printf_debug("%s: Processed help argument: %u\n", SP_ARGS_HEADER_NAMESPACE, sap->help);
+	sap->actions |= SA_ACT_HELP;
+	impact_printf_debug("%s: Processed help argument: 0x%02X\n", SP_ARGS_HEADER_NAMESPACE, sap->actions & SA_ACT_HELP);
 }
 
 /*!
@@ -270,8 +270,8 @@ static void __set_help(simplearg_t sap)
  */
 static void __set_version(simplearg_t sap)
 {
-	sap->version = 1;
-	impact_printf_debug("%s: Processed version argument: %u\n", SP_ARGS_HEADER_NAMESPACE, sap->version);
+	sap->actions |= SA_ACT_VERSION;
+	impact_printf_debug("%s: Processed version argument: 0x%02X\n", SP_ARGS_HEADER_NAMESPACE, sap->actions & SA_ACT_VERSION);
 }
 
 /*!
@@ -338,21 +338,21 @@ static void __set_count(simplearg_t sap, const char* optstr, const char* arg)
 	if(last == NULL)
 	{
 		impact_printf_debug("%s: %s: Failed to allocate memory for FILE\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
 	if(last->count)
 	{
 		impact_printf_error("%s: %s: COUNT already set for FILE\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
 	if(arg == NULL)
 	{
 		impact_printf_error("%s:%d: BUG! No COUNT given to process\n", __PRETTY_FUNCTION__, __LINE__);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
@@ -366,12 +366,12 @@ static void __set_count(simplearg_t sap, const char* optstr, const char* arg)
 	if(sscanf(arg, "%d", &i) != 1)
 	{
 		impact_printf_error("%s: %s: COUNT must be a positive integer: %s\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, arg);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 	}
 	else if(i < 0)
 	{
 		impact_printf_error("%s: %s: COUNT must be between 0 and %d: %d\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, INT_MAX, i);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 	}
 	else
 	{
@@ -404,7 +404,7 @@ static void __set_file(simplearg_t sap, const char* file)
 		else
 		{
 			impact_printf_error("%s: %s: No such file or directory: %s\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, file);
-			sap->error = 1;
+			sap->options |= SA_OPT_ERROR;
 		}
 		return;
 	}
@@ -412,7 +412,7 @@ static void __set_file(simplearg_t sap, const char* file)
 	if(!(S_ISREG(file_status.st_mode) || S_ISLNK(file_status.st_mode)))
 	{
 		impact_printf_error("%s: %s: Must be a regular file or link to a one: %s\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, file);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
@@ -420,14 +420,14 @@ static void __set_file(simplearg_t sap, const char* file)
 	if(last == NULL)
 	{
 		impact_printf_debug("%s: %s: Failed to allocate memory for FILE\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
 	if(last->file)
 	{
 		impact_printf_debug("%s:%d => logic flaw or potential memory leak detected\n", __FILE__, __LINE__);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
@@ -435,7 +435,7 @@ static void __set_file(simplearg_t sap, const char* file)
 	if(last->file == NULL)
 	{
 		impact_printf_debug("%s: %s: Failed to allocate memory for FILE\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
@@ -531,7 +531,7 @@ static bool __is_longopt(const struct option* longopts, int opt, const char* arg
  * \return the index of the next argument to process in the argv array.
  *
  * \note The return value of this function does not indicate if there was a
- * parsing error. Check sap->error after it returns to determine that.
+ * parsing error. Check for SA_OPT_ERROR after it returns to determine that.
  */
 static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 {
@@ -556,7 +556,7 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 		{0, 0, 0, 0}
 	};
 
-	if(sap->error)
+	if(sap->options & SA_OPT_ERROR)
 	{
 		impact_printf_debug("%s:%u: BUG! Not processing any options because simplearg is already in error state\n", __PRETTY_FUNCTION__, __LINE__);
 		return opt_index;
@@ -565,7 +565,7 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 	// Reset getopt's place in the argument array.
 	optind = 1;
 
-	while(sap->error == 0)
+	while(!(sap->options & SA_OPT_ERROR))
 	{
 		/* getopt() always skips the first argument in the argv array because
 		 * it is assumed to be the program name. Since that is not the case in
@@ -576,7 +576,7 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 		if(optind < 1 || (optind - 1) < opt_index)
 		{
 			impact_printf_debug("%s:%u: BUG! optind = %d, opt_index = %d, argc = %d\n", __PRETTY_FUNCTION__, __LINE__, optind, opt_index, argc);
-			sap->error = 1;
+			sap->options |= SA_OPT_ERROR;
 			break;
 		}
 		opt_index = optind - 1;
@@ -633,7 +633,7 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 
 			default:
 				impact_printf_debug("%s:%u: BUG! Unexpected option '%d'\n", __PRETTY_FUNCTION__, __LINE__, opt_arg);
-				sap->error = 1;
+				sap->options |= SA_OPT_ERROR;
 				break;
 		}
 	}
@@ -655,7 +655,7 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
  * \return the index of the next argument to process in the argv array.
  *
  * \note The return value of this function does not indicate if there was a
- * parsing error. Check sap->error after it returns to determine that.
+ * parsing error. Check for SA_OPT_ERROR after it returns to determine that.
  */
 static int __parse_file_opts(simplearg_t sap, int argc, char* argv[])
 {
@@ -669,7 +669,7 @@ static int __parse_file_opts(simplearg_t sap, int argc, char* argv[])
 		{0, 0, 0, 0}
 	};
 
-	if(sap->error)
+	if(sap->options & SA_OPT_ERROR)
 	{
 		impact_printf_debug("%s:%u: BUG! Not processing any options because simplearg is already in error state\n", __PRETTY_FUNCTION__, __LINE__);
 		return opt_index;
@@ -681,7 +681,7 @@ static int __parse_file_opts(simplearg_t sap, int argc, char* argv[])
 	while(opt_index < argc)
 	{
 		bool is_last_file_option = false;
-		while(sap->error == 0 && is_last_file_option == false)
+		while(!(sap->options & SA_OPT_ERROR) && is_last_file_option == false)
 		{
 			if(opt_index >= argc || argv[opt_index][0] != '-')
 			{
@@ -697,7 +697,7 @@ static int __parse_file_opts(simplearg_t sap, int argc, char* argv[])
 			if(optind < 1 || (optind - 1) < opt_index)
 			{
 				impact_printf_debug("%s:%u: BUG! optind = %d, opt_index = %d, argc = %d\n", __PRETTY_FUNCTION__, __LINE__, optind, opt_index, argc);
-				sap->error = 1;
+				sap->options |= SA_OPT_ERROR;
 				break;
 			}
 			opt_index = optind - 1;
@@ -728,12 +728,12 @@ static int __parse_file_opts(simplearg_t sap, int argc, char* argv[])
 
 				default:
 					impact_printf_debug("%s:%u: BUG! Unexpected option '%d'\n", __PRETTY_FUNCTION__, __LINE__, opt_arg);
-					sap->error = 1;
+					sap->options |= SA_OPT_ERROR;
 					break;
 			}
 		}
 
-		if(sap->error) return opt_index;
+		if(sap->options & SA_OPT_ERROR) return opt_index;
 
 		if(opt_index < argc)
 		{
@@ -746,7 +746,7 @@ static int __parse_file_opts(simplearg_t sap, int argc, char* argv[])
 			if(last && last->file == NULL)
 			{
 				impact_printf_error("%s: %s: A file option was specified with no FILE\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_SYNTAX);
-				sap->error = 1;
+				sap->options |= SA_OPT_ERROR;
 			}
 		}
 	}
@@ -764,17 +764,11 @@ simplearg_t simplearg_init()
 	simplearg_t sap = (simplearg_t) malloc(sizeof(struct simplearg));
 	if(sap == NULL) return NULL;
 
-	sap->address = NULL;
-	sap->port = 0;
-	sap->pid = 0;
-
-	sap->new = 0;
-	sap->quiet = 0;
-	sap->help = 0;
-	sap->version = 0;
-	sap->error = 0;
-
-	sap->files = NULL;
+	/* Zero the whole structure just to be safe, then we can explicitly
+	 * set anything that defaults to a non-zero value before returning our
+	 * initialized instance.
+	 */
+	memset(sap, 0, sizeof(struct simplearg));
 
 	return sap;
 }
@@ -786,17 +780,16 @@ simplearg_t simplearg_init()
  */
 void simplearg_free(simplearg_t sap)
 {
-	if(sap->address) free(sap->address);
+	if(sap == NULL) return;
 
-	if(sap->files)
+	free(sap->address);
+
+	while(sap->files)
 	{
-		while(sap->files)
-		{
-			simplefile_t p = sap->files;
-			sap->files = sap->files->next;
-			if(p->file) free(p->file);
-			free(p);
-		}
+		simplefile_t p = sap->files;
+		sap->files = sap->files->next;
+		free(p->file);
+		free(p);
 	}
 
 	free(sap);
@@ -815,7 +808,7 @@ void simplearg_parse(simplearg_t sap, int argc, char* argv[])
 	{
 		impact_printf_error("%s: %s\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_SYNTAX);
 		impact_printf_error("Try 'simplepost --help' for more information.\n");
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
@@ -825,13 +818,13 @@ void simplearg_parse(simplearg_t sap, int argc, char* argv[])
 	opterr = 0;
 
 	opt_index += __parse_global_opts(sap, argc - opt_index, argv + opt_index);
-	if(sap->error || sap->help || sap->version)
+	if(sap->options & SA_OPT_ERROR || sap->actions != SA_ACT_NONE)
 	{
 		return;
 	}
 
 	opt_index += __parse_file_opts(sap, argc - opt_index, argv + opt_index);
-	if(sap->error)
+	if(sap->options & SA_OPT_ERROR)
 	{
 		return;
 	}
@@ -840,7 +833,7 @@ void simplearg_parse(simplearg_t sap, int argc, char* argv[])
 	if(last == NULL)
 	{
 		impact_printf_error("%s: %s: At least one FILE must be specified\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_SYNTAX);
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 
@@ -852,7 +845,7 @@ void simplearg_parse(simplearg_t sap, int argc, char* argv[])
 		if(last->prev) last->prev = NULL;
 		free(last);
 
-		sap->error = 1;
+		sap->options |= SA_OPT_ERROR;
 		return;
 	}
 }

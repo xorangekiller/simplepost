@@ -24,6 +24,33 @@
 
 #include <sys/types.h>
 
+
+/// No options are defined (default)
+#define SA_OPT_NONE  0x00
+
+/// Only act on this instance of this program
+#define SA_OPT_NEW   0x01
+
+/// Don't print anything to stdout
+#define SA_OPT_QUIET 0x02
+
+/// An error occurred. Abort!
+#define SA_OPT_ERROR 0x04
+
+
+/// No actions are defined (default)
+#define SA_ACT_NONE    0x00
+
+/// List all accessible instances of this program
+#define SA_ACT_LIST    0x01
+
+/// Print this program's help information
+#define SA_ACT_HELP    0x02
+
+/// Print this program's version information
+#define SA_ACT_VERSION 0x04
+
+
 /*!
  * \brief Files to be served by this program
  */
@@ -58,22 +85,11 @@ typedef struct simplearg
 	pid_t pid;
 
 
-	/// Only act on this program instance
-	unsigned short new     :1;
+	/// Extra options controlling various aspects of operation
+	unsigned int options;
 
-	/// Don't print anything to stdout
-	unsigned short quiet   :1;
-
-	/// Print our help information
-	unsigned short help    :1;
-
-	/// Print our version information
-	unsigned short version :1;
-
-	/// An error occurred; abort!
-	unsigned short error   :1;
-
-	unsigned short :11;
+	/// Actions which may be performed by this program
+	unsigned int actions;
 
 
 	/// List of files to serve

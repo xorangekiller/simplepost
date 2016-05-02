@@ -150,15 +150,15 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 	simplearg_parse(args, argc, argv);
-	impact_quiet = args->quiet;
+	impact_quiet = (args->options & SA_OPT_QUIET) ? 1 : 0;
 
-	if(args->error) return 1;
-	if(args->help)
+	if(args->options & SA_OPT_ERROR) return 1;
+	if(args->actions & SA_ACT_HELP)
 	{
 		__print_help();
 		goto no_error;
 	}
-	if(args->version)
+	if(args->actions & SA_ACT_VERSION)
 	{
 		__print_version();
 		goto no_error;
@@ -183,7 +183,7 @@ int main(int argc, char* argv[])
 
 		simplecmd_list_free(sclp);
 	}
-	else if(args->new == 0)
+	else if(args->options & SA_OPT_NEW)
 	{
 		simplecmd_list_t sclp; // List of SimplePost Command instances
 		pid_t lowest_pid = 0;  // PID of the oldest SimplePost command instance matching our requirements
@@ -330,11 +330,11 @@ int main(int argc, char* argv[])
 
 no_error:
 	__server_shutdown(SIGTERM);
-	if(args) simplearg_free(args);
+	simplearg_free(args);
 	return 0;
 
 error:
 	__server_shutdown(SIGTERM);
-	if(args) simplearg_free(args);
+	simplearg_free(args);
 	return 1;
 }
