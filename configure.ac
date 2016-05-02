@@ -70,17 +70,26 @@ srcdir="../src"
 DX_INIT_DOXYGEN([SimplePost], [Doxyfile], [doxygen])
 srcdir="$my_save_srcdir"
 
+# Configure libmagic.
+AC_ARG_ENABLE(magic, AS_HELP_STRING([--disable-magic], [do not serve the HTTP Content-Type of files]),
+    [AS_CASE($enableval,
+        [yes|true], [with_libmagic=yes],
+        [no|false], [with_libmagic=no],
+        [AC_MSG_ERROR(bad value $enableval for --disable-magic)])],
+    [with_libmagic=yes])
+
 # Check for libraries.
-AC_CHECK_LIB([magic], [magic_load],
-    [AC_DEFINE([HAVE_LIBmagic], [1], [Define if you have libmagic.])
-        LIBS="-lmagic $LIBS"],
-    [AC_MSG_ERROR([libmagic not found.])])
+AS_IF([test "x$with_libmagic" = xyes],
+    [AC_CHECK_LIB([magic], [magic_load],
+        [AC_DEFINE([HAVE_LIBMAGIC], [1], [Define if you have libmagic.])
+            LIBS="-lmagic $LIBS"],
+        [with_libmagic=no])])
 AC_CHECK_LIB([microhttpd], [MHD_get_daemon_info],
-    [AC_DEFINE([HAVE_LIBmicrohttpd], [1], [Define if you have libmicrohttpd.])
+    [AC_DEFINE([HAVE_LIBMICROHTTPD], [1], [Define if you have libmicrohttpd.])
         LIBS="-lmicrohttpd $LIBS"],
     [AC_MSG_ERROR([libmicrohttpd not found.])])
 AC_CHECK_LIB([pthread], [pthread_self],
-    [AC_DEFINE([HAVE_LIBpthread], [1], [Define if you have libpthread.])
+    [AC_DEFINE([HAVE_LIBPTHREAD], [1], [Define if you have libpthread.])
         LIBS="-lpthread $LIBS"],
     [AC_MSG_ERROR([libpthread not found.])])
 
@@ -160,8 +169,8 @@ AS_IF([test "$DX_FLAG_doc" = 1],
         printf "  %-39s " "Doxygen PDF documentation:"
         AS_IF([test "$DX_FLAG_pdf" = 1], [AS_ECHO([yes])], [AS_ECHO([no])])],
     [AS_ECHO([no])])
-#printf "  %-39s $with_libmagic" "Content-Type support (libmagic):"
-#printf "  %-39s $with_libconfig" "Configuration file support (libconfig):"
-#printf "  %-39s $use_examples" "Build examples:"
-#printf "  %-39s $enable_tests" "Build unit tests:"
+printf "  %-39s $with_libmagic\n" "Content-Type support (libmagic):"
+#printf "  %-39s $with_libconfig\n" "Configuration file support (libconfig):"
+#printf "  %-39s $use_examples\n" "Build examples:"
+#printf "  %-39s $enable_tests\n" "Build unit tests:"
 AS_ECHO(["************************************************************"])

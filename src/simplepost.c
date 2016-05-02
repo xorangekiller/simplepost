@@ -26,15 +26,18 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
-#include <netdb.h>
-#include <fcntl.h>
+#include <microhttpd.h>
+#include <pthread.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
+#include <netdb.h>
+#include <fcntl.h>
+#include <stdio.h>
+
+#ifdef HAVE_LIBMAGIC
 #include <magic.h>
-#include <microhttpd.h>
+#endif
 
 /// SimplePost namespace header
 #define SP_HTTP_HEADER_NAMESPACE  "SimplePost::HTTP"
@@ -342,7 +345,9 @@ static struct MHD_Response* __response_prep_file(struct MHD_Connection* connecti
 {
 	struct MHD_Response* response; // Response to the request
 	int fd;                        // File descriptor
+	#ifdef HAVE_LIBMAGIC
 	magic_t hmagic;                // Magic file handle
+	#endif
 
 	fd = open(file, O_RDONLY);
 	if(fd == -1)
@@ -359,6 +364,7 @@ static struct MHD_Response* __response_prep_file(struct MHD_Connection* connecti
 		return NULL;
 	}
 
+	#ifdef HAVE_LIBMAGIC
 	hmagic = magic_open(MAGIC_MIME_TYPE);
 	if(hmagic)
 	{
@@ -376,6 +382,7 @@ static struct MHD_Response* __response_prep_file(struct MHD_Connection* connecti
 
 		magic_close(hmagic);
 	}
+	#endif // HAVE_LIBMAGIC
 
 	if(MHD_queue_response(connection, status_code, response) == MHD_NO)
 	{
