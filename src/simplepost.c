@@ -306,7 +306,22 @@ static struct MHD_Response* __response_prep_data(struct MHD_Connection* connecti
 {
 	struct MHD_Response* response; // Response to the request
 
+	/* MHD_create_response_from_data() is deprecated and should only be used
+	 * with old versions of libmicrohttpd that do not support
+	 * MHD_create_response_from_buffer(). After a sensible amount of time we
+	 * should really remove this backwards compatibility check and just make
+	 * configure require the newer method.
+	 */
+	#ifdef HAVE_MHD_CREATE_RESPONSE_FROM_BUFFER
+	response = MHD_create_response_from_buffer(size, data, MHD_RESPMEM_PERSISTENT);
+	#else
+	#ifdef HAVE_MHD_CREATE_RESPONSE_FROM_DATA
 	response = MHD_create_response_from_data(size, data, MHD_NO, MHD_NO);
+	#else
+	#error "libmicrohttpd does not have a supported MHD_create_response_*() method"
+	#endif // HAVE_MHD_CREATE_RESPONSE_FROM_DATA
+	#endif // HAVE_MHD_CREATE_RESPONSE_FROM_BUFFER
+
 	if(response == NULL)
 	{
 		impact_printf_debug("%s:%d: %s: Failed to allocate memory for the HTTP response %u\n", __FILE__, __LINE__, SP_MAIN_HEADER_MEMORY_ALLOC, status_code);

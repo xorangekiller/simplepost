@@ -121,6 +121,9 @@ AC_CHECK_FUNCS([memset      \
                 strchr      \
                 getopt      \
                 getopt_long])
+AC_CHECK_FUNCS(MHD_create_response_from_buffer, [],
+    [AC_CHECK_FUNCS(MHD_create_response_from_data, [],
+        [AC_MSG_ERROR([libmicrohttpd is broken or has an unsupported method of creating responses.])])])
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_HEADERS([src/config.h:src/config.in])
