@@ -88,6 +88,9 @@ static void __print_version()
  */
 static void __server_reset_pipe(int sig)
 {
+	// Unused parameters
+	(void) sig;
+
 	if(cmdd)
 	{
 		impact_printf_error("%s: LOCAL SOCKET COMMUNICATION ERROR!\n", SP_MAIN_HEADER_NAMESPACE);
@@ -118,6 +121,9 @@ static void __server_reset_pipe(int sig)
  */
 static void __server_shutdown(int sig)
 {
+	// Unused parameters
+	(void) sig;
+
 	if(cmdd) simplecmd_free(cmdd);
 	if(httpd) simplepost_free(httpd);
 	exit(0);
@@ -133,7 +139,7 @@ static void __server_shutdown(int sig)
 static void __server_terminal_interrupt(int sig)
 {
 	impact_printf_standard("\n"); // Terminate the ^C line
-	__server_shutdown(SIGTERM);
+	__server_shutdown(sig);
 }
 
 /*!

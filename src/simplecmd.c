@@ -512,6 +512,9 @@ static short __command_send_port(simplecmd_t scp, int sock)
  */
 static short __command_send_version(simplecmd_t scp, int sock)
 {
+	// Unused parameters
+	(void) scp;
+
 	__sock_send(sock, NULL, SP_MAIN_VERSION);
 	return 1;
 }

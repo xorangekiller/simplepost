@@ -551,6 +551,9 @@ static void __panic(void* cls, const char* file, unsigned int line, const char* 
  */
 static void __log_microhttpd_messages(void* cls, const char* format, va_list ap)
 {
+	// Unused parameters
+	(void) cls;
+
 	char buffer[2048]; // libmicrohttpd error message
 	int length;        // Number of characters written to the buffer
 
@@ -584,6 +587,9 @@ static void __log_microhttpd_messages(void* cls, const char* format, va_list ap)
  */
 static int __process_request(void* cls, struct MHD_Connection* connection, const char* uri, const char* method, const char* version, const char* data, size_t* data_size, void** state)
 {
+	// Unused parameters
+	(void) data;
+
 	simplepost_t spp = (simplepost_t) cls; // Instance to act on
 	struct simplepost_state* spsp = NULL;  // Request state
 
@@ -706,6 +712,10 @@ finalize_request:
  */
 void __finalize_request(void* cls, struct MHD_Connection* connection, void** state, enum MHD_RequestTerminationCode toe)
 {
+	// Unused parameters
+	(void) cls;
+	(void) connection;
+
 	struct simplepost_state* spsp = (struct simplepost_state*) *state; // Request to cleanup
 
 	#ifdef DEBUG
