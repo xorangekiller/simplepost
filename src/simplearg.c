@@ -96,7 +96,7 @@ static void __set_address(simplearg_t sap, const char* optstr, const char* arg)
 		return;
 	}
 
-	sap->address = (char *) malloc(sizeof(char) * (strlen(arg) + 1));
+	sap->address = (char*) malloc(sizeof(char) * (strlen(arg) + 1));
 	if(sap->address == NULL)
 	{
 		impact_printf_debug("%s: %s: Failed to allocate memory for the ADDRESS\n", SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);

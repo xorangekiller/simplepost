@@ -131,7 +131,7 @@ static size_t __sock_recv(int sock, const char* command, char** data)
 
 	if(command) __sock_send(sock, command, NULL);
 
-	for(size_t i = 0; read(sock, (void *) &b, 1) == 1; ++i)
+	for(size_t i = 0; read(sock, (void*) &b, 1) == 1; ++i)
 	{
 		if(i == sizeof(buffer))
 		{
@@ -149,7 +149,7 @@ static size_t __sock_recv(int sock, const char* command, char** data)
 		return 0;
 	}
 
-	*data = (char *) malloc(sizeof(char) * (length + 1));
+	*data = (char*) malloc(sizeof(char) * (length + 1));
 	if(*data == NULL)
 	{
 		impact_printf_debug("%s: %s: Failed to allocate memory for command data buffer\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
@@ -168,7 +168,7 @@ static size_t __sock_recv(int sock, const char* command, char** data)
 	 */
 	for(size_t i = 0; i < length; ++i)
 	{
-		if(read(sock, (void *) &b, 1) == 1)
+		if(read(sock, (void*) &b, 1) == 1)
 		{
 			(*data)[i] = b;
 		}
@@ -248,8 +248,8 @@ void simplecmd_list_free(simplecmd_list_t sclp)
  */
 size_t simplecmd_list_instances(simplecmd_list_t* sclp)
 {
-	DIR * dp;                   // Directory handle
-	struct dirent * ep;         // Entity in the directory
+	DIR* dp;                    // Directory handle
+	struct dirent* ep;          // Entity in the directory
 	char suspect[512];          // File name and path of the current entity
 	struct stat suspect_status; // Status of the current entity
 
@@ -314,7 +314,7 @@ size_t simplecmd_list_instances(simplecmd_list_t* sclp)
 				}
 				count++;
 
-				tail->sock_name = (char *) malloc(sizeof(char) * (strlen(suspect) + 1));
+				tail->sock_name = (char*) malloc(sizeof(char) * (strlen(suspect) + 1));
 				if(tail->sock_name == NULL)
 				{
 					impact_printf_debug("%s: %s: Failed to allocate memory for socket name\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
@@ -410,7 +410,7 @@ static struct simplecmd_handler __command_handlers[] =
 struct simplecmd_request
 {
 	/// SimplePost command instance to act on
-	struct simplecmd * scp;
+	struct simplecmd* scp;
 
 	/// Socket the client connected on
 	int client_sock;
@@ -669,7 +669,7 @@ static void* __accept_requests(void* p)
 		}
 
 		client_name_len = sizeof(client_name);
-		client_sock = accept(scp->sock, (struct sockaddr *) &client_name, &client_name_len);
+		client_sock = accept(scp->sock, (struct sockaddr*) &client_name, &client_name_len);
 		if(client_sock == -1) continue;
 
 		struct simplecmd_request* scrp = (struct simplecmd_request*) malloc(sizeof(struct simplecmd_request));
@@ -983,7 +983,7 @@ unsigned short simplecmd_get_port(pid_t server_pid)
 {
 	int sock;            // Socket descritor
 	unsigned short port; // Port the specified server is listening on
-	char * buffer;       // Port as a string (directly from the server)
+	char* buffer;        // Port as a string (directly from the server)
 
 	sock = __open_sock_by_pid(server_pid);
 	if(sock < 0) return 0;

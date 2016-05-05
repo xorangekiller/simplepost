@@ -494,7 +494,7 @@ static size_t __get_filename_from_uri(simplepost_t spp, char** file, const char*
 
 	if(spp->files)
 	{
-		for(struct simplepost_serve * p = spp->files; p; p = p->next)
+		for(struct simplepost_serve* p = spp->files; p; p = p->next)
 		{
 			if(strcmp(uri, p->uri) == 0)
 			{
@@ -859,7 +859,7 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 		source.sin_addr = sin_addr;
 		
 		if(spp->address) free(spp->address);
-		spp->address = (char *) malloc(sizeof(char) * (strlen(address) + 1));
+		spp->address = (char*) malloc(sizeof(char) * (strlen(address) + 1));
 		if(spp->address == NULL)
 		{
 			impact_printf_error("%s: %s: Failed to allocate memory for the source address\n", SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
