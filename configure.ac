@@ -115,6 +115,7 @@ AS_IF([test "x$with_libmagic" = xyes],
 
 # Check for typedefs, structures, and compiler characteristics.
 AC_PROG_CC_C99
+AM_PROG_CC_C_O
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 
