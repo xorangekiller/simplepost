@@ -94,6 +94,7 @@ AC_CHECK_LIB([pthread], [pthread_self],
     [AC_MSG_ERROR([libpthread not found.])])
 
 # Check for header files.
+AC_HEADER_STDBOOL
 AC_CHECK_HEADERS([arpa/inet.h  \
                   fcntl.h      \
                   limits.h     \
@@ -102,10 +103,15 @@ AC_CHECK_HEADERS([arpa/inet.h  \
                   stdlib.h     \
                   string.h     \
                   getopt.h     \
-                  stdbool.h    \
                   sys/socket.h \
                   sys/time.h   \
-                  unistd.h])
+                  unistd.h     \
+                  pthread.h    \
+                  microhttpd.h],
+    [], [AC_MSG_ERROR([required header not found.])])
+AS_IF([test "x$with_libmagic" = xyes],
+    [AC_CHECK_HEADERS([magic.h], [],
+        [AC_MSG_ERROR([magic.h not found.])])])
 
 # Check for typedefs, structures, and compiler characteristics.
 AC_PROG_CC_C99
@@ -120,7 +126,8 @@ AC_CHECK_FUNCS([memset      \
                 socket      \
                 strchr      \
                 getopt      \
-                getopt_long])
+                getopt_long],
+    [], [AC_MSG_ERROR([required library function not found.])])
 AC_CHECK_FUNCS(MHD_create_response_from_buffer, [],
     [AC_CHECK_FUNCS(MHD_create_response_from_data, [],
         [AC_MSG_ERROR([libmicrohttpd is broken or has an unsupported method of creating responses.])])])
