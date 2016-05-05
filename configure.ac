@@ -71,11 +71,11 @@ DX_INIT_DOXYGEN([SimplePost], [Doxyfile], [doxygen])
 srcdir="$my_save_srcdir"
 
 # Configure libmagic.
-AC_ARG_ENABLE(magic, AS_HELP_STRING([--disable-magic], [do not serve the HTTP Content-Type of files]),
+AC_ARG_WITH(magic, AS_HELP_STRING([--without-magic], [do not serve the HTTP Content-Type of files]),
     [AS_CASE($enableval,
         [yes|true], [with_libmagic=yes],
         [no|false], [with_libmagic=no],
-        [AC_MSG_ERROR(bad value $enableval for --disable-magic)])],
+        [AC_MSG_ERROR(bad value $enableval for --without-magic)])],
     [with_libmagic=yes])
 
 # Check for libraries.
