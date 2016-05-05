@@ -858,14 +858,14 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 		}
 		source.sin_addr = sin_addr;
 		
-		if( spp->address ) free( spp->address );
-		spp->address = (char *) malloc( sizeof( char ) * (strlen( address ) + 1) );
-		if( spp->address == NULL )
+		if(spp->address) free(spp->address);
+		spp->address = (char *) malloc(sizeof(char) * (strlen(address) + 1));
+		if(spp->address == NULL)
 		{
-			impact_printf_error( "%s: %s: Failed to allocate memory for the source address\n", SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC );
+			impact_printf_error("%s: %s: Failed to allocate memory for the source address\n", SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
 			goto error;
 		}
-		strcpy( spp->address, address );
+		strcpy(spp->address, address);
 	}
 	else
 	{
@@ -1257,8 +1257,8 @@ short simplepost_purge_file(simplepost_t spp, const char* uri)
 */
 simplepost_file_t simplepost_file_init()
 {
-    simplepost_file_t spfp = (simplepost_file_t) malloc( sizeof( struct simplepost_file ) );
-    if( spfp == NULL ) return NULL;
+    simplepost_file_t spfp = (simplepost_file_t) malloc(sizeof(struct simplepost_file));
+    if(spfp == NULL) return NULL;
     
     spfp->file = NULL;
     spfp->url = NULL;

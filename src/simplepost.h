@@ -106,22 +106,22 @@ typedef struct simplepost* simplepost_t;
  */
 
 simplepost_t simplepost_init();
-void simplepost_free( simplepost_t spp );
+void simplepost_free(simplepost_t spp);
 
-unsigned short simplepost_bind( simplepost_t spp, const char * address, unsigned short port );
-short simplepost_unbind( simplepost_t spp );
-void simplepost_block( simplepost_t spp );
-void simplepost_block_files( simplepost_t spp );
-short simplepost_is_alive( simplepost_t spp );
+unsigned short simplepost_bind(simplepost_t spp, const char * address, unsigned short port);
+short simplepost_unbind(simplepost_t spp);
+void simplepost_block(simplepost_t spp);
+void simplepost_block_files(simplepost_t spp);
+short simplepost_is_alive(simplepost_t spp);
 
-size_t simplepost_serve_file( simplepost_t spp, char ** url, const char * file,  const char * uri, unsigned int count );
-short simplepost_purge_file( simplepost_t spp, const char * uri );
+size_t simplepost_serve_file(simplepost_t spp, char ** url, const char * file,  const char * uri, unsigned int count);
+short simplepost_purge_file(simplepost_t spp, const char * uri);
 
 simplepost_file_t simplepost_file_init();
-void simplepost_file_free( simplepost_file_t sfp );
+void simplepost_file_free(simplepost_file_t sfp);
 
-size_t simplepost_get_address( simplepost_t spp, char ** address );
-unsigned short simplepost_get_port( simplepost_t spp );
-size_t simplepost_get_files( simplepost_t spp, simplepost_file_t * files );
+size_t simplepost_get_address(simplepost_t spp, char ** address);
+unsigned short simplepost_get_port(simplepost_t spp);
+size_t simplepost_get_files(simplepost_t spp, simplepost_file_t * files);
 
 #endif // _SIMPLEPOST_H_

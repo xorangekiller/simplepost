@@ -236,7 +236,7 @@ int main(int argc, char* argv[])
 
 		impact_printf_debug("%s: Trying to connect to the %s instance with PID %d ...\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
 
-		if( simplecmd_get_address(args->pid, &address) == 0)
+		if(simplecmd_get_address(args->pid, &address) == 0)
 		{
 			impact_printf_error("%s: Failed to get the ADDRESS of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
 			goto error;
