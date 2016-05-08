@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #include <pthread.h>
 #include <dirent.h>
 #include <regex.h>
@@ -44,6 +45,9 @@
 
 /// Protocol error string
 #define SP_COMMAND_HEADER_PROTOCOL_ERROR "Local Protocol Error"
+
+/// Directory where this program opens its command sockets
+#define SP_COMMAND_SOCK_DIR              "/tmp"
 
 /*****************************************************************************
  *                              Socket Support                               *
@@ -203,7 +207,7 @@ simplecmd_list_t simplecmd_list_init()
 	if(sclp == NULL) return NULL;
 
 	sclp->sock_name = NULL;
-	sclp->instance_pid = 0;
+	sclp->inst_pid = 0;
 
 	sclp->next = NULL;
 	sclp->prev = NULL;
@@ -246,11 +250,12 @@ void simplecmd_list_free(simplecmd_list_t sclp)
  * memory allocation error occurred, or, more likely, there are no other
  * instances of SimplePost currently active
  */
-size_t simplecmd_list_instances(simplecmd_list_t* sclp)
+size_t simplecmd_list_inst(simplecmd_list_t* sclp)
 {
 	DIR* dp;                    // Directory handle
 	struct dirent* ep;          // Entity in the directory
-	char suspect[512];          // File name and path of the current entity
+	char suspect[512];          // Absolute path of the current entity
+	int suspect_len;            // Length of the current entity's absolute path
 	struct stat suspect_status; // Status of the current entity
 
 	char sock_name[512]; // Name of our socket
@@ -260,17 +265,17 @@ size_t simplecmd_list_instances(simplecmd_list_t* sclp)
 	size_t count = 0;      // Number of items in the list
 	tail = *sclp = NULL;   // Failsafe
 
-	dp = opendir("/tmp/");
+	dp = opendir(SP_COMMAND_SOCK_DIR);
 	if(dp == NULL)
 	{
-		impact_printf_error("%s: Failed to open the temporary directory\n", SP_COMMAND_HEADER_NAMESPACE);
+		impact_printf_error("%s: Failed to open the command socket directory %s: %s\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_SOCK_DIR, strerror(errno));
 		return 0;
 	}
 
 	sprintf(sock_name, "^%s_sock_[0-9]+$", SP_MAIN_SHORT_NAME);
 	if(regcomp(&regex, sock_name, REG_EXTENDED | REG_NOSUB | REG_NEWLINE))
 	{
-		impact_printf_error("%s: Failed to compile the socket matching regular expression\n", SP_COMMAND_HEADER_NAMESPACE);
+		impact_printf_error("%s: BUG! Failed to compile the socket matching regular expression\n", __PRETTY_FUNCTION__);
 		closedir(dp);
 		return 0;
 	}
@@ -279,8 +284,12 @@ size_t simplecmd_list_instances(simplecmd_list_t* sclp)
 
 	while((ep = readdir(dp)))
 	{
-		strncpy(suspect, "/tmp/", sizeof(suspect)/sizeof(suspect[0]));
-		strncat(suspect, ep->d_name, sizeof(suspect)/sizeof(suspect[0]) - strlen(suspect));
+		suspect_len = snprintf(suspect, sizeof(suspect), "%s/%s", SP_COMMAND_SOCK_DIR, ep->d_name);
+		if(suspect_len < 1 || (size_t) suspect_len >= sizeof(suspect))
+		{
+			impact_printf_debug("%s: Skipping %s/%s because only %zu of %d bytes are available in the buffer\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_SOCK_DIR, ep->d_name, sizeof(suspect), suspect_len);
+			continue;
+		}
 
 		if(stat(suspect, &suspect_status) == 0 && S_ISSOCK(suspect_status.st_mode) && access(suspect, R_OK | W_OK) == 0)
 		{
@@ -329,9 +338,9 @@ size_t simplecmd_list_instances(simplecmd_list_t* sclp)
 
 				const char* pid_ptr = suspect;
 				while(isdigit(*pid_ptr) == 0) ++pid_ptr;
-				sscanf(pid_ptr, "%d", &tail->instance_pid);
+				sscanf(pid_ptr, "%d", &tail->inst_pid);
 
-				impact_printf_debug("%s: Found %s:%d socket %s\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, tail->instance_pid, tail->sock_name);
+				impact_printf_debug("%s: Found %s:%d socket %s\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, tail->inst_pid, tail->sock_name);
 			}
 			else if(regex_ret != REG_NOMATCH)
 			{
@@ -356,6 +365,77 @@ size_t simplecmd_list_instances(simplecmd_list_t* sclp)
 	closedir(dp);
 
 	return count;
+}
+
+/*!
+ * \brief Find the SimplePost instance with the given parameters.
+ *
+ * \param[in] address
+ * \parblock
+ * IP address of the instance to find
+ *
+ * If this parameter is NULL, a SimplePost instance with any address that
+ * matches the other given parameters will be chosen.
+ * \endparblock
+ * \param[in] port
+ * \parblock
+ * Port that the instance to find is listening on
+ *
+ * If this parameter is zero, a SimplePost instance listening on any port that
+ * matches the other given parameters will be chosen.
+ * \endparblock
+ * \param[in] pid
+ * \parblock
+ * Process identifier of the instance to find
+ *
+ * If this parameter is zero, a SimplePost instance with any PID that matches
+ * the other given parameters will be chosen.
+ * \endparblock
+ *
+ * \return the PID of the first SimplePost instance that we can find matching
+ * the given parameters, or zero if there is no such instance
+ */
+pid_t simplecmd_find_inst(const char* address, unsigned short port, pid_t pid)
+{
+	simplecmd_list_t sclp; // List of SimplePost Command instances
+	pid_t lowest_pid = 0;  // PID of the oldest SimplePost command instance matching our requirements
+
+	simplecmd_list_inst(&sclp);
+	for(simplecmd_list_t p = sclp; p; p = p->next)
+	{
+		if(pid)
+		{
+			if(p->inst_pid != pid) continue;
+		}
+		else if(p->inst_pid <= lowest_pid)
+		{
+			continue;
+		}
+
+		if(address)
+		{
+			char* inst_address; // Address of the server
+
+			if(simplecmd_get_address(p->inst_pid, &inst_address) == 0) continue;
+
+			int address_match = strcmp(address, inst_address);
+			free(inst_address);
+			if(address_match) continue;
+		}
+
+		if(port)
+		{
+			unsigned short inst_port; // Port the server is listening on
+
+			inst_port = simplecmd_get_port(p->inst_pid);
+			if(port != inst_port) continue;
+		}
+
+		lowest_pid = p->inst_pid;
+	}
+	simplecmd_list_free(sclp);
+
+	return lowest_pid;
 }
 
 /*****************************************************************************
@@ -742,6 +822,8 @@ simplecmd_t simplecmd_init()
  */
 void simplecmd_free(simplecmd_t scp)
 {
+	if(scp == NULL) return;
+
 	if(scp->accpeting_clients) simplecmd_deactivate(scp);
 
 	if(scp->sock != -1)
@@ -785,7 +867,7 @@ short simplecmd_activate(simplecmd_t scp, simplepost_t spp)
 	{
 		char buffer[2048]; // Buffer for the the socket name string
 
-		sprintf(buffer, "/tmp/%s_sock_%d", SP_MAIN_SHORT_NAME, getpid());
+		sprintf(buffer, "%s/%s_sock_%d", SP_COMMAND_SOCK_DIR, SP_MAIN_SHORT_NAME, getpid());
 
 		scp->sock_name = (char*) malloc(sizeof(char) * (strlen(buffer) + 1));
 		if(scp->sock_name == NULL)
@@ -901,12 +983,12 @@ short simplecmd_is_alive(simplecmd_t scp)
  */
 static int __open_sock_by_pid(pid_t server_pid)
 {
-	int sock;                     // Socket descritor
+	int sock;                     // Socket descriptor
 	struct sockaddr_un sock_addr; // Address to assign to the socket
 	char sock_name[512];          // Name of the socket
 	struct stat sock_status;      // Status of the socket
 
-	sprintf(sock_name, "/tmp/%s_sock_%d", SP_MAIN_SHORT_NAME, server_pid);
+	sprintf(sock_name, "%s/%s_sock_%d", SP_COMMAND_SOCK_DIR, SP_MAIN_SHORT_NAME, server_pid);
 	if(stat(sock_name, &sock_status) == -1)
 	{
 		impact_printf_error("%s: Socket %s does not exist\n", SP_COMMAND_HEADER_NAMESPACE, sock_name);
@@ -961,7 +1043,7 @@ static int __open_sock_by_pid(pid_t server_pid)
  */
 size_t simplecmd_get_address(pid_t server_pid, char** address)
 {
-	int sock;          // Socket descritor
+	int sock;          // Socket descriptor
 	size_t length = 0; // Length of the address
 	*address = NULL;   // Failsafe
 
@@ -984,7 +1066,7 @@ size_t simplecmd_get_address(pid_t server_pid, char** address)
  */
 unsigned short simplecmd_get_port(pid_t server_pid)
 {
-	int sock;            // Socket descritor
+	int sock;            // Socket descriptor
 	unsigned short port; // Port the specified server is listening on
 	char* buffer;        // Port as a string (directly from the server)
 
@@ -1029,7 +1111,7 @@ unsigned short simplecmd_get_port(pid_t server_pid)
  */
 size_t simplecmd_get_version(pid_t server_pid, char** version)
 {
-	int sock;          // Socket descritor
+	int sock;          // Socket descriptor
 	size_t length = 0; // Length of the version string
 	*version = NULL;   // Failsafe
 
@@ -1055,7 +1137,7 @@ size_t simplecmd_get_version(pid_t server_pid, char** version)
  */
 short simplecmd_set_file(pid_t server_pid, const char* file, unsigned int count)
 {
-	int sock;         // Socket descritor
+	int sock;         // Socket descriptor
 	char buffer[512]; // Count as a string
 
 	sock = __open_sock_by_pid(server_pid);

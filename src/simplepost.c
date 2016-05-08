@@ -824,6 +824,8 @@ simplepost_t simplepost_init()
  */
 void simplepost_free(simplepost_t spp)
 {
+	if(spp == NULL) return;
+
 	if(spp->httpd) simplepost_unbind(spp);
 	if(spp->address) free(spp->address);
 

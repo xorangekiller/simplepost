@@ -1,6 +1,6 @@
 \" TROFF Macro Summary: http://www.fileformat.info/info/man-pages/macro.htm
 
-.TH SIMPLEPOST "1" "March 2014" "SimplePost 0.3" "User Commands"
+.TH SIMPLEPOST "1" "May 2016" "SimplePost 0.3" "User Commands"
 
 \" Completely disable hyphenation. It is a very annoying feature while reading man pages, in my opinion.
 .nh
@@ -15,7 +15,7 @@ SimplePost \- Serve \fIFILE\fR \fICOUNT\fR times via HTTP on port \fIPORT\fR wit
 \fIFILE\fR
 
 .SH DESCRIPTION
-SimplePost is an extremely lightweight Hypertext Transfer Protocol (HTTP) server based on GNU libmicrohttpd. It is missing many of the features of more established web servers such as Apache, nGenx, and Lighttpd. SimplePost has no intention of competing with these more established projects on features or speed. Its goal is to be a highly portable, fast, and low-resource web server for quickly transferring files from one computer to another on the same network with minimal setup.
+SimplePost is an extremely lightweight Hypertext Transfer Protocol (HTTP) server based on GNU libmicrohttpd. It is missing many of the features of more established web servers such as Apache, Nginx, and Lighttpd. SimplePost has no intention of competing with these more established projects on features or speed. Its goal is to be a highly portable, fast, and low-resource web server for quickly transferring files from one computer to another on the same network with minimal setup.
 
 .SH GLOBAL_OPTIONS
 The global options described below apply to the program as a whole. Each option may be specified only once, and they must be specified before any \fIFILE\fR or \fIFILE_OPTIONS\fR. All global options are completely optional; SimplePost maintains sane defaults.
@@ -35,12 +35,15 @@ Act on the instance of SimplePost with the process identifier \fIPID\fR rather t
 
 Although the first line that SimplePost prints to STDOUT typically contains its current PID (unless there is an initialization error or \fI--quiet\fR has been invoked), sometimes it is helpful to retrieve the PID of all running SimplePost instances. There are many ways to go about this, but a selection of the more common commands are listed below for your convenience.
 
-.br
-    \fBps -A | grep simplepost\fR
-.br
-    \fBps -eo pid,user,args | head -n -3 | grep simplepost\fR
-.br
-    \fBsudo netstat -tlpn | grep simplepost\fR
+.TS
+;
+l
+l
+l .
+$ ps -A | grep simplepost
+$ ps -eo pid,user,args | head -n -3 | grep simplepost
+$ sudo netstat -tlpn | grep simplepost
+.TE
 
 This option and \fI--new\fR are mutually exclusive.
 
@@ -50,6 +53,42 @@ Act exclusively on the current instance of this program.
 This option might not seem particularly useful at first glance, but that is only because it doesn't necessarily modify this program's default behavior. By default, if neither \fI--pid\fR nor \fI--new\fR is specified, this program will look for all instances of SimplePost accessible by the effective user with the same \fIADDRESS\fR and \fIPORT\fR as was specified on this command line for this instance. If no \fIADDRESS\fR or \fIPORT\fR was specified, then \fIFILE\fR will be served on the first SimplePost instance accessible by the current user. If there are no active instances of this program that meet those criteria, then the current instance will spawn its internal HTTP server to sever \fIFILE\fR. If the \fI--new\fR option is specified, the aforementioned discovery process will be short-circuited, and the current SimplePost instance will just try to server \fIFILE\fR itself.
 
 This option and \fI--pid\fR are mutually exclusive.
+
+.IP \fB-l\fR\ \fILTYPE\fR,\ \fB--list\fR=\fILTYPE\fR
+List the requested type of information about an instance of this program. The specific type of information requested is specified by the \fILTYPE\fR, and the action taken and the other options required differ slightly based on its value.
+
+.TS
+tab(;) nowarn allbox;
+c c
+l l
+l ^
+l ^
+l l
+l ^ .
+\fBLTYPE\fR;\fBDESCRIPTION\fR
+i;T{
+List all SimplePost instances that this program can connect to.
+
+There may be more SimplePost instances running on this system,
+but this command will only list the ones that are actually accessible
+to this user.
+T}
+inst
+instances
+f;T{
+List all files being served by the selected SimplePost instance.
+
+This command uses the same rules as the web server to select the
+instance to target. Functionally that means that it requires
+either \fI--address\fR or \fI--port\fR options to also be specified,
+otherwise there would be no way to know which instance to list files
+from.
+T}
+files
+.TE
+
+
+The \fI--new\fR option must not be specified with this option! The behavior is undefined.
 
 .IP \fB-q\fR,\ \fB--quiet\fR
 Reduce verbosity with extreme prejudice. Do not print anything to STDOUT.
@@ -81,31 +120,47 @@ This program will exit with one of several error codes. If it returns \fB0\fR, e
 .SH EXAMPLES
 The following examples demonstrate the proper syntax for performing various common operations. If you need more help interpreting them, read the documentation above, and use common sense.
 
-\fB1.\fR Serve the current user's BASH configuration file on port 80 exactly once before shutting down the web server. (Note that since port 80 is a privileged port, you will most likely need to run this command with superuser privileges, which typically involves prefixing the command with \fBsudo\fR.)
+\fB1.\fR List all accessible instances of this program that are up and serving files.
 
 .br
-    \fBsimplepost -q -p 80 -c 1 ~/.bashrc\fR
+    $ simplepost --list instances
+    $ simplepost -li
 
-\fB2.\fR Serve the current user's BASH aliases file exactly twice on the instance of SimplePost with the process identifier 99031. (Note that if no SimplePost instance has the \fIPID\fR 99031 when this command is run, it will fail. See the \fI--pid\fR and \fIEXIT CODES\fR entries in this manual for more information.)
-
-.br
-    \fBsimplepost --pid=99031 --count=2 ~/.bash_aliases\fR
-
-\fB3.\fR Serve the \fIFILE\fR "Training Manual.pdf" on a random port until the SimplePost process receives the TERM signal.
+\fB2.\fR List all of the files being served by the SimplePost instance with the process identifier 99031.
 
 .br
-    \fBsimplepost "Training Manual.pdf"\fR
+    $ simplepost --list files --pid 99031
 
-\fB4.\fR Create a new instance of SimplePost listening on port 55555, and serve the \fIFILE\fR test.txt five times and the \fIFILE\fR test.log twice before shutting down the web server.
+\fB3.\fR List all of the files being served by the SimplePost instance listening on port 80.
 
 .br
-    \fBsimplepost --new --port=55555 --count=5 test.txt --count=2 test.log\fR
+    $ simplepost -lf -p80
+
+\fB4.\fR Serve the current user's BASH configuration file on port 80 exactly once before shutting down the web server. (Note that since port 80 is a privileged port, you will most likely need to run this command with superuser privileges, which typically involves prefixing the command with \fBsudo\fR.)
+
+.br
+    $ simplepost -q -p 80 -c 1 ~/.bashrc
+
+\fB5.\fR Serve the current user's BASH aliases file exactly twice on the instance of SimplePost with the process identifier 99031. (Note that if no SimplePost instance has the \fIPID\fR 99031 when this command is run, it will fail. See the \fI--pid\fR and \fIEXIT CODES\fR entries in this manual for more information.)
+
+.br
+    $ simplepost --pid 99031 --count 2 ~/.bash_aliases
+
+\fB6.\fR Serve the \fIFILE\fR "Training Manual.pdf" on a random port until the SimplePost process receives the TERM signal.
+
+.br
+    $ simplepost "Training Manual.pdf"
+
+\fB7.\fR Create a new instance of SimplePost listening on port 55555, and serve the \fIFILE\fR test.txt five times and the \fIFILE\fR test.log twice before shutting down the web server.
+
+.br
+    $ simplepost --new --port=55555 --count=5 test.txt --count=2 test.log
 
 .SH AUTHOR
 This manual was written by Karl Lenz <xorangekiller@gmail.com>.
 
 .SH COPYRIGHT
-Copyright 2012-2014 Karl Lenz
+Copyright 2012-2016 Karl Lenz
 
 Copying and distribution of this file, with or without modification, are permitted in any medium without royalty provided the copyright notice and this notice are preserved.
 

@@ -25,16 +25,170 @@
 #include "impact.h"
 #include "config.h"
 
-#include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <stdio.h>
 
 /// Local command handler instance
 static simplecmd_t cmdd = NULL;
 
 /// Web server instance
 static simplepost_t httpd = NULL;
+
+/*!
+ * \brief List the accessible SimplePost instances and print them to stdout.
+ *
+ * \return true if all instances were enumerated successfully, false if not
+ */
+static bool __list_inst()
+{
+	simplecmd_list_t sclp; // List of SimplePost Command instances
+	char* address;         // Address of the server
+	unsigned short port;   // Port the server is listening on
+	char* version;         // Server's version
+	size_t failures = 0;   // Number of instances that we failed to query
+
+	simplecmd_list_inst(&sclp);
+	for(simplecmd_list_t p = sclp; p; p = p->next)
+	{
+		if(simplecmd_get_version(p->inst_pid, &version) == 0)
+		{
+			impact_printf_error("%s: Failed to get the version of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, p->inst_pid);
+			++failures;
+			continue;
+		}
+
+		if(simplecmd_get_address(p->inst_pid, &address) == 0)
+		{
+			impact_printf_error("%s: Failed to get the address of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, p->inst_pid);
+			++failures;
+			free(version);
+			continue;
+		}
+
+		port = simplecmd_get_port(p->inst_pid);
+		if(port == 0)
+		{
+			impact_printf_error("%s: Failed to get the port of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, p->inst_pid);
+			++failures;
+			free(address);
+			free(version);
+			continue;
+		}
+
+		printf("[PID %d] %s %s serving files on %s:%hu\n", p->inst_pid, SP_MAIN_DESCRIPTION, version, address, port);
+		free(address);
+		free(version);
+	}
+	simplecmd_list_free(sclp);
+
+	return (failures == 0);
+}
+
+/*!
+ * \brief Add new files to be served to another SimplePost instance.
+ *
+ * \param[in] args Arguments passed to this program
+ *
+ * \return true if all files were added to the specified instance successfully,
+ * false if not
+ */
+static bool __add_to_other_inst(simplearg_t args)
+{
+	char* address;       // Destination server's address
+	unsigned short port; // Destination server's port
+
+	impact_printf_debug("%s: Trying to connect to the %s instance with PID %d ...\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+
+	if(simplecmd_get_address(args->pid, &address) == 0)
+	{
+		impact_printf_error("%s: Failed to get the ADDRESS of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+		return false;
+	}
+
+	port = simplecmd_get_port(args->pid);
+	if(port == 0)
+	{
+		impact_printf_error("%s: Failed to get the PORT of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+		free(address);
+		return false;
+	}
+
+	#ifdef DEBUG
+	char* version; // Destination server's version
+
+	if(simplecmd_get_version(args->pid, &version) == 0)
+	{
+		impact_printf_error("%s: Failed to get the version of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+		free(address);
+		return false;
+	}
+
+	impact_printf_debug("%s: Serving FILESs on the %s %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, version, args->pid);
+
+	free(version);
+	#endif // DEBUG
+
+	for(simplefile_t p = args->files; p; p = p->next)
+	{
+		if(simplecmd_set_file(args->pid, p->file, p->count) == 0)
+		{
+			impact_printf_error("%s: Failed to add FILE %s to the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, p->file, SP_MAIN_DESCRIPTION, args->pid);
+		}
+		else
+		{
+			impact_printf_standard("%s: Instance %d: Serving %s on http://%s:%u/%s ", SP_MAIN_HEADER_NAMESPACE, args->pid, p->file, address, port, p->file);
+			switch(p->count)
+			{
+				case 0:
+					impact_printf_standard("indefinitely\n");
+					break;
+
+				case 1:
+					impact_printf_standard("exactly once\n");
+					break;
+
+				default:
+					impact_printf_standard("%u times\n", p->count);
+					break;
+			}
+		}
+	}
+
+	free(address);
+
+	return true;
+}
+
+/*!
+ * \brief Add the files to our SimplePost instance and start the HTTP server.
+ *
+ * \param[in] args Arguments passed to this program
+ *
+ * \return true if the HTTP server was started successfully, false if not
+ */
+static bool __start_httpd(simplearg_t args)
+{
+	httpd = simplepost_init();
+	if(httpd == NULL)
+	{
+		impact_printf_debug("%s: %s: Failed to allocate memory for %s HTTP server instance\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC, SP_MAIN_DESCRIPTION);
+		return false;
+	}
+
+	if(simplepost_bind(httpd, args->address, args->port) == 0) return false;
+	for(simplefile_t p = args->files; p; p = p->next)
+	{
+		char* url; // URL of the file being served
+
+		if(simplepost_serve_file(httpd, &url, p->file, NULL, p->count) == 0) return false;
+		free(url);
+	}
+
+	return true;
+}
 
 /*!
  * \brief Print our help information.
@@ -52,6 +206,9 @@ static void __print_help()
 	printf("                           by default the existing instance matching ADDRESS and PORT will be used if possible\n");
 	printf("      --new                act exclusively on the current instance of this program\n");
 	printf("                           this option and --pid are mutually exclusive\n");
+	printf("  -l, --list=LTYPE         list the requested LTYPE of information about an instance of this program\n");
+	printf("                           LTYPE=i,inst,instances    list all server instances that we can connect to\n");
+	printf("                           LTYPE=f,files             list all files being served by the selected server instance\n");
 	printf("  -q, --quiet              do not print anything to standard output\n");
 	printf("      --help               display this help and exit\n");
 	printf("      --version            output version information and exit\n\n");
@@ -59,6 +216,7 @@ static void __print_help()
 	printf("  -c, --count=COUNT        serve the file COUNT times\n");
 	printf("                           by default FILE will be served until the server is shut down\n\n");
 	printf("Examples:\n");
+	printf("  %s --list=instances              List all available instances of this program\n", SP_MAIN_SHORT_NAME);
 	printf("  %s -p 80 -q -c 1 FILE            Serve FILE on port 80 one time.\n", SP_MAIN_SHORT_NAME);
 	printf("  %s --pid=99031 --count=2 FILE    Serve FILE twice on the instance of simplepost with the process identifier 99031.\n", SP_MAIN_SHORT_NAME);
 	printf("  %s FILE                          Serve FILE on a random port until SIGTERM is received.\n\n", SP_MAIN_SHORT_NAME);
@@ -124,8 +282,8 @@ static void __server_shutdown(int sig)
 	// Unused parameters
 	(void) sig;
 
-	if(cmdd) simplecmd_free(cmdd);
-	if(httpd) simplepost_free(httpd);
+	simplecmd_free(cmdd);
+	simplepost_free(httpd);
 	exit(0);
 }
 
@@ -159,71 +317,49 @@ int main(int argc, char* argv[])
 	impact_quiet = (args->options & SA_OPT_QUIET) ? 1 : 0;
 
 	if(args->options & SA_OPT_ERROR) return 1;
-	if(args->actions & SA_ACT_HELP)
+	if(args->actions)
 	{
-		__print_help();
-		goto no_error;
-	}
-	if(args->actions & SA_ACT_VERSION)
-	{
-		__print_version();
-		goto no_error;
-	}
-
-	if(args->pid)
-	{
-		simplecmd_list_t sclp; // List of SimplePost Command instances
-		simplecmd_list_t p;    // SimplePost Command instance matching the user-specified PID
-
-		simplecmd_list_instances(&sclp);
-		for(p = sclp; p; p = p->next)
+		if(args->actions & SA_ACT_HELP)
 		{
-			if(p->instance_pid == args->pid) break;
+			__print_help();
+			goto no_error;
 		}
+		else if(args->actions & SA_ACT_VERSION)
+		{
+			__print_version();
+			goto no_error;
+		}
+		else if(args->actions & SA_ACT_LIST_INST)
+		{
+			if(__list_inst()) goto no_error;
+			else goto error;
+		}
+		else
+		{
+			impact_printf_error("%s: BUG! Failed to handle action 0x%02X\n", __PRETTY_FUNCTION__, args->actions);
+			goto error;
+		}
+	}
 
-		if(p == NULL)
+	if(args->options & SA_OPT_NEW)
+	{
+		args->pid = 0;
+	}
+	else if(args->pid)
+	{
+		pid_t inst_pid = simplecmd_find_inst(args->address, args->port, args->pid);
+		if(inst_pid == 0)
 		{
 			impact_printf_error("%s: Found no %s command instances with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
 			goto error;
 		}
-
-		simplecmd_list_free(sclp);
 	}
-	else if(args->options & SA_OPT_NEW)
+	else
 	{
-		simplecmd_list_t sclp; // List of SimplePost Command instances
-		pid_t lowest_pid = 0;  // PID of the oldest SimplePost command instance matching our requirements
-
-		simplecmd_list_instances(&sclp);
-		for(simplecmd_list_t p = sclp; p; p = p->next)
-		{
-			if(p->instance_pid <= lowest_pid) continue;
-
-			if(args->address)
-			{
-				char* address; // Address of the server
-
-				if(simplecmd_get_address(p->instance_pid, &address) == 0) continue;
-
-				int address_match = strcmp(args->address, address);
-				free(address);
-				if(address_match) continue;
-			}
-
-			if(args->port)
-			{
-				unsigned short port; // Port the server is listening on
-
-				port = simplecmd_get_port(p->instance_pid);
-				if(port != args->port) continue;
-			}
-
-			lowest_pid = p->instance_pid;
-		}
-		simplecmd_list_free(sclp);
+		args->pid = simplecmd_find_inst(args->address, args->port, args->pid);
 
 		#ifdef DEBUG
-		if(lowest_pid == 0)
+		if(args->pid == 0)
 		{
 			impact_printf_debug("%s: No %s instances with open pipes", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION);
 			if(args->address) impact_printf_debug(" bound to ADDRESS %s", args->address);
@@ -231,92 +367,15 @@ int main(int argc, char* argv[])
 			impact_printf_debug("\n");
 		}
 		#endif // DEBUG
-
-		args->pid = lowest_pid;
 	}
 
 	if(args->pid)
 	{
-		char* address;       // Destination server's address
-		unsigned short port; // Destination server's port
-
-		impact_printf_debug("%s: Trying to connect to the %s instance with PID %d ...\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
-
-		if(simplecmd_get_address(args->pid, &address) == 0)
-		{
-			impact_printf_error("%s: Failed to get the ADDRESS of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
-			goto error;
-		}
-
-		port = simplecmd_get_port(args->pid);
-		if(port == 0)
-		{
-			impact_printf_error("%s: Failed to get the PORT of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
-			free(address);
-			goto error;
-		}
-
-		#ifdef DEBUG
-		char* version; // Destination server's version
-
-		if(simplecmd_get_version(args->pid, &version) == 0)
-		{
-			impact_printf_error("%s: Failed to get the version of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
-			free(address);
-			goto error;
-		}
-
-		impact_printf_debug("%s: Serving FILESs on the %s %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, version, args->pid);
-
-		free(version);
-		#endif // DEBUG
-
-		for(simplefile_t p = args->files; p; p = p->next)
-		{
-			if(simplecmd_set_file(args->pid, p->file, p->count) == 0)
-			{
-				impact_printf_error("%s: Failed to add FILE %s to the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, p->file, SP_MAIN_DESCRIPTION, args->pid);
-			}
-			else
-			{
-				impact_printf_standard("%s: Instance %d: Serving %s on http://%s:%u/%s ", SP_MAIN_HEADER_NAMESPACE, args->pid, p->file, address, port, p->file);
-				switch(p->count)
-				{
-					case 0:
-						impact_printf_standard("indefinitely\n");
-						break;
-
-					case 1:
-						impact_printf_standard("exactly once\n");
-						break;
-
-					default:
-						impact_printf_standard("%u times\n", p->count);
-						break;
-				}
-			}
-		}
-
-		free(address);
-
-		goto no_error;
+		if(__add_to_other_inst(args)) goto no_error;
+		else goto error;
 	}
 
-	httpd = simplepost_init();
-	if(httpd == NULL)
-	{
-		impact_printf_debug("%s: %s: Failed to allocate memory for %s HTTP server instance\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC, SP_MAIN_DESCRIPTION);
-		goto error;
-	}
-
-	if(simplepost_bind(httpd, args->address, args->port) == 0) goto error;
-	for(simplefile_t p = args->files; p; p = p->next)
-	{
-		char* url; // URL of the file being served
-
-		if(simplepost_serve_file(httpd, &url, p->file, NULL, p->count) == 0) goto error;
-		free(url);
-	}
+	if(__start_httpd(args) == false) goto error;
 
 	signal(SIGPIPE, &__server_reset_pipe);
 	signal(SIGINT, &__server_terminal_interrupt);
@@ -335,12 +394,14 @@ int main(int argc, char* argv[])
 	simplepost_block_files(httpd);
 
 no_error:
-	__server_shutdown(SIGTERM);
+	simplecmd_free(cmdd);
+	simplepost_free(httpd);
 	simplearg_free(args);
 	return 0;
 
 error:
-	__server_shutdown(SIGTERM);
+	simplecmd_free(cmdd);
+	simplepost_free(httpd);
 	simplearg_free(args);
 	return 1;
 }

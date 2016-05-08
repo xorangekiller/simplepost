@@ -156,6 +156,52 @@ static void __set_port(simplearg_t sap, const char* optstr, const char* arg)
 }
 
 /*!
+ * \brief Process the list argument.
+ *
+ * \param[out] sap   Instance to act on
+ * \param[in] optstr String containing the port option
+ * \param[in] arg    Argument string to process
+ */
+static void __set_list(simplearg_t sap, const char* optstr, const char* arg)
+{
+	if(sap->actions & (SA_ACT_LIST_INST | SA_ACT_LIST_FILES))
+	{
+		impact_printf_error("%s: %s: LTYPE already set\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
+		sap->options |= SA_OPT_ERROR;
+		return;
+	}
+
+	if(arg == NULL)
+	{
+		impact_printf_error("%s:%d: BUG! No LTYPE given to process\n", __PRETTY_FUNCTION__, __LINE__);
+		sap->options |= SA_OPT_ERROR;
+		return;
+	}
+
+	if(arg[0] == '-')
+	{
+		__set_missing(sap, optstr);
+		return;
+	}
+
+	if(strcmp(arg, "i") == 0 || strcmp(arg, "inst") == 0 || strcmp(arg, "instances") == 0)
+	{
+		sap->actions |= SA_ACT_LIST_INST;
+		impact_printf_debug("%s: Processed LTYPE: 0x%02X\n", SP_ARGS_HEADER_NAMESPACE, sap->actions & SA_ACT_LIST_INST);
+	}
+	else if(strcmp(arg, "f") == 0 || strcmp(arg, "files") == 0)
+	{
+		sap->actions |= SA_ACT_LIST_FILES;
+		impact_printf_debug("%s: Processed LTYPE: 0x%02X\n", SP_ARGS_HEADER_NAMESPACE, sap->actions & SA_ACT_LIST_FILES);
+	}
+	else
+	{
+		impact_printf_error("%s: %s: Invalid LTYPE: %s\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION, arg);
+		sap->options |= SA_OPT_ERROR;
+	}
+}
+
+/*!
  * \brief Process the alternate instance argument.
  *
  * \param[out] sap   Instance to act on
@@ -550,6 +596,7 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 		{"port",    required_argument, NULL,        'p'},
 		{"pid",     required_argument, &have_pid,     1},
 		{"new",     no_argument,       &have_new,     1},
+		{"list",    required_argument, NULL,        'l'},
 		{"quiet",   no_argument,       NULL,        'q'},
 		{"help",    no_argument,       &have_help,    1},
 		{"version", no_argument,       &have_version, 1},
@@ -571,7 +618,7 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 		 * it is assumed to be the program name. Since that is not the case in
 		 * this context, arbitrarily adjust our array to accommodate it.
 		 */
-		opt_arg = getopt_long(argc + 1, argv - 1, "i:p:q", global_longopts, &opt_long);
+		opt_arg = getopt_long(argc + 1, argv - 1, "i:p:l:q", global_longopts, &opt_long);
 
 		if(optind < 1 || (optind - 1) < opt_index)
 		{
@@ -616,6 +663,10 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 
 			case 'p':
 				__set_port(sap, argv[opt_index - 2], optarg);
+				break;
+
+			case 'l':
+				__set_list(sap, argv[opt_index - 2], optarg);
 				break;
 
 			case 'q':

@@ -39,16 +39,25 @@
 
 
 /// No actions are defined (default)
-#define SA_ACT_NONE    0x00
+#define SA_ACT_NONE       0x00
 
 /// List all accessible instances of this program
-#define SA_ACT_LIST    0x01
+#define SA_ACT_LIST_INST  0x01
+
+/// List all files being served by the targeted instance of this program
+#define SA_ACT_LIST_FILES 0x02
+
+/// Stop serving all files from the targeted instance of this program
+#define SA_ACT_DELETE     0x04
+
+/// Shut down the HTTP server on the targeted instance of this program
+#define SA_ACT_SHUTDOWN   0x08
 
 /// Print this program's help information
-#define SA_ACT_HELP    0x02
+#define SA_ACT_HELP       0x10
 
 /// Print this program's version information
-#define SA_ACT_VERSION 0x04
+#define SA_ACT_VERSION    0x20
 
 
 /*!

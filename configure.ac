@@ -102,6 +102,7 @@ AC_CHECK_HEADERS([arpa/inet.h  \
                   netinet/in.h \
                   stdlib.h     \
                   string.h     \
+                  regex.h      \
                   getopt.h     \
                   sys/socket.h \
                   sys/time.h   \

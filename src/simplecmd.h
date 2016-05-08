@@ -37,7 +37,7 @@ typedef struct simplecmd_list
 	char* sock_name;
 
 	/// PID of the SimplePost instance listening on the socket
-	pid_t instance_pid;
+	pid_t inst_pid;
 
 
 	/// Next instance in the linked list
@@ -50,7 +50,8 @@ typedef struct simplecmd_list
 simplecmd_list_t simplecmd_list_init();
 void simplecmd_list_free(simplecmd_list_t sclp);
 
-size_t simplecmd_list_instances(simplecmd_list_t* sclp);
+size_t simplecmd_list_inst(simplecmd_list_t* sclp);
+pid_t simplecmd_find_inst(const char* address, unsigned short port, pid_t pid);
 
 /*****************************************************************************
  *                           SimpleCommand Server                            *
