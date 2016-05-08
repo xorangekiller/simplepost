@@ -1284,16 +1284,12 @@ short simplepost_purge_file(simplepost_t spp, const char* uri)
 */
 simplepost_file_t simplepost_file_init()
 {
-    simplepost_file_t spfp = (simplepost_file_t) malloc(sizeof(struct simplepost_file));
-    if(spfp == NULL) return NULL;
-    
-    spfp->file = NULL;
-    spfp->url = NULL;
-    
-    spfp->next = NULL;
-    spfp->prev = NULL;
-    
-    return spfp;
+	simplepost_file_t spfp = (simplepost_file_t) malloc(sizeof(struct simplepost_file));
+	if(spfp == NULL) return NULL;
+
+	memset(spfp, 0, sizeof(struct simplepost_file));
+
+	return spfp;
 }
 
 /*!
@@ -1303,6 +1299,8 @@ simplepost_file_t simplepost_file_init()
  */
 void simplepost_file_free(simplepost_file_t spfp)
 {
+	if(spfp == NULL) return;
+
 	if(spfp->prev) spfp->prev->next = NULL;
 
 	while(spfp)
@@ -1385,11 +1383,12 @@ size_t simplepost_get_files(simplepost_t spp, simplepost_file_t* files)
 	size_t files_count = 0; // Number of unique URIs
 
 	if(files == NULL) return spp->files_count;
+	tail = *files = NULL;
 
 	pthread_mutex_lock(&spp->files_lock);
 	for(struct simplepost_serve* p = spp->files; p; p = p->next)
 	{
-		if(*files == NULL)
+		if(tail == NULL)
 		{
 			tail = *files = simplepost_file_init();
 			if(tail == NULL) goto abort_count;
@@ -1407,6 +1406,7 @@ size_t simplepost_get_files(simplepost_t spp, simplepost_file_t* files)
 
 		if(p->file == NULL) goto abort_count;
 		tail->file = (char*) malloc(sizeof(char) * (strlen(p->file) + 1));
+		strcpy(tail->file, p->file);
 
 		if(p->uri == NULL) goto abort_count;
 		tail->url = (char*) malloc(sizeof(char) * (strlen(spp->address) + strlen(p->uri) + 50));

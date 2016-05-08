@@ -38,7 +38,7 @@ static simplecmd_t cmdd = NULL;
 static simplepost_t httpd = NULL;
 
 /*!
- * \brief List the accessible SimplePost instances and print them to stdout.
+ * \brief Print the list of accessible SimplePost instances.
  *
  * \return true if all instances were enumerated successfully, false if not
  */
@@ -85,6 +85,36 @@ static bool __list_inst()
 	simplecmd_list_free(sclp);
 
 	return (failures == 0);
+}
+
+/*!
+ * \brief Print the list of files in the specified SimplePost instance.
+ *
+ * \param[in] args Arguments passed to this program
+ *
+ * \return true if all files being served by the specified instance were
+ * enumerated successfully, false if not
+ */
+static bool __list_files(simplearg_t args)
+{
+	simplepost_file_t files; // List of files being served by the server
+	ssize_t count;           // Number of files being served
+
+	count = simplecmd_get_files(args->pid, &files);
+	if(count < 0)
+	{
+		impact_printf_error("%s: Failed to get the list of files being served by the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+		return false;
+	}
+
+	for(simplepost_file_t p = files; p; p = p->next)
+	{
+		printf("[PID %d] Serving %s on %s\n", args->pid, p->file, p->url);
+	}
+
+	simplepost_file_free(files);
+
+	return true;
 }
 
 /*!
@@ -332,6 +362,11 @@ int main(int argc, char* argv[])
 		else if(args->actions & SA_ACT_LIST_INST)
 		{
 			if(__list_inst()) goto no_error;
+			else goto error;
+		}
+		else if(args->actions & SA_ACT_LIST_FILES)
+		{
+			if(__list_files(args)) goto no_error;
 			else goto error;
 		}
 		else

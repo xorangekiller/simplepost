@@ -82,14 +82,14 @@ static void __sock_send(int sock, const char* command, const char* data)
 
 	if(command)
 	{
-		sprintf(buffer, "%lu", strlen(command));
+		sprintf(buffer, "%zu", strlen(command));
 		write(sock, buffer, strlen(buffer) + 1);
 		write(sock, command, strlen(command));
 	}
 
 	if(data)
 	{
-		sprintf(buffer, "%lu", strlen(data));
+		sprintf(buffer, "%zu", strlen(data));
 		write(sock, buffer, strlen(buffer) + 1);
 
 		/* According to POSIX.1-2001, the results of attempting to write() a
@@ -139,7 +139,7 @@ static size_t __sock_recv(int sock, const char* command, char** data)
 	{
 		if(i == sizeof(buffer))
 		{
-			impact_printf_error("%s: %s: String size cannot be longer than %lu bytes\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, sizeof(buffer));
+			impact_printf_error("%s: %s: String size cannot be longer than %zu bytes\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, sizeof(buffer));
 			return 0;
 		}
 
@@ -147,7 +147,7 @@ static size_t __sock_recv(int sock, const char* command, char** data)
 		if(b == '\0') break;
 	}
 
-	if(sscanf(buffer, "%lu", &length) == EOF)
+	if(sscanf(buffer, "%zu", &length) != 1)
 	{
 		impact_printf_error("%s: %s: %s is not a valid string size\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer);
 		return 0;
@@ -178,7 +178,7 @@ static size_t __sock_recv(int sock, const char* command, char** data)
 		}
 		else
 		{
-			impact_printf_error("%s: Read terminated before we received %zu bytes\n", SP_COMMAND_HEADER_NAMESPACE, length);
+			impact_printf_error("%s: Read of %s aborted after receiving only %zu of %zu bytes\n", SP_COMMAND_HEADER_NAMESPACE, command ? command : "data", i, length);
 
 			free(*data);
 			*data = NULL;
@@ -460,6 +460,7 @@ struct simplecmd_handler
 static bool __command_send_address(simplecmd_t scp, int sock);
 static bool __command_send_port(simplecmd_t scp, int sock);
 static bool __command_send_version(simplecmd_t scp, int sock);
+static bool __command_send_files(simplecmd_t scp, int sock);
 static bool __command_recv_file(simplecmd_t scp, int sock);
 
 /*!
@@ -470,6 +471,7 @@ static struct simplecmd_handler __command_handlers[] =
 	{"GetAddress", &__command_send_address},
 	{"GetPort", &__command_send_port},
 	{"GetVersion", &__command_send_version},
+	{"GetFiles", &__command_send_files},
 	{"SetFile", &__command_recv_file}
 };
 
@@ -479,10 +481,19 @@ static struct simplecmd_handler __command_handlers[] =
 #define SP_COMMAND_GET_ADDRESS  0
 #define SP_COMMAND_GET_PORT     1
 #define SP_COMMAND_GET_VERSION  2
-#define SP_COMMAND_SET_FILE     3
+#define SP_COMMAND_GET_FILES    3
+#define SP_COMMAND_SET_FILE     4
 
 #define SP_COMMAND_MIN          0
-#define SP_COMMAND_MAX          3
+#define SP_COMMAND_MAX          4
+
+/**********************************************************
+ * Names of the fields transferred from simplepost_file_t *
+ **********************************************************/
+#define SP_COMMAND_FILE_INDEX "Index"
+#define SP_COMMAND_FILE_FILE  "File"
+#define SP_COMMAND_FILE_URL   "URL"
+#define SP_COMMAND_FILE_COUNT "Count"
 
 /*!
  * \brief SimplePost container for processing client requests
@@ -575,7 +586,7 @@ static bool __command_send_port(simplecmd_t scp, int sock)
 	port = simplepost_get_port(scp->spp);
 	if(port == 0) return false;
 
-	if(sprintf(buffer, "%u", port) <= 0) return false;
+	if(sprintf(buffer, "%hu", port) <= 0) return false;
 	__sock_send(sock, NULL, buffer);
 
 	return true;
@@ -597,6 +608,60 @@ static bool __command_send_version(simplecmd_t scp, int sock)
 
 	__sock_send(sock, NULL, SP_MAIN_VERSION);
 	return 1;
+}
+
+/*!
+ * \brief Send the list of files that we are serving to the client.
+ *
+ * \param[in] scp  Instance to act on
+ * \param[in] sock Client socket
+ *
+ * \retval true the requested information was sent successfully
+ * \retval false failed to respond to the request
+ */
+static bool __command_send_files(simplecmd_t scp, int sock)
+{
+	char buffer[30];         // File count or index as a string
+	simplepost_file_t files; // List of files being served
+	size_t count;            // Number of files being served
+	size_t i = 0;            // Index of the current file being sent
+
+	count = simplepost_get_files(scp->spp, &files);
+
+	impact_printf_debug("%s: %s: Sending list of %zu files\n", SP_COMMAND_HEADER_NAMESPACE, __func__, count);
+	if(sprintf(buffer, "%zu", count) <= 0)
+	{
+		simplepost_file_free(files);
+		return false;
+	}
+	__sock_send(sock, NULL, buffer);
+
+	for(simplepost_file_t p = files; p; p = p->next)
+	{
+		impact_printf_debug("%s: %s: Sending %s %zu\n", SP_COMMAND_HEADER_NAMESPACE, __func__, SP_COMMAND_FILE_INDEX, i);
+		if(sprintf(buffer, "%zu", i++) <= 0)
+		{
+			simplepost_file_free(files);
+			return false;
+		}
+		__sock_send(sock, SP_COMMAND_FILE_INDEX, buffer);
+
+		if(p->file)
+		{
+			impact_printf_debug("%s: %s: Sending %s %s\n", SP_COMMAND_HEADER_NAMESPACE, __func__, SP_COMMAND_FILE_FILE, p->file);
+			__sock_send(sock, SP_COMMAND_FILE_FILE, p->file);
+		}
+
+		if(p->url)
+		{
+			impact_printf_debug("%s: %s: Sending %s %s\n", SP_COMMAND_HEADER_NAMESPACE, __func__, SP_COMMAND_FILE_URL, p->url);
+			__sock_send(sock, SP_COMMAND_FILE_URL, p->url);
+		}
+	}
+
+	simplepost_file_free(files);
+
+	return true;
 }
 
 /*!
@@ -1066,7 +1131,7 @@ unsigned short simplecmd_get_port(pid_t server_pid)
 	__sock_recv(sock, __command_handlers[SP_COMMAND_GET_PORT].request, &buffer);
 	if(buffer)
 	{
-		if(sscanf(buffer, "%hu", &port) == EOF)
+		if(sscanf(buffer, "%hu", &port) != 1)
 		{
 			impact_printf_error("%s: %s: %s is not a port number\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer);
 			port = 0;
@@ -1113,6 +1178,178 @@ size_t simplecmd_get_version(pid_t server_pid, char** version)
 	close(sock);
 
 	return length;
+}
+
+/*!
+ * \brief Get the list of files being served by the specified server.
+ *
+ * \param[in] server_pid Process identifier of the server to act on
+ * \param[out] files List of files currently being served
+ *
+ * \return the number of files hosted by the server, or -1 if the list could
+ * not be retrieved
+ */
+ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
+{
+	int sock;               // Socket descriptor
+	char* buffer;           // Count, index, or identifier string from the server
+	size_t count;           // Number of files being served
+	size_t i = 0;           // Index of the current file being received
+	size_t t = 0;           // Temporary file index converted from the buffer
+	simplepost_file_t tail; // Last file in the *files list
+	tail = *files = NULL;   // Failsafe
+
+	sock = __open_sock_by_pid(server_pid);
+	if(sock < 0) return -1;
+
+	__sock_recv(sock, __command_handlers[SP_COMMAND_GET_FILES].request, &buffer);
+	if(buffer == NULL) goto error;
+
+	if(sscanf(buffer, "%zu", &count) != 1)
+	{
+		impact_printf_error("%s: %s: %s is not a number\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer);
+		goto error;
+	}
+	free(buffer);
+
+	impact_printf_debug("%s: %s: Receiving list of %zu files\n", SP_COMMAND_HEADER_NAMESPACE, __func__, count);
+	if(count == 0) goto no_error;
+
+	while((i + 1) < count || tail == NULL || tail->file == NULL || tail->url == NULL)
+	{
+		__sock_recv(sock, NULL, &buffer);
+		if(buffer == NULL) goto error;
+
+		impact_printf_debug("%s: %s: Receiving %s\n", SP_COMMAND_HEADER_NAMESPACE, __func__, buffer);
+
+		if(strcmp(buffer, SP_COMMAND_FILE_INDEX) == 0)
+		{
+			free(buffer);
+
+			__sock_recv(sock, NULL, &buffer);
+			if(buffer == NULL)
+			{
+				impact_printf_error("%s: %s: Did not receive the next file index as expected\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR);
+				goto error;
+			}
+
+			if(sscanf(buffer, "%zu", &t) != 1)
+			{
+				impact_printf_error("%s: %s: %s is not a number\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer);
+				goto error;
+			}
+			free(buffer);
+			buffer = NULL;
+
+			if(tail == NULL)
+			{
+				if(t != i)
+				{
+					impact_printf_error("%s: %s: Expected the next file index to be %zu, not %zu\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i, t);
+					goto error;
+				}
+
+				tail = *files = simplepost_file_init();
+				if(tail == NULL) goto error;
+			}
+			else
+			{
+				if(t != ++i)
+				{
+					impact_printf_error("%s: %s: Expected the next file index to be %zu, not %zu\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i, t);
+					goto error;
+				}
+
+				simplepost_file_t prev = tail;
+
+				tail = simplepost_file_init();
+				if(tail == NULL) goto error;
+
+				tail->prev = prev;
+				prev->next = tail;
+			}
+		}
+		else if(tail == NULL)
+		{
+			impact_printf_error("%s: %s: Received \"%s\" before the first file index\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer);
+			goto error;
+		}
+		else if(strcmp(buffer, SP_COMMAND_FILE_FILE) == 0)
+		{
+			free(buffer);
+
+			__sock_recv(sock, NULL, &buffer);
+			if(buffer == NULL)
+			{
+				impact_printf_error("%s: %s: Did not receive the file[%zu] location as expected\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i);
+				goto error;
+			}
+
+			if(tail->file)
+			{
+				impact_printf_error("%s: %s: Received new file[%zu] location \"%s\", but it is already set to \"%s\"\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i, buffer, tail->file);
+				goto error;
+			}
+
+			tail->file = buffer;
+		}
+		else if(strcmp(buffer, SP_COMMAND_FILE_URL) == 0)
+		{
+			free(buffer);
+
+			__sock_recv(sock, NULL, &buffer);
+			if(buffer == NULL)
+			{
+				impact_printf_error("%s: %s: Did not receive the file[%zu] URL as expected\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i);
+				goto error;
+			}
+
+			if(tail->url)
+			{
+				impact_printf_error("%s: %s: Received new file[%zu] URL \"%s\", but it is already set to \"%s\"\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i, buffer, tail->url);
+				goto error;
+			}
+
+			tail->url = buffer;
+		}
+		else
+		{
+			/* We probably should not have run into this condition in the
+			 * first place. It most likely means that we are talking to an
+			 * older (or newer) version of this program, and the command
+			 * protocol has changed. If not, it is probably a bug.
+			 */
+			impact_printf_debug("%s: %s: Skipping unsupported file identifier \"%s\"\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer);
+			free(buffer);
+
+			/* Read and discard the argument that presumably comes after the
+			 * unsupported file identifier that we encountered.
+			 */
+			__sock_recv(sock, NULL, &buffer);
+			free(buffer);
+		}
+	}
+
+	for(tail = *files, i = 0; tail; tail = tail->next, ++i);
+	if(i != count)
+	{
+		impact_printf_error("%s: BUG! Only received %zu of %zu files\n", __PRETTY_FUNCTION__, i, count);
+		goto error;
+	}
+
+no_error:
+	close(sock);
+
+	return count;
+
+error:
+	simplepost_file_free(*files);
+	*files = NULL;
+
+	free(buffer);
+	close(sock);
+
+	return -1;
 }
 
 /*!
