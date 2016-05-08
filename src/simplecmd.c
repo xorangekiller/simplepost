@@ -451,16 +451,16 @@ struct simplecmd_handler
 	const char* request;
 
 	/// Function to process the command
-	short (*handler) (simplecmd_t, int);
+	bool (*handler) (simplecmd_t, int);
 };
 
 /**************************************
  * Prototypes of the command handlers *
  **************************************/
-static short __command_send_address(simplecmd_t scp, int sock);
-static short __command_send_port(simplecmd_t scp, int sock);
-static short __command_send_version(simplecmd_t scp, int sock);
-static short __command_recv_file(simplecmd_t scp, int sock);
+static bool __command_send_address(simplecmd_t scp, int sock);
+static bool __command_send_port(simplecmd_t scp, int sock);
+static bool __command_send_version(simplecmd_t scp, int sock);
+static bool __command_recv_file(simplecmd_t scp, int sock);
 
 /*!
  * \brief SimplePost commands to handle
@@ -519,7 +519,7 @@ struct simplecmd
 	 ***********/
 
 	/// Are we accepting client connections?
-	short accpeting_clients;
+	bool accpeting_clients;
 
 	/// Number of clients currently being served
 	size_t client_count;
@@ -538,21 +538,21 @@ struct simplecmd
  * \param[in] scp  Instance to act on
  * \param[in] sock Client socket
  *
- * \retval 0 failed to respond to the request
- * \retval 1 the requested information was sent successfully
+ * \retval true the requested information was sent successfully
+ * \retval false failed to respond to the request
  */
-static short __command_send_address(simplecmd_t scp, int sock)
+static bool __command_send_address(simplecmd_t scp, int sock)
 {
 	char* address; // Address of the web server
 	size_t length; // Length of the address string
 
 	length = simplepost_get_address(scp->spp, &address);
-	if(address == NULL || length == 0) return 0;
+	if(address == NULL || length == 0) return false;
 
 	__sock_send(sock, NULL, address ? address : "");
 	free(address);
 
-	return 1;
+	return true;
 }
 
 /*!
@@ -564,21 +564,21 @@ static short __command_send_address(simplecmd_t scp, int sock)
  * \param[in] scp  Instance to act on
  * \param[in] sock Client socket
  *
- * \retval 0 failed to respond to the request
- * \retval 1 the requested information was sent successfully
+ * \retval true the requested information was sent successfully
+ * \retval false failed to respond to the request
  */
-static short __command_send_port(simplecmd_t scp, int sock)
+static bool __command_send_port(simplecmd_t scp, int sock)
 {
 	char buffer[30];     // Port as a string
 	unsigned short port; // Port the web server is listening on
 
 	port = simplepost_get_port(scp->spp);
-	if(port == 0) return 0;
+	if(port == 0) return false;
 
-	if(sprintf(buffer, "%u", port) <= 0) return 0;
+	if(sprintf(buffer, "%u", port) <= 0) return false;
 	__sock_send(sock, NULL, buffer);
 
-	return 1;
+	return true;
 }
 
 /*!
@@ -587,10 +587,10 @@ static short __command_send_port(simplecmd_t scp, int sock)
  * \param[in] scp  Instance to act on
  * \param[in] sock Client socket
  *
- * \retval 0 failed to respond to the request
- * \retval 1 the requested information was sent successfully
+ * \retval true the requested information was sent successfully
+ * \retval false failed to respond to the request
  */
-static short __command_send_version(simplecmd_t scp, int sock)
+static bool __command_send_version(simplecmd_t scp, int sock)
 {
 	// Unused parameters
 	(void) scp;
@@ -605,22 +605,22 @@ static short __command_send_version(simplecmd_t scp, int sock)
  * \param[in] scp  Instance to act on
  * \param[in] sock Client socket
  *
- * \retval 0 failed to respond to the request
- * \retval 1 the requested information was sent successfully
+ * \retval true the requested information was sent successfully
+ * \retval false failed to respond to the request
  */
-static short __command_recv_file(simplecmd_t scp, int sock)
+static bool __command_recv_file(simplecmd_t scp, int sock)
 {
 	char* url;          // URL of the file being served
 	char* file;         // Name and path of the file to serve
 	char* buffer;       // Count as a string
 	unsigned int count; // Number of times the file should be served
 
-	if(__sock_recv(sock, NULL, &file) == 0) return 0;
+	if(__sock_recv(sock, NULL, &file) == 0) return false;
 
 	if(__sock_recv(sock, NULL, &buffer) == 0)
 	{
 		free(file);
-		return 0;
+		return false;
 	}
 
 	if(sscanf(buffer, "%u", &count) == EOF)
@@ -630,16 +630,16 @@ static short __command_recv_file(simplecmd_t scp, int sock)
 		free(buffer);
 		free(file);
 
-		return 0;
+		return false;
 	}
 
-	if(simplepost_serve_file(scp->spp, &url, file, NULL, count) == 0) return 0;
+	if(simplepost_serve_file(scp->spp, &url, file, NULL, count) == 0) return false;
 	if(url) free(url);
 
 	free(buffer);
 	free(file);
 
-	return 1;
+	return true;
 }
 
 /*!
@@ -659,9 +659,9 @@ static void* __process_request(void* p)
 	free(scrp);
 	scrp = p = NULL;
 
-	char* command;  // Command to process
-	size_t length;  // Length of the command string
-	short response; // Command handler return value
+	char* command; // Command to process
+	size_t length; // Length of the command string
+	bool response; // Command handler return value
 
 	++(scp->client_count);
 
@@ -680,23 +680,13 @@ static void* __process_request(void* p)
 	}
 
 	#ifdef DEBUG
-	switch(response)
+	if(response)
 	{
-		case -1:
-			impact_printf_debug("%s: Request 0x%lx: %s is not a supported command\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), command);
-			break;
-
-		case 0:
-			impact_printf_debug("%s: Request 0x%lx: Failed to process %s command\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), command);
-			break;
-
-		case 1:
-			impact_printf_debug("%s: Request 0x%lx: Successfully processed %s command\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), command);
-			break;
-
-		default:
-			impact_printf_debug("%s: Request 0x%lx: %s returned with an invalid state: %d\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), command, response);
-			break;
+		impact_printf_debug("%s: Request 0x%lx: Successfully processed %s command\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), command);
+	}
+	else
+	{
+		impact_printf_debug("%s: Request 0x%lx: Failed to process %s command\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), command);
 	}
 	#endif // DEBUG
 
@@ -730,7 +720,7 @@ static void* __accept_requests(void* p)
 	fd_set fds;              // File descriptor set (for pselect() socket monitoring)
 
 	scp->client_count = 0;
-	scp->accpeting_clients = 1;
+	scp->accpeting_clients = true;
 
 	while(scp->accpeting_clients)
 	{
@@ -744,7 +734,7 @@ static void* __accept_requests(void* p)
 		{
 			case -1:
 				impact_printf_error("%s: Cannot accept connections on socket %d\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock);
-				scp->accpeting_clients = 0;
+				scp->accpeting_clients = false;
 				continue;
 
 			case 0:
@@ -759,7 +749,7 @@ static void* __accept_requests(void* p)
 		if(scrp == NULL)
 		{
 			impact_printf_error("%s: %s: Failed to allocate memory for a new command request thread\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
-			scp->accpeting_clients = 0;
+			scp->accpeting_clients = false;
 			continue;
 		}
 		scrp->scp = scp;
@@ -808,7 +798,7 @@ simplecmd_t simplecmd_init()
 	scp->sock_name = NULL;
 	scp->accept_thread = -1;
 
-	scp->accpeting_clients = 0;
+	scp->accpeting_clients = false;
 	scp->client_count = 0;
 	scp->spp = NULL;
 
@@ -845,21 +835,21 @@ void simplecmd_free(simplecmd_t scp)
  * \param[in] scp Instance to act on
  * \param[in] spp SimplePost instance to back our client requests
  *
- * \retval 0 the command server is already running or could not be started
- * \retval 1 the command server was successfully started
+ * \retval true the command server was successfully started
+ * \retval false the command server is already running or could not be started
  */
-short simplecmd_activate(simplecmd_t scp, simplepost_t spp)
+bool simplecmd_activate(simplecmd_t scp, simplepost_t spp)
 {
 	if(scp->sock != -1)
 	{
 		impact_printf_error("%s: Server is already activated\n", SP_COMMAND_HEADER_NAMESPACE);
-		return 0;
+		return false;
 	}
 
 	if(spp == NULL)
 	{
 		impact_printf_error("%s: Cannot activate command server without a %s instance\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION);
-		return 0;
+		return false;
 	}
 	scp->spp = spp;
 
@@ -873,7 +863,7 @@ short simplecmd_activate(simplecmd_t scp, simplepost_t spp)
 		if(scp->sock_name == NULL)
 		{
 			impact_printf_error("%s: %s: Failed to allocate memory for the socket name\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
-			return 0;
+			return false;
 		}
 		strcpy(scp->sock_name, buffer);
 	}
@@ -882,7 +872,7 @@ short simplecmd_activate(simplecmd_t scp, simplepost_t spp)
 	if(scp->sock == -1)
 	{
 		impact_printf_error("%s: Socket could not be created\n", SP_COMMAND_HEADER_NAMESPACE);
-		return 0;
+		return false;
 	}
 
 	struct sockaddr_un sock_addr; // Address to assign to the socket
@@ -910,7 +900,7 @@ short simplecmd_activate(simplecmd_t scp, simplepost_t spp)
 
 	impact_printf_standard("%s: Now accepting commands on %s\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock_name);
 
-	return 1;
+	return true;
 
 error:
 	close(scp->sock);
@@ -920,7 +910,7 @@ error:
 	free(scp->sock_name);
 	scp->sock_name = NULL;
 
-	return 0;
+	return false;
 }
 
 /*!
@@ -928,15 +918,15 @@ error:
  *
  * \param[in] scp Instance to act on
  *
- * \retval 0 the command server is not running or could not be shut down
- * \retval 1 the command server has been successfully killed
+ * \retval true the command server has been successfully killed
+ * \retval false the command server is not running or could not be shut down
  */
-short simplecmd_deactivate(simplecmd_t scp)
+bool simplecmd_deactivate(simplecmd_t scp)
 {
 	if(scp->sock == -1)
 	{
 		impact_printf_error("%s: Server is not active\n", SP_COMMAND_HEADER_NAMESPACE);
-		return 0;
+		return false;
 	}
 
 	#ifdef DEBUG
@@ -945,12 +935,12 @@ short simplecmd_deactivate(simplecmd_t scp)
 
 	impact_printf_standard("%s: Shutting down ...\n", SP_COMMAND_HEADER_NAMESPACE);
 
-	scp->accpeting_clients = 0;
+	scp->accpeting_clients = false;
 	pthread_join(scp->accept_thread, NULL);
 
 	impact_printf_debug("%s: 0x%lx cleanup complete\n", SP_COMMAND_HEADER_NAMESPACE, accept_thread);
 
-	return 1;
+	return true;
 }
 
 /*!
@@ -958,12 +948,12 @@ short simplecmd_deactivate(simplecmd_t scp)
  *
  * \param[in] scp Instance to act on
  *
- * \retval 0 the server is not running
- * \retval 1 the server is online
+ * \retval true the server is online
+ * \retval false the server is not running
  */
-short simplecmd_is_alive(simplecmd_t scp)
+bool simplecmd_is_alive(simplecmd_t scp)
 {
-    return (scp->sock == -1) ? 0 : 1;
+    return (scp->sock == -1) ? false : true;
 }
 
 /*****************************************************************************
@@ -1132,16 +1122,16 @@ size_t simplecmd_get_version(pid_t server_pid, char** version)
  * \param[in] file       Name and path of the file to serve
  * \param[in] count      Number of times the file should be served
  *
- * \retval 0 something went wrong (i.e. the file was not added to the server)
- * \retval 1 the file was successfully added to the server
+ * \return true if the file was successfully added to the server, false if
+ * something went wrong (and the file was not added to the server)
  */
-short simplecmd_set_file(pid_t server_pid, const char* file, unsigned int count)
+bool simplecmd_set_file(pid_t server_pid, const char* file, unsigned int count)
 {
 	int sock;         // Socket descriptor
 	char buffer[512]; // Count as a string
 
 	sock = __open_sock_by_pid(server_pid);
-	if(sock < 0) return 0;
+	if(sock < 0) return false;
 
 	__sock_send(sock, __command_handlers[SP_COMMAND_SET_FILE].request, file);
 	sprintf(buffer, "%u", count);
@@ -1149,5 +1139,5 @@ short simplecmd_set_file(pid_t server_pid, const char* file, unsigned int count)
 
 	close(sock);
 
-	return 1;
+	return true;
 }

@@ -133,7 +133,7 @@ static bool __add_to_other_inst(simplearg_t args)
 
 	for(simplefile_t p = args->files; p; p = p->next)
 	{
-		if(simplecmd_set_file(args->pid, p->file, p->count) == 0)
+		if(simplecmd_set_file(args->pid, p->file, p->count) == false)
 		{
 			impact_printf_error("%s: Failed to add FILE %s to the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, p->file, SP_MAIN_DESCRIPTION, args->pid);
 		}

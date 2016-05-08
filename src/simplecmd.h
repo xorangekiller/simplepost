@@ -24,6 +24,8 @@
 
 #include "simplepost.h"
 
+#include <stdbool.h>
+
 /*****************************************************************************
  *                            SimpleCommand List                             *
  *****************************************************************************/
@@ -65,9 +67,9 @@ typedef struct simplecmd* simplecmd_t;
 simplecmd_t simplecmd_init();
 void simplecmd_free(simplecmd_t scp);
 
-short simplecmd_activate(simplecmd_t scp, simplepost_t spp);
-short simplecmd_deactivate(simplecmd_t scp);
-short simplecmd_is_alive(simplecmd_t scp);
+bool simplecmd_activate(simplecmd_t scp, simplepost_t spp);
+bool simplecmd_deactivate(simplecmd_t scp);
+bool simplecmd_is_alive(simplecmd_t scp);
 
 /*****************************************************************************
  *                           SimpleCommand Client                            *
@@ -76,6 +78,6 @@ short simplecmd_is_alive(simplecmd_t scp);
 size_t simplecmd_get_address(pid_t server_pid, char** address);
 unsigned short simplecmd_get_port(pid_t server_pid);
 size_t simplecmd_get_version(pid_t server_pid, char** version);
-short simplecmd_set_file(pid_t server_pid, const char* file, unsigned int count);
+bool simplecmd_set_file(pid_t server_pid, const char* file, unsigned int count);
 
 #endif // _SIMPLECMD_H_
