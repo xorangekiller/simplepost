@@ -22,7 +22,9 @@
 #ifndef _IMPACT_H_
 #define _IMPACT_H_
 
-extern unsigned short impact_quiet;
+#include <stdbool.h>
+
+extern bool impact_quiet;
 
 int impact_printf_standard(const char* format, ...) __attribute__ ((format (printf, 1, 2)));
 int impact_printf_error(const char* format, ...) __attribute__ ((format (printf, 1, 2)));

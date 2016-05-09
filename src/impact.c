@@ -19,18 +19,19 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include "impact.h"
+
 #include <stdio.h>
 #include <stdarg.h>
 
 /// Don't print anything to stdout
-unsigned short impact_quiet = 0;
+bool impact_quiet = false;
 
 /* All of the functions below are nearly identical. They each take the same
  * arguments and return the same values as printf(). The only deviation from
  * printf() is that they will automatically not print anything and return zero
- * if the global variable impact_quiet is non-zero. They are differentiated
- * from each other by purpose, which is documented above each function
- * definition.
+ * if the global variable impact_quiet is true. They are differentiated from
+ * each other by purpose, which is documented above each function definition.
  */
 
 /*!

@@ -344,7 +344,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 	simplearg_parse(args, argc, argv);
-	impact_quiet = (args->options & SA_OPT_QUIET) ? 1 : 0;
+	impact_quiet = (args->options & SA_OPT_QUIET) ? true : false;
 
 	if(args->options & SA_OPT_ERROR) return 1;
 	if(args->actions)
