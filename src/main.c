@@ -95,7 +95,7 @@ static bool __list_inst()
  * \return true if all files being served by the specified instance were
  * enumerated successfully, false if not
  */
-static bool __list_files(simplearg_t args)
+static bool __list_files(const simplearg_t args)
 {
 	simplepost_file_t files; // List of files being served by the server
 	ssize_t count;           // Number of files being served
@@ -125,7 +125,7 @@ static bool __list_files(simplearg_t args)
  * \return true if all files were added to the specified instance successfully,
  * false if not
  */
-static bool __add_to_other_inst(simplearg_t args)
+static bool __add_to_other_inst(const simplearg_t args)
 {
 	char* address;       // Destination server's address
 	unsigned short port; // Destination server's port
@@ -199,7 +199,7 @@ static bool __add_to_other_inst(simplearg_t args)
  *
  * \return true if the HTTP server was started successfully, false if not
  */
-static bool __start_httpd(simplearg_t args)
+static bool __start_httpd(const simplearg_t args)
 {
 	httpd = simplepost_init();
 	if(httpd == NULL)

@@ -1016,7 +1016,7 @@ short simplepost_unbind(simplepost_t spp)
  *
  * \param[in] spp SimplePost instance to act on
  */
-void simplepost_block(simplepost_t spp)
+void simplepost_block(const simplepost_t spp)
 {
 	while(spp->httpd) usleep(SP_HTTP_SLEEP * 1000);
 }
@@ -1026,7 +1026,7 @@ void simplepost_block(simplepost_t spp)
  *
  * \param[in] spp SimplePost instance to act on
  */
-void simplepost_block_files(simplepost_t spp)
+void simplepost_block_files(const simplepost_t spp)
 {
 	while(spp->files_count > 0) usleep(SP_HTTP_SLEEP * 1000);
 }
@@ -1039,7 +1039,7 @@ void simplepost_block_files(simplepost_t spp)
  * \retval 0 The server is not running.
  * \retval 1 The server is alive!
  */
-short simplepost_is_alive(simplepost_t spp)
+short simplepost_is_alive(const simplepost_t spp)
 {
 	return (spp->httpd == NULL) ? 0 : 1;
 }
@@ -1330,7 +1330,7 @@ void simplepost_file_free(simplepost_file_t spfp)
  * \return the number of characters written to the address (excluding the NULL-
  * terminating character)
  */
-size_t simplepost_get_address(simplepost_t spp, char** address)
+size_t simplepost_get_address(const simplepost_t spp, char** address)
 {
 	size_t address_length = 0; // Length of the server address
 	*address = NULL;           // Failsafe
@@ -1354,7 +1354,7 @@ size_t simplepost_get_address(simplepost_t spp, char** address)
  * \return the server's port number. If this number is zero, an error occurred
  * or (more likely) the server is not running.
  */
-unsigned short simplepost_get_port(simplepost_t spp)
+unsigned short simplepost_get_port(const simplepost_t spp)
 {
 	return spp->port;
 }

@@ -1016,9 +1016,9 @@ bool simplecmd_deactivate(simplecmd_t scp)
  * \retval true the server is online
  * \retval false the server is not running
  */
-bool simplecmd_is_alive(simplecmd_t scp)
+bool simplecmd_is_alive(const simplecmd_t scp)
 {
-    return (scp->sock == -1) ? false : true;
+	return (scp->sock == -1) ? false : true;
 }
 
 /*****************************************************************************

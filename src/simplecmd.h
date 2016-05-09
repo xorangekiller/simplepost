@@ -69,7 +69,7 @@ void simplecmd_free(simplecmd_t scp);
 
 bool simplecmd_activate(simplecmd_t scp, simplepost_t spp);
 bool simplecmd_deactivate(simplecmd_t scp);
-bool simplecmd_is_alive(simplecmd_t scp);
+bool simplecmd_is_alive(const simplecmd_t scp);
 
 /*****************************************************************************
  *                           SimpleCommand Client                            *
