@@ -626,7 +626,6 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 			sap->options |= SA_OPT_ERROR;
 			break;
 		}
-		opt_index = optind - 1;
 
 		switch(opt_arg)
 		{
@@ -637,7 +636,7 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 			case 0:
 				if(global_longopts[opt_long].flag == &have_pid)
 				{
-					__set_pid(sap, argv[opt_index - 2], optarg);
+					__set_pid(sap, argv[opt_index], optarg);
 				}
 				else if(global_longopts[opt_long].flag == &have_new)
 				{
@@ -653,20 +652,20 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 				}
 				else
 				{
-					__set_invalid(sap, argv[opt_index - 1]);
+					__set_invalid(sap, argv[opt_index]);
 				}
 				break;
 
 			case 'i':
-				__set_address(sap, argv[opt_index - 2], optarg);
+				__set_address(sap, argv[opt_index], optarg);
 				break;
 
 			case 'p':
-				__set_port(sap, argv[opt_index - 2], optarg);
+				__set_port(sap, argv[opt_index], optarg);
 				break;
 
 			case 'l':
-				__set_list(sap, argv[opt_index - 2], optarg);
+				__set_list(sap, argv[opt_index], optarg);
 				break;
 
 			case 'q':
@@ -674,12 +673,12 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 				break;
 
 			case '?':
-				if(__is_longopt(global_longopts, optopt, argv[opt_index - 1]) == false)
+				if(__is_longopt(global_longopts, optopt, argv[opt_index]) == false)
 				{
 					// There are no more global options to process.
-					return --opt_index;
+					return opt_index;
 				}
-				__set_missing(sap, argv[opt_index - 1]);
+				__set_missing(sap, argv[opt_index]);
 				break;
 
 			default:
@@ -687,6 +686,8 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 				sap->options |= SA_OPT_ERROR;
 				break;
 		}
+
+		opt_index = optind - 1;
 	}
 
 	return opt_index;
@@ -751,7 +752,6 @@ static int __parse_file_opts(simplearg_t sap, int argc, char* argv[])
 				sap->options |= SA_OPT_ERROR;
 				break;
 			}
-			opt_index = optind - 1;
 
 			switch(opt_arg)
 			{
@@ -761,19 +761,19 @@ static int __parse_file_opts(simplearg_t sap, int argc, char* argv[])
 					break;
 
 				case 'c':
-					__set_count(sap, argv[opt_index - 2], optarg);
+					__set_count(sap, argv[opt_index], optarg);
 					break;
 
 				case '?':
-					if(__is_longopt(file_longopts, optopt, argv[opt_index - 1]) == false)
+					if(__is_longopt(file_longopts, optopt, argv[opt_index]) == false)
 					{
 						// There are no more file options to process.
 						is_last_file_option = true;
-						optind = opt_index--;
+						optind = opt_index + 1;
 					}
 					else
 					{
-						__set_missing(sap, argv[opt_index - 1]);
+						__set_missing(sap, argv[opt_index]);
 					}
 					break;
 
@@ -782,6 +782,8 @@ static int __parse_file_opts(simplearg_t sap, int argc, char* argv[])
 					sap->options |= SA_OPT_ERROR;
 					break;
 			}
+
+			opt_index = optind - 1;
 		}
 
 		if(sap->options & SA_OPT_ERROR) return opt_index;
