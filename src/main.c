@@ -27,9 +27,11 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <signal.h>
 #include <stdio.h>
+#include <errno.h>
 
 /// Local command handler instance
 static simplecmd_t cmdd = NULL;
@@ -306,6 +308,7 @@ static void __print_help()
 	printf("                           by default the existing instance matching ADDRESS and PORT will be used if possible\n");
 	printf("      --new                act exclusively on the current instance of this program\n");
 	printf("                           this option and --pid are mutually exclusive\n");
+	printf("      --daemon             fork to the background and run as a system daemon\n");
 	printf("  -l, --list=LTYPE         list the requested LTYPE of information about an instance of this program\n");
 	printf("                           LTYPE=i,inst,instances    list all server instances that we can connect to\n");
 	printf("                           LTYPE=f,files             list all files being served by the selected server instance\n");
@@ -457,6 +460,16 @@ int main(int argc, char* argv[])
 	}
 
 	if(__start_httpd(args) == false) goto error;
+
+	if(args->options & SA_OPT_DAEMON)
+	{
+		impact_printf_standard("%s: Daemonizing and forking to the background\n", SP_MAIN_HEADER_NAMESPACE);
+		if(daemon(1, 0) == -1)
+		{
+			impact_printf_debug("%s: Failed to daemonize %s: %s\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, strerror(errno));
+			goto error;
+		}
+	}
 
 	signal(SIGPIPE, &__server_reset_pipe);
 	signal(SIGINT, &__server_terminal_interrupt);

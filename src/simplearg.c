@@ -280,6 +280,25 @@ static void __set_new(simplearg_t sap)
 }
 
 /*!
+ * \brief Process the daemon argument.
+ *
+ * \param[out] sap Instance to act on
+ */
+static void __set_daemon(simplearg_t sap)
+{
+	if(sap->options & SA_OPT_DAEMON)
+	{
+		impact_printf_error("%s: %s: daemon argument may only be specified once\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
+		sap->options |= SA_OPT_ERROR;
+	}
+	else
+	{
+		sap->options |= SA_OPT_DAEMON;
+		impact_printf_debug("%s: Processed new argument: 0x%02X\n", SP_ARGS_HEADER_NAMESPACE, sap->options & SA_OPT_DAEMON);
+	}
+}
+
+/*!
  * \brief Process the quiet argument.
  *
  * \param[out] sap Instance to act on
@@ -583,6 +602,7 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 {
 	int have_pid = 0;     // Is the pid argument set?
 	int have_new = 0;     // Is the new argument set?
+	int have_daemon = 0;  // Is the daemon argument set?
 	int have_help = 0;    // Is the help argument set?
 	int have_version = 0; // Is the version argument set?
 
@@ -596,6 +616,7 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 		{"port",    required_argument, NULL,        'p'},
 		{"pid",     required_argument, &have_pid,     1},
 		{"new",     no_argument,       &have_new,     1},
+		{"daemon",  no_argument,       &have_daemon,  1},
 		{"list",    required_argument, NULL,        'l'},
 		{"quiet",   no_argument,       NULL,        'q'},
 		{"help",    no_argument,       &have_help,    1},
@@ -641,6 +662,10 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 				else if(global_longopts[opt_long].flag == &have_new)
 				{
 					__set_new(sap);
+				}
+				else if(global_longopts[opt_long].flag == &have_daemon)
+				{
+					__set_daemon(sap);
 				}
 				else if(global_longopts[opt_long].flag == &have_help)
 				{

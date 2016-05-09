@@ -26,16 +26,19 @@
 
 
 /// No options are defined (default)
-#define SA_OPT_NONE  0x00
+#define SA_OPT_NONE   0x00
 
 /// Only act on this instance of this program
-#define SA_OPT_NEW   0x01
+#define SA_OPT_NEW    0x01
+
+/// Daemonize this program after initializing
+#define SA_OPT_DAEMON 0x02
 
 /// Don't print anything to stdout
-#define SA_OPT_QUIET 0x02
+#define SA_OPT_QUIET  0x04
 
 /// An error occurred. Abort!
-#define SA_OPT_ERROR 0x04
+#define SA_OPT_ERROR  0x08
 
 
 /// No actions are defined (default)
