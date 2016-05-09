@@ -38,6 +38,76 @@ static simplecmd_t cmdd = NULL;
 static simplepost_t httpd = NULL;
 
 /*!
+ * \brief Resolve the PID of the SimplePost instance to connect to.
+ *
+ * \param[inout] args Arguments passed to this program
+ *
+ * \return true if the PID was resolved successfully, false if not
+ *
+ * \note This function will return false only if no SimplePost instance exists
+ * with the given PID or if the stated arguments are invalid (or contradictory)
+ * and no PID can be resolved. Use the return value as a sanity check before
+ * attempting to use the PID. Although the various simplecmd methods WILL
+ * catch the error and return properly if an invalid PID is given, it should
+ * never get that far. This method's error messages are far more user-friendly.
+ *
+ * \note Just because this function returns true does not necessarily mean
+ * that there is a PID, even if one was set from the command line. If the
+ * "--new" argument was given, this function will clear the PID if one was set
+ * and return true.
+ */
+static bool __resolve_pid(simplearg_t args)
+{
+	if(args->options & SA_OPT_NEW)
+	{
+		args->pid = 0;
+	}
+	else if(args->pid)
+	{
+		pid_t pid = simplecmd_find_inst(args->address, args->port, args->pid);
+		if(pid == 0)
+		{
+			impact_printf_error("%s: Found no %s command instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+			return false;
+		}
+	}
+	else
+	{
+		args->pid = simplecmd_find_inst(args->address, args->port, args->pid);
+	}
+
+	return true;
+}
+
+/*!
+ * \brief Do we have a valid PID to a SimplePost instance?
+ *
+ * \param[in] args Arguments passed to this program
+ *
+ * \return true if the PID is valid, false if not
+ *
+ * \note This function should always be called after __resolve_pid()!
+ */
+static bool __is_pid_valid(const simplearg_t args)
+{
+	if(args->pid == 0)
+	{
+		if(args->address && args->port) impact_printf_error("%s: There is no %s instance bound to ADDRESS %s listening on PORT %hu\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->address, args->port);
+		else if(args->address) impact_printf_error("%s: There is no %s instance bound to ADDRESS %s\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->address);
+		else if(args->port) impact_printf_error("%s: There is no %s instance listening on PORT %hu\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->port);
+		else impact_printf_error("%s: There are no other accessible %s instances\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION);
+		return false;
+	}
+	else if(args->options & SA_OPT_NEW)
+	{
+		impact_printf_error("%s: No %s PID may be given with the '--new' option\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION);
+		return false;
+	}
+
+	return true;
+}
+
+/*!
  * \brief Print the list of accessible SimplePost instances.
  *
  * \return true if all instances were enumerated successfully, false if not
@@ -366,6 +436,8 @@ int main(int argc, char* argv[])
 		}
 		else if(args->actions & SA_ACT_LIST_FILES)
 		{
+			if(__resolve_pid(args) == false) goto error;
+			if(__is_pid_valid(args) == false) goto error;
 			if(__list_files(args)) goto no_error;
 			else goto error;
 		}
@@ -376,33 +448,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	if(args->options & SA_OPT_NEW)
-	{
-		args->pid = 0;
-	}
-	else if(args->pid)
-	{
-		pid_t inst_pid = simplecmd_find_inst(args->address, args->port, args->pid);
-		if(inst_pid == 0)
-		{
-			impact_printf_error("%s: Found no %s command instances with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
-			goto error;
-		}
-	}
-	else
-	{
-		args->pid = simplecmd_find_inst(args->address, args->port, args->pid);
-
-		#ifdef DEBUG
-		if(args->pid == 0)
-		{
-			impact_printf_debug("%s: No %s instances with open pipes", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION);
-			if(args->address) impact_printf_debug(" bound to ADDRESS %s", args->address);
-			if(args->port) impact_printf_debug(" listening on PORT %u", args->port);
-			impact_printf_debug("\n");
-		}
-		#endif // DEBUG
-	}
+	if(__resolve_pid(args) == false) goto error;
 
 	if(args->pid)
 	{
