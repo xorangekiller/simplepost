@@ -23,6 +23,7 @@
 #define _SIMPLEPOST_H_
 
 #include <sys/types.h>
+#include <stdbool.h>
 
 /// Highest port number
 #define SP_HTTP_PORT_MAX     65535
@@ -109,10 +110,10 @@ simplepost_t simplepost_init();
 void simplepost_free(simplepost_t spp);
 
 unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned short port);
-short simplepost_unbind(simplepost_t spp);
+bool simplepost_unbind(simplepost_t spp);
 void simplepost_block(const simplepost_t spp);
 void simplepost_block_files(const simplepost_t spp);
-short simplepost_is_alive(const simplepost_t spp);
+bool simplepost_is_alive(const simplepost_t spp);
 
 size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, const char* uri, unsigned int count);
 short simplepost_purge_file(simplepost_t spp, const char* uri);

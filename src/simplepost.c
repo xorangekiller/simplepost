@@ -856,7 +856,7 @@ void simplepost_free(simplepost_t spp)
  * \endparblock
  *
  * \return the port the server is bound to. If the return value is 0, an error
- * occurred; consult simplepost_get_last_error().
+ * occurred.
  */
 unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned short port)
 {
@@ -987,15 +987,15 @@ error:
  *
  * \param[in] spp SimplePost instance to act on
  *
- * \retval 0 The server is not running or could not be shut down.
- * \retval 1 The server has been successfully killed.
+ * \retval true The server has been successfully killed.
+ * \retval false The server is not running or could not be shut down.
  */
-short simplepost_unbind(simplepost_t spp)
+bool simplepost_unbind(simplepost_t spp)
 {
 	if(spp->httpd == NULL)
 	{
 		impact_printf_error("%s: Server is not running\n", SP_HTTP_HEADER_NAMESPACE);
-		return 0;
+		return false;
 	}
 
 	#ifdef DEBUG
@@ -1008,7 +1008,7 @@ short simplepost_unbind(simplepost_t spp)
 
 	impact_printf_debug("%s: 0x%lx cleanup complete\n", SP_HTTP_HEADER_NAMESPACE, server_id);
 
-	return 1;
+	return true;
 }
 
 /*!
@@ -1036,12 +1036,12 @@ void simplepost_block_files(const simplepost_t spp)
  *
  * \param[in] spp SimplePost instance to act on
  *
- * \retval 0 The server is not running.
- * \retval 1 The server is alive!
+ * \retval true The server is alive!
+ * \retval false The server is not running.
  */
-short simplepost_is_alive(const simplepost_t spp)
+bool simplepost_is_alive(const simplepost_t spp)
 {
-	return (spp->httpd == NULL) ? 0 : 1;
+	return (spp->httpd == NULL) ? false : true;
 }
 
 /*!
