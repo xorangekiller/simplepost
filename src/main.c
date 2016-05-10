@@ -459,17 +459,17 @@ int main(int argc, char* argv[])
 		else goto error;
 	}
 
-	if(__start_httpd(args) == false) goto error;
-
 	if(args->options & SA_OPT_DAEMON)
 	{
 		impact_printf_standard("%s: Daemonizing and forking to the background\n", SP_MAIN_HEADER_NAMESPACE);
 		if(daemon(1, 0) == -1)
 		{
-			impact_printf_debug("%s: Failed to daemonize %s: %s\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, strerror(errno));
+			impact_printf_error("%s: Failed to daemonize %s: %s\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, strerror(errno));
 			goto error;
 		}
 	}
+
+	if(__start_httpd(args) == false) goto error;
 
 	signal(SIGPIPE, &__server_reset_pipe);
 	signal(SIGINT, &__server_terminal_interrupt);
