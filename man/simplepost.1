@@ -52,7 +52,14 @@ Act exclusively on the current instance of this program.
 
 This option might not seem particularly useful at first glance, but that is only because it doesn't necessarily modify this program's default behavior. By default, if neither \fI--pid\fR nor \fI--new\fR is specified, this program will look for all instances of SimplePost accessible by the effective user with the same \fIADDRESS\fR and \fIPORT\fR as was specified on this command line for this instance. If no \fIADDRESS\fR or \fIPORT\fR was specified, then \fIFILE\fR will be served on the first SimplePost instance accessible by the current user. If there are no active instances of this program that meet those criteria, then the current instance will spawn its internal HTTP server to sever \fIFILE\fR. If the \fI--new\fR option is specified, the aforementioned discovery process will be short-circuited, and the current SimplePost instance will just try to server \fIFILE\fR itself.
 
-This option and \fI--pid\fR are mutually exclusive.
+This option and the \fI--pid\fR and \fI--kill\fR options are mutually exclusive.
+
+.IP \fB-k\fR,\ \fB--kill\fR
+Shut down another instance of this program.
+
+This option does not do anything magic. It simply sends the TERM signal to the selected SimplePost instance. Its primary advantage over calling "kill -15 <pid>" yourself is that it provides a convenient way to shut down the SimplePost instance bound to a particular \fIADDRESS\fR and listening on a particular \fIPORT\fR. It also conveniently does not just send the signal; it waits a few seconds for the targeted instance of SimplePost to cleanly terminate, and it prints an error message and exits with non-zero exit code if that instance does not. These properties can make it especially useful in shell scripts.
+
+This option and \fI--new\fR are mutually exclusive.
 
 .IP \fB--daemon\fR
 Fork to the background just before initializing the web server, and run as a system daemon. This option only has an effect if files are being served on this instance of SimplePost.

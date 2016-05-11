@@ -219,7 +219,7 @@ static void __set_pid(simplearg_t sap, const char* optstr, const char* arg)
 
 	if(sap->options & SA_OPT_NEW)
 	{
-		impact_printf_error("%s: %s: The \"process identifier\" and \"new\" arguments are mutually exclusive\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
+		impact_printf_error("%s: %s: The \"process identifier\" and \"new\" options are mutually exclusive\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
 		sap->options |= SA_OPT_ERROR;
 		return;
 	}
@@ -269,13 +269,42 @@ static void __set_new(simplearg_t sap)
 	}
 	else if(sap->pid)
 	{
-		impact_printf_error("%s: %s: The \"process identifier\" and \"new\" arguments are mutually exclusive\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
+		impact_printf_error("%s: %s: The \"process identifier\" and \"new\" options are mutually exclusive\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
+		sap->options |= SA_OPT_ERROR;
+	}
+	else if(sap->actions & SA_ACT_SHUTDOWN)
+	{
+		impact_printf_error("%s: %s: The \"new\" and \"kill\" options are mutually exclusive\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
 		sap->options |= SA_OPT_ERROR;
 	}
 	else
 	{
 		sap->options |= SA_OPT_NEW;
 		impact_printf_debug("%s: Processed new argument: 0x%02X\n", SP_ARGS_HEADER_NAMESPACE, sap->options & SA_OPT_NEW);
+	}
+}
+
+/*!
+ * \brief Process the kill argument.
+ *
+ * \param[out] sap Instance to act on
+ */
+static void __set_shutdown(simplearg_t sap)
+{
+	if(sap->actions & SA_ACT_SHUTDOWN)
+	{
+		impact_printf_error("%s: %s: kill argument may only be specified once\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
+		sap->options |= SA_OPT_ERROR;
+	}
+	else if(sap->options & SA_OPT_NEW)
+	{
+		impact_printf_error("%s: %s: The \"new\" and \"kill\" options are mutually exclusive\n", SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
+		sap->options |= SA_OPT_ERROR;
+	}
+	else
+	{
+		sap->actions |= SA_ACT_SHUTDOWN;
+		impact_printf_debug("%s: Processed kill argument: 0x%02X\n", SP_ARGS_HEADER_NAMESPACE, sap->actions & SA_ACT_SHUTDOWN);
 	}
 }
 
@@ -294,7 +323,7 @@ static void __set_daemon(simplearg_t sap)
 	else
 	{
 		sap->options |= SA_OPT_DAEMON;
-		impact_printf_debug("%s: Processed new argument: 0x%02X\n", SP_ARGS_HEADER_NAMESPACE, sap->options & SA_OPT_DAEMON);
+		impact_printf_debug("%s: Processed daemon argument: 0x%02X\n", SP_ARGS_HEADER_NAMESPACE, sap->options & SA_OPT_DAEMON);
 	}
 }
 
@@ -616,6 +645,7 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 		{"port",    required_argument, NULL,        'p'},
 		{"pid",     required_argument, &have_pid,     1},
 		{"new",     no_argument,       &have_new,     1},
+		{"kill",    no_argument,       NULL,        'k'},
 		{"daemon",  no_argument,       &have_daemon,  1},
 		{"list",    required_argument, NULL,        'l'},
 		{"quiet",   no_argument,       NULL,        'q'},
@@ -639,7 +669,7 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 		 * it is assumed to be the program name. Since that is not the case in
 		 * this context, arbitrarily adjust our array to accommodate it.
 		 */
-		opt_arg = getopt_long(argc + 1, argv - 1, "i:p:l:q", global_longopts, &opt_long);
+		opt_arg = getopt_long(argc + 1, argv - 1, "i:p:kl:q", global_longopts, &opt_long);
 
 		if(optind < 1 || (optind - 1) < opt_index)
 		{
@@ -687,6 +717,10 @@ static int __parse_global_opts(simplearg_t sap, int argc, char* argv[])
 
 			case 'p':
 				__set_port(sap, argv[opt_index], optarg);
+				break;
+
+			case 'k':
+				__set_shutdown(sap);
 				break;
 
 			case 'l':

@@ -25,6 +25,7 @@
 #include "impact.h"
 #include "config.h"
 
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -190,6 +191,43 @@ static bool __list_files(const simplearg_t args)
 }
 
 /*!
+ * \brief Cleanly shut down the specified SimplePost instance.
+ *
+ * \param[in] args Arguments passed to this program
+ *
+ * \return true if the instance was shut down successfully, false if not
+ */
+static bool __shutdown_inst(const simplearg_t args)
+{
+	const unsigned short max_sleep = 5; // Maximum number of seconds to wait for the other instance to terminate
+	const unsigned short sleep_res = 1; // Number of seconds to wait between checks for the other instance
+	unsigned short sleep_count = 0;     // Number of seconds that we have waited for the other instance
+
+	impact_printf_standard("%s: Shutting down the %s instance with PID %d ...\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+
+	if(kill(args->pid, SIGTERM) == -1)
+	{
+		impact_printf_error("%s: Failed to kill the %s instance with PID %d: %s\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid, strerror(errno));
+		return false;
+	}
+
+	while(sleep_count < max_sleep)
+	{
+		sleep(sleep_res);
+		if(kill(args->pid, 0) == -1 && errno == ESRCH) break;
+		sleep_count += sleep_res;
+	}
+
+	if(sleep_count >= max_sleep)
+	{
+		impact_printf_error("%s: %s %d did not shut down after %hu seconds!\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid, sleep_count);
+		return false;
+	}
+
+	return true;
+}
+
+/*!
  * \brief Add new files to be served to another SimplePost instance.
  *
  * \param[in] args Arguments passed to this program
@@ -308,6 +346,7 @@ static void __print_help()
 	printf("                           by default the existing instance matching ADDRESS and PORT will be used if possible\n");
 	printf("      --new                act exclusively on the current instance of this program\n");
 	printf("                           this option and --pid are mutually exclusive\n");
+	printf("  -k, --kill               shut down the selected instance of this program\n");
 	printf("      --daemon             fork to the background and run as a system daemon\n");
 	printf("  -l, --list=LTYPE         list the requested LTYPE of information about an instance of this program\n");
 	printf("                           LTYPE=i,inst,instances    list all server instances that we can connect to\n");
@@ -443,6 +482,13 @@ int main(int argc, char* argv[])
 			if(__is_pid_valid(args) == false) goto error;
 			if(__list_files(args)) goto no_error;
 			else goto error;
+		}
+		else if(args->actions & SA_ACT_SHUTDOWN)
+		{
+			if(__resolve_pid(args) == false) goto error;
+			if(__is_pid_valid(args) == false) goto error;
+			if(__shutdown_inst(args) == false) goto error;
+			goto no_error;
 		}
 		else
 		{
