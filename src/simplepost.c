@@ -30,6 +30,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <netdb.h>
 #include <fcntl.h>
@@ -408,6 +409,15 @@ static struct MHD_Response* __response_prep_file(struct MHD_Connection* connecti
 /*****************************************************************************
  *                            SimplePost Private                             *
  *****************************************************************************/
+
+/// Maximum number of pending connections before clients start getting refused
+#define SP_HTTP_BACKLOG   16
+
+/// Milliseconds to sleep between shutdown checks while blocking
+#define SP_HTTP_SLEEP     100
+
+/// Maximum number of files which may be served simultaneously
+#define SP_HTTP_FILES_MAX SIZE_MAX
 
 /*!
  * \brief SimplePost request status structure
@@ -1101,12 +1111,14 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 		goto abort_insert;
 	}
 
-	#if (SP_HTTP_FILES_MAX > 0)
+	#if (defined SP_HTTP_FILES_MAX) && (SP_HTTP_FILES_MAX > 0)
 	if(spp->files_count == SP_HTTP_FILES_MAX)
 	{
-		impact_printf_error("%s: Cannot serve more than %u files simultaneously\n", SP_HTTP_HEADER_NAMESPACE, SP_HTTP_FILES_MAX);
+		impact_printf_error("%s: Cannot serve more than %zu files simultaneously\n", SP_HTTP_HEADER_NAMESPACE, (size_t) SP_HTTP_FILES_MAX);
 		goto abort_insert;
 	}
+	#else
+	#warning "SP_HTTP_FILES_MAX not set - simplepost::files_count may overflow!"
 	#endif
 
 	if(spp->files)
