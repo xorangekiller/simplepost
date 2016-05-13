@@ -657,6 +657,18 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 			impact_printf_debug("%s: %s: Sending %s %s\n", SP_COMMAND_HEADER_NAMESPACE, __func__, SP_COMMAND_FILE_URL, p->url);
 			__sock_send(sock, SP_COMMAND_FILE_URL, p->url);
 		}
+
+		if(p->count)
+		{
+			if(sprintf(buffer, "%u", p->count) <= 0)
+			{
+				impact_printf_error("%s: %s: Failed to buffer %s %u\n", SP_COMMAND_HEADER_NAMESPACE, __func__, SP_COMMAND_FILE_COUNT, p->count);
+				return false;
+			}
+
+			impact_printf_debug("%s: %s: Sending %s %s\n", SP_COMMAND_HEADER_NAMESPACE, __func__, SP_COMMAND_FILE_COUNT, buffer);
+			__sock_send(sock, SP_COMMAND_FILE_COUNT, buffer);
+		}
 	}
 
 	simplepost_file_free(files);
@@ -1184,7 +1196,7 @@ size_t simplecmd_get_version(pid_t server_pid, char** version)
  * \brief Get the list of files being served by the specified server.
  *
  * \param[in] server_pid Process identifier of the server to act on
- * \param[out] files List of files currently being served
+ * \param[out] files     List of files currently being served
  *
  * \return the number of files hosted by the server, or -1 if the list could
  * not be retrieved
@@ -1311,6 +1323,23 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 			}
 
 			tail->url = buffer;
+		}
+		else if(strcmp(buffer, SP_COMMAND_FILE_COUNT) == 0)
+		{
+			free(buffer);
+
+			__sock_recv(sock, NULL, &buffer);
+			if(buffer == NULL)
+			{
+				impact_printf_error("%s: %s: Did not receive the file[%zu] count as expected\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i);
+				goto error;
+			}
+
+			if(sscanf(buffer, "%u", &tail->count) != 1)
+			{
+				impact_printf_error("%s: %s: Received new file[%zu] count \"%s\", but it is not a positive integer as expected!\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i, buffer);
+				goto error;
+			}
 		}
 		else
 		{

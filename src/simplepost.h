@@ -48,6 +48,9 @@ typedef struct simplepost_file
 	/// Uniform Resource Locator assigned to the file
 	char* url;
 
+	/// Number of times the file may be downloaded
+	unsigned int count;
+
 
 	/// Next file in the doubly-linked list
 	struct simplepost_file* next;

@@ -182,7 +182,21 @@ static bool __list_files(const simplearg_t args)
 
 	for(simplepost_file_t p = files; p; p = p->next)
 	{
-		printf("[PID %d] Serving %s on %s\n", args->pid, p->file, p->url);
+		printf("[PID %d] Serving %s on %s ", args->pid, p->file, p->url);
+		switch(p->count)
+		{
+			case 0:
+				printf("indefinitely\n");
+				break;
+
+			case 1:
+				printf("exactly once\n");
+				break;
+
+			default:
+				printf("%u times\n", p->count);
+				break;
+		}
 	}
 
 	simplepost_file_free(files);
@@ -279,7 +293,7 @@ static bool __add_to_other_inst(const simplearg_t args)
 		}
 		else
 		{
-			impact_printf_standard("%s: Instance %d: Serving %s on http://%s:%u/%s ", SP_MAIN_HEADER_NAMESPACE, args->pid, p->file, address, port, p->file);
+			impact_printf_standard("[PID %d] Serving %s on http://%s:%u/%s ", args->pid, p->file, address, port, p->file);
 			switch(p->count)
 			{
 				case 0:

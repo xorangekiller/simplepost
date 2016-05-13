@@ -82,12 +82,7 @@ static struct simplepost_serve* __simplepost_serve_init()
 	struct simplepost_serve* spsp = (struct simplepost_serve*) malloc(sizeof(struct simplepost_serve));
 	if(spsp == NULL) return NULL;
 
-	spsp->file = NULL;
-	spsp->uri = NULL;
-	spsp->count = 0;
-
-	spsp->next = NULL;
-	spsp->prev = NULL;
+	memset(spsp, 0, sizeof(struct simplepost_serve));
 
 	return spsp;
 }
@@ -804,12 +799,7 @@ simplepost_t simplepost_init()
 	simplepost_t spp = (simplepost_t) malloc(sizeof(struct simplepost));
 	if(spp == NULL) return NULL;
 
-	spp->httpd = NULL;
-	spp->port = 0;
-	spp->address = NULL;
-
-	spp->files = NULL;
-	spp->files_count = 0;
+	memset(spp, 0, sizeof(struct simplepost));
 
 	pthread_mutex_init(&spp->master_lock, NULL);
 	pthread_mutex_init(&spp->files_lock, NULL);
@@ -1386,7 +1376,7 @@ size_t simplepost_get_files(simplepost_t spp, simplepost_file_t* files)
 	tail = *files = NULL;
 
 	pthread_mutex_lock(&spp->files_lock);
-	for(struct simplepost_serve* p = spp->files; p; p = p->next)
+	for(const struct simplepost_serve* p = spp->files; p; p = p->next)
 	{
 		if(tail == NULL)
 		{
@@ -1413,6 +1403,8 @@ size_t simplepost_get_files(simplepost_t spp, simplepost_file_t* files)
 		if(tail->url == NULL) goto abort_count;
 		if(spp->port == 80) sprintf(tail->url, "http://%s%s", spp->address, p->uri);
 		else sprintf(tail->url, "http://%s:%u%s", spp->address, spp->port, p->uri);
+
+		tail->count = p->count;
 
 		++files_count;
 	}
