@@ -663,6 +663,7 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 			if(sprintf(buffer, "%u", p->count) <= 0)
 			{
 				impact_printf_error("%s: %s: Failed to buffer %s %u\n", SP_COMMAND_HEADER_NAMESPACE, __func__, SP_COMMAND_FILE_COUNT, p->count);
+				simplepost_file_free(files);
 				return false;
 			}
 
