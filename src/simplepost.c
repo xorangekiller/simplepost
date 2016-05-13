@@ -478,6 +478,28 @@ struct simplepost
 };
 
 /*!
+ * \brief Do the given URIs match?
+ *
+ * \note This function is slightly more complicated than a simple strcmp() of
+ * both input strings. It does NULL checks and takes into account partial or
+ * malformed URIs that do no start with "/".
+ *
+ * \param[in] uri1 First URI to compare
+ * \param[in] uri2 Second URI to compare
+ *
+ * \return true if both URIs are equivalent, false if not
+ */
+static bool __does_uri_match(const char* uri1, const char* uri2)
+{
+	if(uri1 == NULL || uri2 == NULL) return false;
+
+	if(uri1[0] == '/') ++uri1;
+	if(uri2[0] == '/') ++uri2;
+
+	return (strcmp(uri1, uri2) == 0);
+}
+
+/*!
  * \brief Get the name and path of the file to serve from the given URI.
  *
  * \note This function compares the given URI to the list of files we are
@@ -1087,7 +1109,8 @@ bool simplepost_is_alive(const simplepost_t spp)
 size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, const char* uri, unsigned int count)
 {
 	struct stat file_status;                   // Status of the input file
-	struct simplepost_serve* this_file = NULL; // New file to serve
+	struct simplepost_serve* this_file = NULL; // File to serve
+	bool is_file_new = false;                  // Are we adding a new file to serve?
 	size_t url_length = 0;                     // Length of the URL
 	if(url) *url = NULL;                       // Failsafe
 
@@ -1095,7 +1118,7 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 
 	if(file == NULL)
 	{
-		impact_printf_debug("%s:%d: simplepost_serve_file() requires a FILE\n", __FILE__, __LINE__);
+		impact_printf_debug("%s:%d: BUG! %s requires a FILE\n", __FILE__, __LINE__, __func__);
 		goto abort_insert;
 	}
 
@@ -1121,20 +1144,9 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 	#warning "SP_HTTP_FILES_MAX not set - simplepost::files_count may overflow!"
 	#endif
 
-	if(spp->files)
-	{
-		for(this_file = spp->files; this_file->next; this_file = this_file->next);
-		this_file = __simplepost_serve_insert_after(this_file, NULL);
-	}
-	else
-	{
-		this_file = spp->files = __simplepost_serve_init();
-	}
-	if(this_file == NULL) goto cannot_insert_file;
-
 	if(uri)
 	{
-		if(uri[0] != '/' || uri[0] == '\0')
+		if(uri[0] != '/')
 		{
 			impact_printf_error("%s: Invalid URI: %s\n", SP_HTTP_HEADER_NAMESPACE, uri);
 			goto abort_insert;
@@ -1149,29 +1161,62 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 			while(*uri != '/') --uri;
 		}
 	}
-
-	this_file->uri = (char*) malloc(sizeof(char) * (strlen(uri) + 1));
-	if(this_file->uri == NULL) goto cannot_insert_file;
-	if(uri[0] == '/')
+	if(uri == NULL || uri[0] == '\0')
 	{
-		strcpy(this_file->uri, uri);
-	}
-	else
-	{
-		strcpy(this_file->uri, "/");
-		strcat(this_file->uri, uri);
+		impact_printf_error("%s:%d: BUG! No URI to insert FILE %s\n", __PRETTY_FUNCTION__, __LINE__, file);
+		goto abort_insert;
 	}
 
-	for(struct simplepost_serve* p = spp->files; p != this_file; p = p->next)
+	if(spp->files)
 	{
-		if(strcmp(p->uri, uri) == 0)
+		for(this_file = spp->files; this_file->next; this_file = this_file->next)
 		{
-			impact_printf_error("%s: URI already in use: %s\n", SP_HTTP_HEADER_NAMESPACE, uri);
+			if(__does_uri_match(this_file->uri, uri)) break;
+		}
+		if(this_file == NULL)
+		{
+			impact_printf_error("%s:%d: BUG! No last file?\n", __PRETTY_FUNCTION__, __LINE__);
+			goto abort_insert;
+		}
+		else if(__does_uri_match(this_file->uri, uri) == false)
+		{
+			this_file = __simplepost_serve_insert_after(this_file, NULL);
+			++(spp->files_count);
+			is_file_new = true;
+		}
+		else if(this_file->file && strcmp(this_file->file, file) != 0)
+		{
+			impact_printf_error("%s: URI %s is already in use serving FILE %s, not %s\n", SP_HTTP_HEADER_NAMESPACE, this_file->uri, this_file->file, file);
 			goto abort_insert;
 		}
 	}
+	else
+	{
+		this_file = spp->files = __simplepost_serve_init();
+		++(spp->files_count);
+		is_file_new = true;
+	}
+	if(this_file == NULL) goto cannot_insert_file;
 
-	if(url != NULL)
+	if(this_file->uri == NULL)
+	{
+		if(uri[0] == '/')
+		{
+			this_file->uri = (char*) malloc(sizeof(char) * (strlen(uri) + 1));
+			if(this_file->uri == NULL) goto cannot_insert_file;
+			strcpy(this_file->uri, uri);
+		}
+		else
+		{
+			this_file->uri = (char*) malloc(sizeof(char) * (strlen(uri) + 2));
+			if(this_file->uri == NULL) goto cannot_insert_file;
+			this_file->uri[0] = '/';
+			this_file->uri[1] = '\0';
+			strcat(this_file->uri, uri);
+		}
+	}
+
+	if(url)
 	{
 		int url_length_2; // Length of the URL as reported by sprintf()
 
@@ -1185,12 +1230,15 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 		url_length = url_length_2;
 	}
 
-	this_file->file = (char*) malloc(sizeof(char) * (strlen(file) + 1));
-	if(this_file->file == NULL) goto cannot_insert_file;
-	strcpy(this_file->file, file);
+	if(this_file->file == NULL)
+	{
+		this_file->file = (char*) malloc(sizeof(char) * (strlen(file) + 1));
+		if(this_file->file == NULL) goto cannot_insert_file;
+		strcpy(this_file->file, file);
+	}
 
+	if(is_file_new == false) impact_printf_debug("%s: Changing URI %s COUNT from %u to %u\n", SP_HTTP_HEADER_NAMESPACE, this_file->uri, this_file->count, count);
 	this_file->count = count;
-	++(spp->files_count);
 
 	pthread_mutex_unlock(&spp->files_lock);
 
@@ -1218,7 +1266,11 @@ cannot_insert_file:
 	impact_printf_error("%s: Cannot insert FILE: %s\n", SP_HTTP_HEADER_NAMESPACE, file);
 
 abort_insert:
-	if(this_file) __simplepost_serve_remove(this_file, 1);
+	if(is_file_new)
+	{
+		__simplepost_serve_remove(this_file, 1);
+		--(spp->files_count);
+	}
 	pthread_mutex_unlock(&spp->files_lock);
 
 	return 0;
