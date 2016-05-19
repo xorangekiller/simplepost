@@ -24,39 +24,43 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-/// Don't print anything to stdout
-bool impact_quiet = false;
-
-/* All of the functions below are nearly identical. They each take the same
- * arguments and return the same values as printf(). The only deviation from
- * printf() is that they will automatically not print anything and return zero
- * if the global variable impact_quiet is true. They are differentiated from
- * each other by purpose, which is documented above each function definition.
+/*!
+ * \brief Level of verbosity for log messages
+ *
+ * Verbosity Level  | Description
+ * ---------------- | -----------
+ * -1               | Discard all messages instead of printing them.
+ *  0               | Print only critical error messages.
+ *  1               | Print only initialization and critical messages.
+ *  2-INT_MAX       | Print progressively more detailed messages.
+ *
+ * \note Although the theoretical verbosity level limit is INT_MAX,
+ * practically it caps out at the level of the highest impact() statement in
+ * the program.
  */
+int impact_level = DEFAULT_IMPACT_LEVEL;
 
 /*!
- * \brief Print to standard output.
+ * \brief Print a message to stderr based on its verbosity level.
+ *
+ * \note This function determines whether to print a message based on its
+ * verbosity level. If the message is printed, it is always printed to the
+ * standard error stream, never to the standard output stream. If you *really*
+ * need to print a message to stdout, it should probably be printed all the
+ * time, regardless of the verbosity level, so use printf() instead.
+ *
+ * \param[in] level  Verbosity level of the message
+ * \param[in] format printf-style format string
+ *
+ * \retval  -1 An output error occurred.
+ * \retval   0 Nothing was printed. Either the format string evaluated to a
+ *             zero-length string, or the impact_level was less than the
+ *             message level.
+ * \retval >=1 The number of characters printed
  */
-int impact_printf_standard(const char* format, ...)
+int impact(int level, const char* format, ...)
 {
-	if(impact_quiet) return 0;
-
-	int ret;      // printf() return value
-	va_list args; // Arguments passed to this function
-
-	va_start(args, format);
-	ret = vfprintf(stdout, format, args);
-	va_end(args);
-
-	return ret;
-}
-
-/*!
- * \brief Print to standard error.
- */
-int impact_printf_error(const char* format, ...)
-{
-	if(impact_quiet) return 0;
+	if(impact_level < 0 || impact_level < level) return 0;
 
 	int ret;      // printf() return value
 	va_list args; // Arguments passed to this function
@@ -67,24 +71,3 @@ int impact_printf_error(const char* format, ...)
 
 	return ret;
 }
-
-#ifdef DEBUG
-
-/*!
- * \brief Print debugging messages.
- */
-int impact_printf_debug(const char* format, ...)
-{
-	if(impact_quiet) return 0;
-
-	int ret;      // printf() return value
-	va_list args; // Arguments passed to this function
-
-	va_start(args, format);
-	ret = vfprintf(stdout, format, args);
-	va_end(args);
-
-	return ret;
-}
-
-#endif // DEBUG

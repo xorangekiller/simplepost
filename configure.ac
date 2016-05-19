@@ -70,6 +70,21 @@ srcdir="../src"
 DX_INIT_DOXYGEN([SimplePost], [Doxyfile], [doxygen])
 srcdir="$my_save_srcdir"
 
+# Make sure that we have a new enough version of Doxygen to generate the
+# documentation for this program. Currently the limiting factor is Markdown
+# support, which the Doxygen manual clearly states was introduced in version
+# 1.8.0, so make sure that Doxygen is at least that recent.
+AS_IF([test "$DX_FLAG_doc" = 1],
+    [DX_DOXYGEN_REQUIRED_VERSION='1.8.0';
+        DX_DOXYGEN_VERSION=$($DX_DOXYGEN --version 2>/dev/null | head -n 1 | egrep -o '([[0-9]]+\.)+[[0-9]]');
+
+        AC_MSG_CHECKING([whether doxygen is at least version $DX_DOXYGEN_REQUIRED_VERSION]);
+        AX_COMPARE_VERSION([$DX_DOXYGEN_REQUIRED_VERSION], le, [$DX_DOXYGEN_VERSION],
+            [AC_MSG_RESULT([yes])],
+            [AC_MSG_RESULT([no])
+                AM_CONDITIONAL([DX_COND_doc], [0])
+                AC_SUBST([DX_FLAG_doc], 0)])])
+
 # Configure libmagic.
 AC_ARG_WITH(magic, AS_HELP_STRING([--without-magic], [do not serve the HTTP Content-Type of files]),
     [AS_CASE($enableval,

@@ -26,19 +26,22 @@
 
 
 /// No options are defined (default)
-#define SA_OPT_NONE   0x00
+#define SA_OPT_NONE     0x00
 
 /// Only act on this instance of this program
-#define SA_OPT_NEW    0x01
+#define SA_OPT_NEW      0x01
 
 /// Daemonize this program after initializing
-#define SA_OPT_DAEMON 0x02
+#define SA_OPT_DAEMON   0x02
 
-/// Don't print anything to stdout
-#define SA_OPT_QUIET  0x04
+/// Suppress all messages but critical errors
+#define SA_OPT_SUPPRESS 0x04
+
+/// Be completely silent. Don't print anything to stdout
+#define SA_OPT_QUIET    0x08
 
 /// An error occurred. Abort!
-#define SA_OPT_ERROR  0x08
+#define SA_OPT_ERROR    0x10
 
 
 /// No actions are defined (default)
@@ -95,6 +98,10 @@ typedef struct simplearg
 
 	/// PID of the instance of this program to act on
 	pid_t pid;
+
+
+	/// Verbosity level of messages to print
+	int verbosity;
 
 
 	/// Extra options controlling various aspects of operation

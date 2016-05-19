@@ -320,13 +320,17 @@ static struct MHD_Response* __response_prep_data(struct MHD_Connection* connecti
 
 	if(response == NULL)
 	{
-		impact_printf_debug("%s:%d: %s: Failed to allocate memory for the HTTP response %u\n", __FILE__, __LINE__, SP_MAIN_HEADER_MEMORY_ALLOC, status_code);
+		impact(2, "%s:%d: %s: Failed to allocate memory for the HTTP response %u\n",
+			__PRETTY_FUNCTION__, __LINE__, SP_MAIN_HEADER_MEMORY_ALLOC,
+			status_code);
 		return NULL;
 	}
 
 	if(MHD_queue_response(connection, status_code, response) == MHD_NO)
 	{
-		impact_printf_error("%s: Request 0x%lx: Cannot queue response with status %u\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), status_code);
+		impact(0, "%s: Request 0x%lx: Cannot queue response with status %u\n",
+			SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+			status_code);
 		MHD_destroy_response(response);
 		return NULL;
 	}
@@ -363,14 +367,18 @@ static struct MHD_Response* __response_prep_file(struct MHD_Connection* connecti
 	fd = open(file, O_RDONLY);
 	if(fd == -1)
 	{
-		impact_printf_error("%s: Request 0x%lx: Cannot open FILE %s for reading\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file);
+		impact(0, "%s: Request 0x%lx: Cannot open FILE %s for reading\n",
+			SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+			file);
 		return NULL;
 	}
 
 	response = MHD_create_response_from_fd(size, fd);
 	if(response == NULL)
 	{
-		impact_printf_debug("%s:%d: %s: Failed to allocate memory for the HTTP response %u\n", __FILE__, __LINE__, SP_MAIN_HEADER_MEMORY_ALLOC, status_code);
+		impact(2, "%s:%d: %s: Failed to allocate memory for the HTTP response %u\n",
+			__PRETTY_FUNCTION__, __LINE__, SP_MAIN_HEADER_MEMORY_ALLOC,
+			status_code);
 		close(fd);
 		return NULL;
 	}
@@ -397,7 +405,9 @@ static struct MHD_Response* __response_prep_file(struct MHD_Connection* connecti
 
 	if(MHD_queue_response(connection, status_code, response) == MHD_NO)
 	{
-		impact_printf_error("%s: Request 0x%lx: Cannot queue FILE %s with status %u\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), file, status_code);
+		impact(2, "%s: Request 0x%lx: Cannot queue FILE %s with status %u\n",
+			SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+			file, status_code);
 		close(fd);
 		MHD_destroy_response(response);
 		return NULL;
@@ -548,7 +558,9 @@ static size_t __get_filename_from_uri(simplepost_t spp, char** file, const char*
 
 				if(p->count > 0 && --p->count == 0)
 				{
-					impact_printf_debug("%s: FILE %s has reached its COUNT and will be removed\n", SP_HTTP_HEADER_NAMESPACE, p->file);
+					impact(2, "%s: FILE %s has reached its COUNT and will be removed\n",
+						SP_HTTP_HEADER_NAMESPACE,
+						p->file);
 
 					if(p == spp->files) spp->files = __simplepost_serve_remove(p, 1);
 					else __simplepost_serve_remove(p, 1);
@@ -578,8 +590,10 @@ static void __panic(void* cls, const char* file, unsigned int line, const char* 
 {
 	simplepost_t spp = (simplepost_t) cls; // Instance to act on
 
-	impact_printf_debug("%s:%u: PANIC!\n", file, line);
-	impact_printf_error("%s: %s: Emergency Shutdown: %s\n", SP_HTTP_HEADER_NAMESPACE, SP_HTTP_HEADER_MICROHTTPD, reason);
+	impact(2, "%s:%u: PANIC!\n", file, line);
+	impact(0, "%s: %s: Emergency Shutdown: %s\n",
+		SP_HTTP_HEADER_NAMESPACE, SP_HTTP_HEADER_MICROHTTPD,
+		reason);
 
 	simplepost_unbind(spp);
 }
@@ -600,9 +614,17 @@ static void __log_microhttpd_messages(void* cls, const char* format, va_list ap)
 	int length;        // Number of characters written to the buffer
 
 	length = vsprintf(buffer, format, ap);
-
-	if(length < 0) impact_printf_debug("%s:%d: vsprintf() encountered a serious error condition processing a libmicrohttpd error message\n", __FILE__, __LINE__);
-	else impact_printf_error("%s: %s: %s\n", SP_HTTP_HEADER_NAMESPACE, SP_HTTP_HEADER_MICROHTTPD, buffer);
+	if(length < 0)
+	{
+		impact(2, "%s:%d: BUG! Failed to process libmicrohttpd error message\n",
+			__PRETTY_FUNCTION__, __LINE__);
+	}
+	else
+	{
+		impact(0, "%s: %s: %s\n",
+			SP_HTTP_HEADER_NAMESPACE, SP_HTTP_HEADER_MICROHTTPD,
+			buffer);
+	}
 }
 
 /*!
@@ -635,14 +657,21 @@ static int __process_request(void* cls, struct MHD_Connection* connection, const
 	simplepost_t spp = (simplepost_t) cls; // Instance to act on
 	struct simplepost_state* spsp = NULL;  // Request state
 
-	impact_printf_debug("%s: Request 0x%lx: method: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), method);
-	impact_printf_debug("%s: Request 0x%lx: URI: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), uri);
-	impact_printf_debug("%s: Request 0x%lx: version: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), version);
+	impact(2, "%s: Request 0x%lx: method: %s\n",
+		SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+		method);
+	impact(2, "%s: Request 0x%lx: URI: %s\n",
+		SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+		uri);
+	impact(2, "%s: Request 0x%lx: version: %s\n",
+		SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+		version);
 
 	#ifdef DEBUG
 	if(*state)
 	{
-		impact_printf_error("%s: Request 0x%lx: Request should be stateless\n", SP_HTTP_HEADER_NAMESPACE, pthread_self());
+		impact(0, "%s: Request 0x%lx: Request should be stateless\n",
+			SP_HTTP_HEADER_NAMESPACE, pthread_self());
 		goto finalize_request;
 	}
 	#endif // DEBUG
@@ -650,7 +679,9 @@ static int __process_request(void* cls, struct MHD_Connection* connection, const
 	spsp = (struct simplepost_state*) malloc(sizeof(struct simplepost_state));
 	if(spsp == NULL)
 	{
-		impact_printf_debug("%s: Request 0x%lx: %s: Failed to allocate memory for the request state\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), SP_MAIN_HEADER_MEMORY_ALLOC);
+		impact(2, "%s: Request 0x%lx: %s: Failed to allocate memory for the request state\n",
+			SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+			SP_MAIN_HEADER_MEMORY_ALLOC);
 		goto finalize_request;
 	}
 	*state = (void*) spsp;
@@ -683,7 +714,9 @@ static int __process_request(void* cls, struct MHD_Connection* connection, const
 		spsp->file_length = __get_filename_from_uri(spp, &spsp->file, uri);
 		if(spsp->file_length == 0 || stat(spsp->file, &file_status) == -1)
 		{
-			impact_printf_error("%s: Request 0x%lx: Resource not found: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), uri);
+			impact(0, "%s: Request 0x%lx: Resource not found: %s\n",
+				SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+				uri);
 			spsp->response = __response_prep_data(connection, MHD_HTTP_NOT_FOUND, strlen(SP_HTTP_RESPONSE_NOT_FOUND), (void*) SP_HTTP_RESPONSE_NOT_FOUND);
 			goto finalize_request;
 		}
@@ -698,7 +731,9 @@ static int __process_request(void* cls, struct MHD_Connection* connection, const
 				strcat(spsp->file, append_index);
 				if(stat(spsp->file, &file_status) == -1)
 				{
-					impact_printf_debug("%s: Request 0x%lx: File not found: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), spsp->file);
+					impact(2, "%s: Request 0x%lx: File not found: %s\n",
+						SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+						spsp->file);
 					spsp->response = __response_prep_data(connection, MHD_HTTP_NOT_FOUND, strlen(SP_HTTP_RESPONSE_NOT_FOUND), (void*) SP_HTTP_RESPONSE_NOT_FOUND);
 					goto finalize_request;
 				}
@@ -707,34 +742,43 @@ static int __process_request(void* cls, struct MHD_Connection* connection, const
 
 		if(S_ISDIR(file_status.st_mode))
 		{
-			impact_printf_error("%s: Request 0x%lx: Directory not supported: %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), spsp->file);
+			impact(0, "%s: Request 0x%lx: Directory not supported: %s\n",
+				SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+				spsp->file);
 			spsp->response = __response_prep_data(connection, MHD_HTTP_FORBIDDEN, strlen(SP_HTTP_RESPONSE_FORBIDDEN), (void*) SP_HTTP_RESPONSE_FORBIDDEN);
 			goto finalize_request;
 		}
 
-		impact_printf_debug("%s: Request 0x%lx: Serving FILE %s\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), spsp->file);
+		impact(2, "%s: Request 0x%lx: Serving FILE %s\n",
+			SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+			spsp->file);
 		spsp->response = __response_prep_file(connection, MHD_HTTP_OK, file_status.st_size, spsp->file);
 	}
 	else
 	{
-		impact_printf_debug("%s: Request 0x%lx: %s is not a supported HTTP method\n", SP_HTTP_HEADER_NAMESPACE, pthread_self(), method);
+		impact(2, "%s: Request 0x%lx: %s is not a supported HTTP method\n",
+			SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+			method);
 		spsp->response = __response_prep_data(connection, MHD_HTTP_BAD_REQUEST, strlen(SP_HTTP_RESPONSE_BAD_REQUEST), (void*) SP_HTTP_RESPONSE_BAD_REQUEST);
 	}
 
 finalize_request:
 	if(spsp == NULL)
 	{
-		impact_printf_debug("%s: Request 0x%lx: Prematurely terminating response ...\n", SP_HTTP_HEADER_NAMESPACE, pthread_self());
+		impact(2, "%s: Request 0x%lx: Prematurely terminating response ...\n",
+			SP_HTTP_HEADER_NAMESPACE, pthread_self());
 		return MHD_NO;
 	}
 
 	if(spsp->response)
 	{
-		impact_printf_debug("%s: Request 0x%lx: Sending response ...\n", SP_HTTP_HEADER_NAMESPACE, pthread_self());
+		impact(2, "%s: Request 0x%lx: Sending response ...\n",
+			SP_HTTP_HEADER_NAMESPACE, pthread_self());
 		return MHD_YES;
 	}
 
-	impact_printf_debug("%s: Request 0x%lx: Terminating response ...\n", SP_HTTP_HEADER_NAMESPACE, pthread_self());
+	impact(2, "%s: Request 0x%lx: Terminating response ...\n",
+		SP_HTTP_HEADER_NAMESPACE, pthread_self());
 
 	if(spsp->file) free(spsp->file);
 	if(spsp->data) free(spsp->data);
@@ -763,54 +807,70 @@ void __finalize_request(void* cls, struct MHD_Connection* connection, void** sta
 	#ifdef DEBUG
 	if(spsp == NULL)
 	{
-		impact_printf_debug("%s: Request 0x%lx: Cannot cleanup stateless request\n", SP_HTTP_HEADER_NAMESPACE, pthread_self());
+		impact(2, "%s: Request 0x%lx: Cannot cleanup stateless request\n",
+			SP_HTTP_HEADER_NAMESPACE, pthread_self());
 		return;
 	}
 	#endif // DEBUG
 
-	if(spsp->response) MHD_destroy_response(spsp->response);
-	else impact_printf_debug("%s:%d: BUG! __process_request() should have returned MHD_NO if it failed to queue a response!\n", __FILE__, __LINE__);
+	if(spsp->response)
+	{
+		MHD_destroy_response(spsp->response);
+	}
+	else
+	{
+		impact(2, "%s:%d: BUG! __process_request() should have returned MHD_NO if it failed to queue a response!\n",
+			__PRETTY_FUNCTION__, __LINE__);
+	}
 
 	#ifdef DEBUG
-	if(spsp->file == NULL && spsp->file_length) impact_printf_debug("%s:%d: BUG! simplepost_state::file should NEVER be NULL while simplepost_state::file_length is non-zero\n", __FILE__, __LINE__);
+	if(spsp->file == NULL && spsp->file_length)
+	{
+		impact(2, "%s:%d: BUG! simplepost_state::file should NEVER be NULL while simplepost_state::file_length is non-zero\n",
+			__PRETTY_FUNCTION__, __LINE__);
+	}
 	#endif // DEBUG
 	if(spsp->file) free(spsp->file);
 
 	#ifdef DEBUG
-	if(spsp->data == NULL && spsp->data_length) impact_printf_debug("%s:%d: BUG! simplepost_state::data should NEVER be NULL while simplepost_state::data_length is non-zero\n", __FILE__, __LINE__);
+	if(spsp->data == NULL && spsp->data_length)
+	{
+		impact(2, "%s:%d: BUG! simplepost_state::data should NEVER be NULL while simplepost_state::data_length is non-zero\n",
+			__PRETTY_FUNCTION__, __LINE__);
+	}
 	#endif // DEBUG
 	if(spsp->data) free(spsp->data);
 
 	#ifdef DEBUG
-	impact_printf_debug("%s: Request 0x%lx: ", SP_HTTP_HEADER_NAMESPACE, pthread_self());
+	impact(2, "%s: Request 0x%lx: ", SP_HTTP_HEADER_NAMESPACE, pthread_self());
 	switch(toe)
 	{
 		case MHD_REQUEST_TERMINATED_COMPLETED_OK:
-			impact_printf_debug("Successfully sent the response\n");
+			impact(2, "Successfully sent the response\n");
 			break;
 
 		case MHD_REQUEST_TERMINATED_WITH_ERROR:
-			impact_printf_debug("Error handling the connection\n");
+			impact(2, "Error handling the connection\n");
 			break;
 
 		case MHD_REQUEST_TERMINATED_TIMEOUT_REACHED:
-			impact_printf_debug("No activity on the connection until the timeout was reached\n");
+			impact(2, "No activity on the connection until the timeout was reached\n");
 			break;
 
 		case MHD_REQUEST_TERMINATED_DAEMON_SHUTDOWN:
-			impact_printf_debug("Connection terminated because the server is shutting down\n");
+			impact(2, "Connection terminated because the server is shutting down\n");
 			break;
 
 		case MHD_REQUEST_TERMINATED_READ_ERROR:
-			impact_printf_debug("Connection died because the client did not send the expected data\n");
+			impact(2, "Connection died because the client did not send the expected data\n");
 			break;
 
 		case MHD_REQUEST_TERMINATED_CLIENT_ABORT:
-			impact_printf_debug("The client terminated the connection by closing the socket for writing (TCP half-closed)\n");
+			impact(2, "The client terminated the connection by closing the socket for writing (TCP half-closed)\n");
 			break;
 
 		default:
-			impact_printf_debug("Invalid Termination Code: %d\n", toe);
+			impact(2, "Invalid Termination Code: %d\n", toe);
 			break;
 	}
 	#endif // DEBUG
@@ -886,7 +946,8 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 
 	if(spp->httpd)
 	{
-		impact_printf_error("%s: Server is already initialized\n", SP_HTTP_HEADER_NAMESPACE);
+		impact(0, "%s: Server is already initialized\n",
+			SP_HTTP_HEADER_NAMESPACE);
 		goto error;
 	}
 
@@ -902,7 +963,8 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 
 		if(inet_pton(AF_INET, address, (void*) &sin_addr) != 1)
 		{
-			impact_printf_error("%s: Invalid source address specified\n", SP_HTTP_HEADER_NAMESPACE);
+			impact(0, "%s: Invalid source address specified\n",
+				SP_HTTP_HEADER_NAMESPACE);
 			goto error;
 		}
 		source.sin_addr = sin_addr;
@@ -911,7 +973,8 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 		spp->address = (char*) malloc(sizeof(char) * (strlen(address) + 1));
 		if(spp->address == NULL)
 		{
-			impact_printf_error("%s: %s: Failed to allocate memory for the source address\n", SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
+			impact(0, "%s: %s: Failed to allocate memory for the source address\n",
+				SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
 			goto error;
 		}
 		strcpy(spp->address, address);
@@ -931,7 +994,8 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 			spp->address = (char*) malloc(sizeof(char) * (strlen((const char*) address_info->ai_addr) + 1));
 			if(spp->address == NULL)
 			{
-				impact_printf_error("%s: %s: Failed to allocate memory for the source address\n", SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
+				impact(0, "%s: %s: Failed to allocate memory for the source address\n",
+					SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
 				goto error;
 			}
 			strcpy(spp->address, (const char*) address_info->ai_addr);
@@ -943,7 +1007,8 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 			spp->address = (char*) malloc(sizeof(char) * (strlen("127.0.0.1") + 1));
 			if(spp->address == NULL)
 			{
-				impact_printf_error("%s: %s: Failed to allocate memory for the source address\n", SP_HTTP_HEADER_NAMESPACE , SP_MAIN_HEADER_MEMORY_ALLOC);
+				impact(0, "%s: %s: Failed to allocate memory for the source address\n",
+					SP_HTTP_HEADER_NAMESPACE , SP_MAIN_HEADER_MEMORY_ALLOC);
 				goto error;
 			}
 			strcpy(spp->address, "127.0.0.1");
@@ -961,7 +1026,8 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 		MHD_OPTION_END);
 	if(spp->httpd == NULL)
 	{
-		impact_printf_error("%s: Failed to initialize the server on port %u\n", SP_HTTP_HEADER_NAMESPACE, port);
+		impact(0, "%s: Failed to initialize the server on port %u\n",
+			SP_HTTP_HEADER_NAMESPACE, port);
 		goto error;
 	}
 
@@ -973,13 +1039,15 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 		httpd_sock = MHD_get_daemon_info(spp->httpd, MHD_DAEMON_INFO_LISTEN_FD);
 		if(httpd_sock == NULL)
 		{
-			impact_printf_error("%s: Failed to lock the socket the server is listening on\n", SP_HTTP_HEADER_NAMESPACE);
+			impact(0, "%s: Failed to lock the socket the server is listening on\n",
+				SP_HTTP_HEADER_NAMESPACE);
 			goto error;
 		}
 
 		if(getsockname(httpd_sock->listen_fd, (struct sockaddr*) &source, &source_len) == -1)
 		{
-			impact_printf_error("%s: Port could not be allocated\n", SP_HTTP_HEADER_NAMESPACE);
+			impact(0, "%s: Port could not be allocated\n",
+				SP_HTTP_HEADER_NAMESPACE);
 			goto error;
 		}
 
@@ -987,7 +1055,9 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 	}
 	spp->port = port;
 
-	impact_printf_standard("%s: Bound HTTP server to ADDRESS %s listening on PORT %u with PID %d\n", SP_HTTP_HEADER_NAMESPACE, spp->address, spp->port, getpid());
+	impact(1, "%s: Bound HTTP server to ADDRESS %s listening on PORT %u with PID %d\n",
+		SP_HTTP_HEADER_NAMESPACE,
+		spp->address, spp->port, getpid());
 	pthread_mutex_unlock(&spp->master_lock);
 
 	return port;
@@ -1016,19 +1086,18 @@ bool simplepost_unbind(simplepost_t spp)
 {
 	if(spp->httpd == NULL)
 	{
-		impact_printf_error("%s: Server is not running\n", SP_HTTP_HEADER_NAMESPACE);
+		impact(0, "%s: Server is not running\n", SP_HTTP_HEADER_NAMESPACE);
 		return false;
 	}
 
-	#ifdef DEBUG
-	uintptr_t server_id = (uintptr_t) spp->httpd;
-	#endif // DEBUG
-
-	impact_printf_standard("%s: Shutting down ...\n", SP_HTTP_HEADER_NAMESPACE);
+	impact(1, "%s: Shutting down ...\n", SP_HTTP_HEADER_NAMESPACE);
 	MHD_stop_daemon(spp->httpd);
 	spp->httpd = NULL;
 
-	impact_printf_debug("%s: 0x%lx cleanup complete\n", SP_HTTP_HEADER_NAMESPACE, server_id);
+	#ifdef DEBUG
+	impact(2, "%s: %p cleanup complete\n",
+		SP_HTTP_HEADER_NAMESPACE, spp->httpd);
+	#endif // DEBUG
 
 	return true;
 }
@@ -1118,26 +1187,33 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 
 	if(file == NULL)
 	{
-		impact_printf_debug("%s:%d: BUG! %s requires a FILE\n", __FILE__, __LINE__, __func__);
+		impact(2, "%s:%d: BUG! An input FILE is required\n",
+			__PRETTY_FUNCTION__, __LINE__);
 		goto abort_insert;
 	}
 
 	if(stat(file, &file_status) == -1)
 	{
-		impact_printf_error("%s: Cannot serve nonexistent FILE: %s\n", SP_HTTP_HEADER_NAMESPACE, file);
+		impact(0, "%s: Cannot serve nonexistent FILE: %s\n",
+			SP_HTTP_HEADER_NAMESPACE,
+			file);
 		goto abort_insert;
 	}
 
 	if(!(S_ISREG(file_status.st_mode) || S_ISLNK(file_status.st_mode)))
 	{
-		impact_printf_error("%s: FILE not supported: %s\n", SP_HTTP_HEADER_NAMESPACE, file);
+		impact(0, "%s: FILE not supported: %s\n",
+			SP_HTTP_HEADER_NAMESPACE,
+			file);
 		goto abort_insert;
 	}
 
 	#if (defined SP_HTTP_FILES_MAX) && (SP_HTTP_FILES_MAX > 0)
 	if(spp->files_count == SP_HTTP_FILES_MAX)
 	{
-		impact_printf_error("%s: Cannot serve more than %zu files simultaneously\n", SP_HTTP_HEADER_NAMESPACE, (size_t) SP_HTTP_FILES_MAX);
+		impact(0, "%s: Cannot serve more than %zu files simultaneously\n",
+			SP_HTTP_HEADER_NAMESPACE,
+			(size_t) SP_HTTP_FILES_MAX);
 		goto abort_insert;
 	}
 	#else
@@ -1148,7 +1224,9 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 	{
 		if(uri[0] != '/')
 		{
-			impact_printf_error("%s: Invalid URI: %s\n", SP_HTTP_HEADER_NAMESPACE, uri);
+			impact(0, "%s: Invalid URI: %s\n",
+				SP_HTTP_HEADER_NAMESPACE,
+				uri);
 			goto abort_insert;
 		}
 	}
@@ -1163,7 +1241,9 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 	}
 	if(uri == NULL || uri[0] == '\0')
 	{
-		impact_printf_error("%s:%d: BUG! No URI to insert FILE %s\n", __PRETTY_FUNCTION__, __LINE__, file);
+		impact(0, "%s:%d: BUG! No URI to insert FILE %s\n",
+			__PRETTY_FUNCTION__, __LINE__,
+			file);
 		goto abort_insert;
 	}
 
@@ -1175,7 +1255,8 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 		}
 		if(this_file == NULL)
 		{
-			impact_printf_error("%s:%d: BUG! No last file?\n", __PRETTY_FUNCTION__, __LINE__);
+			impact(0, "%s:%d: BUG! No last file?\n",
+				__PRETTY_FUNCTION__, __LINE__);
 			goto abort_insert;
 		}
 		else if(__does_uri_match(this_file->uri, uri) == false)
@@ -1186,7 +1267,9 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 		}
 		else if(this_file->file && strcmp(this_file->file, file) != 0)
 		{
-			impact_printf_error("%s: URI %s is already in use serving FILE %s, not %s\n", SP_HTTP_HEADER_NAMESPACE, this_file->uri, this_file->file, file);
+			impact(0, "%s: URI %s is already in use serving FILE %s, not %s\n",
+				SP_HTTP_HEADER_NAMESPACE,
+				this_file->uri, this_file->file, file);
 			goto abort_insert;
 		}
 	}
@@ -1237,7 +1320,12 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 		strcpy(this_file->file, file);
 	}
 
-	if(is_file_new == false) impact_printf_debug("%s: Changing URI %s COUNT from %u to %u\n", SP_HTTP_HEADER_NAMESPACE, this_file->uri, this_file->count, count);
+	if(is_file_new == false)
+	{
+		impact(2, "%s: Changing URI %s COUNT from %u to %u\n",
+			SP_HTTP_HEADER_NAMESPACE,
+			this_file->uri, this_file->count, count);
+	}
 	this_file->count = count;
 
 	pthread_mutex_unlock(&spp->files_lock);
@@ -1247,15 +1335,21 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 		switch(count)
 		{
 			case 0:
-				impact_printf_standard("%s: Serving %s on %s indefinitely\n", SP_HTTP_HEADER_NAMESPACE, file, *url);
+				impact(1, "%s: Serving %s on %s indefinitely\n",
+					SP_HTTP_HEADER_NAMESPACE,
+					file, *url);
 				break;
 
 			case 1:
-				impact_printf_standard("%s: Serving %s on %s exactly once\n", SP_HTTP_HEADER_NAMESPACE, file, *url);
+				impact(1, "%s: Serving %s on %s exactly once\n",
+					SP_HTTP_HEADER_NAMESPACE,
+					file, *url);
 				break;
 
 			default:
-				impact_printf_standard("%s: Serving %s on %s %u times\n", SP_HTTP_HEADER_NAMESPACE, file, *url, count);
+				impact(1, "%s: Serving %s on %s %u times\n",
+					SP_HTTP_HEADER_NAMESPACE,
+					file, *url, count);
 				break;
 		}
 	}
@@ -1263,7 +1357,9 @@ size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, con
 	return url_length;
 
 cannot_insert_file:
-	impact_printf_error("%s: Cannot insert FILE: %s\n", SP_HTTP_HEADER_NAMESPACE, file);
+	impact(0, "%s: Cannot insert FILE: %s\n",
+		SP_HTTP_HEADER_NAMESPACE,
+		file);
 
 abort_insert:
 	if(is_file_new)
@@ -1294,7 +1390,8 @@ short simplepost_purge_file(simplepost_t spp, const char* uri)
 {
 	if(uri == NULL)
 	{
-		impact_printf_debug("%s:%d: simplepost_purge_file() requires a URI\n", __FILE__, __LINE__);
+		impact(2, "%s:%d: BUG! An input URI is required\n",
+			__PRETTY_FUNCTION__, __LINE__);
 		return -1;
 	}
 
@@ -1313,7 +1410,9 @@ short simplepost_purge_file(simplepost_t spp, const char* uri)
 	{
 		if(p->uri && strcmp(p->uri, uri) == 0)
 		{
-			impact_printf_standard("%s: Removing URI %s from service ...\n", SP_HTTP_HEADER_NAMESPACE, uri);
+			impact(1, "%s: Removing URI %s from service ...\n",
+				SP_HTTP_HEADER_NAMESPACE,
+				uri);
 
 			if(p == spp->files) spp->files = __simplepost_serve_remove(p, 1);
 			else __simplepost_serve_remove(p, 1);
@@ -1325,7 +1424,9 @@ short simplepost_purge_file(simplepost_t spp, const char* uri)
 	}
 	pthread_mutex_unlock(&spp->files_lock);
 
-	impact_printf_error("%s: Cannot purge nonexistent URI %s\n", SP_HTTP_HEADER_NAMESPACE, uri);
+	impact(0, "%s: Cannot purge nonexistent URI %s\n",
+		SP_HTTP_HEADER_NAMESPACE,
+		uri);
 
 	return 0;
 }

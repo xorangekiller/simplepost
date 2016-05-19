@@ -139,7 +139,9 @@ static size_t __sock_recv(int sock, const char* command, char** data)
 	{
 		if(i == sizeof(buffer))
 		{
-			impact_printf_error("%s: %s: String size cannot be longer than %zu bytes\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, sizeof(buffer));
+			impact(0, "%s: %s: String size cannot be longer than %zu bytes\n",
+				SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+				sizeof(buffer));
 			return 0;
 		}
 
@@ -149,17 +151,29 @@ static size_t __sock_recv(int sock, const char* command, char** data)
 
 	if(sscanf(buffer, "%zu", &length) != 1)
 	{
-		impact_printf_error("%s: %s: %s is not a valid string size\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer);
+		impact(0, "%s: %s: %s is not a valid string size\n",
+			SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+			buffer);
 		return 0;
 	}
 
 	*data = (char*) malloc(sizeof(char) * (length + 1));
 	if(*data == NULL)
 	{
-		impact_printf_debug("%s: %s: Failed to allocate memory for command data buffer\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
+		impact(2, "%s: %s: Failed to allocate memory for command data buffer\n",
+			SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
 
-		if(command) impact_printf_error("%s: Data buffer required for command %s\n", SP_COMMAND_HEADER_NAMESPACE, command);
-		else impact_printf_error("%s: Buffer required to receive data\n", SP_COMMAND_HEADER_NAMESPACE);
+		if(command)
+		{
+			impact(0, "%s: Data buffer required for command %s\n",
+				SP_COMMAND_HEADER_NAMESPACE,
+				command);
+		}
+		else
+		{
+			impact(0, "%s: Buffer required to receive data\n",
+				SP_COMMAND_HEADER_NAMESPACE);
+		}
 
 		return 0;
 	}
@@ -178,7 +192,9 @@ static size_t __sock_recv(int sock, const char* command, char** data)
 		}
 		else
 		{
-			impact_printf_error("%s: Read of %s aborted after receiving only %zu of %zu bytes\n", SP_COMMAND_HEADER_NAMESPACE, command ? command : "data", i, length);
+			impact(0, "%s: Read of %s aborted after receiving only %zu of %zu bytes\n",
+				SP_COMMAND_HEADER_NAMESPACE,
+				command ? command : "data", i, length);
 
 			free(*data);
 			*data = NULL;
@@ -268,14 +284,17 @@ size_t simplecmd_list_inst(simplecmd_list_t* sclp)
 	dp = opendir(SP_COMMAND_SOCK_DIR);
 	if(dp == NULL)
 	{
-		impact_printf_error("%s: Failed to open the command socket directory %s: %s\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_SOCK_DIR, strerror(errno));
+		impact(0, "%s: Failed to open the command socket directory %s: %s\n",
+			SP_COMMAND_HEADER_NAMESPACE,
+			SP_COMMAND_SOCK_DIR, strerror(errno));
 		return 0;
 	}
 
 	sprintf(sock_name, "^%s_sock_[0-9]+$", SP_MAIN_SHORT_NAME);
 	if(regcomp(&regex, sock_name, REG_EXTENDED | REG_NOSUB | REG_NEWLINE))
 	{
-		impact_printf_error("%s: BUG! Failed to compile the socket matching regular expression\n", __PRETTY_FUNCTION__);
+		impact(0, "%s: BUG! Failed to compile the socket matching regular expression\n",
+			__PRETTY_FUNCTION__);
 		closedir(dp);
 		return 0;
 	}
@@ -287,7 +306,10 @@ size_t simplecmd_list_inst(simplecmd_list_t* sclp)
 		suspect_len = snprintf(suspect, sizeof(suspect), "%s/%s", SP_COMMAND_SOCK_DIR, ep->d_name);
 		if(suspect_len < 1 || (size_t) suspect_len >= sizeof(suspect))
 		{
-			impact_printf_debug("%s: Skipping %s/%s because only %zu of %d bytes are available in the buffer\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_SOCK_DIR, ep->d_name, sizeof(suspect), suspect_len);
+			impact(0, "%s: Skipping %s/%s because only %zu of %d bytes are available in the buffer\n",
+				SP_COMMAND_HEADER_NAMESPACE,
+				SP_COMMAND_SOCK_DIR, ep->d_name,
+				sizeof(suspect), suspect_len);
 			continue;
 		}
 
@@ -301,7 +323,8 @@ size_t simplecmd_list_inst(simplecmd_list_t* sclp)
 					tail->next = simplecmd_list_init();
 					if(tail->next == NULL)
 					{
-						impact_printf_debug("%s: %s: Failed to add a new element to the element list\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
+						impact(0, "%s: %s: Failed to add a new element to the element list\n",
+							SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
 
 						simplecmd_list_free(*sclp);
 						*sclp = NULL;
@@ -317,7 +340,8 @@ size_t simplecmd_list_inst(simplecmd_list_t* sclp)
 					tail = *sclp = simplecmd_list_init();
 					if(tail == NULL)
 					{
-						impact_printf_error("%s:%d: Failed to initialize the list\n", __FILE__, __LINE__);
+						impact(0, "%s:%d: Failed to initialize the list\n",
+							__FILE__, __LINE__);
 						break;
 					}
 				}
@@ -326,7 +350,8 @@ size_t simplecmd_list_inst(simplecmd_list_t* sclp)
 				tail->sock_name = (char*) malloc(sizeof(char) * (strlen(suspect) + 1));
 				if(tail->sock_name == NULL)
 				{
-					impact_printf_debug("%s: %s: Failed to allocate memory for socket name\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
+					impact(2, "%s: %s: Failed to allocate memory for socket name\n",
+						SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
 
 					simplecmd_list_free(*sclp);
 					*sclp = NULL;
@@ -340,14 +365,17 @@ size_t simplecmd_list_inst(simplecmd_list_t* sclp)
 				while(isdigit(*pid_ptr) == 0) ++pid_ptr;
 				sscanf(pid_ptr, "%d", &tail->inst_pid);
 
-				impact_printf_debug("%s: Found %s:%d socket %s\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, tail->inst_pid, tail->sock_name);
+				impact(2, "%s: Found %s:%d socket %s\n",
+					SP_COMMAND_HEADER_NAMESPACE,
+						SP_MAIN_DESCRIPTION, tail->inst_pid,
+						tail->sock_name);
 			}
 			else if(regex_ret != REG_NOMATCH)
 			{
 				char buffer[1024]; // regerror() error message
 
 				regerror(regex_ret, &regex, buffer, sizeof(buffer)/sizeof(buffer[0]));
-				impact_printf_error("%s: %s\n", SP_COMMAND_HEADER_NAMESPACE, buffer);
+				impact(0, "%s: %s\n", SP_COMMAND_HEADER_NAMESPACE, buffer);
 
 				if(*sclp)
 				{
@@ -628,7 +656,9 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 
 	count = simplepost_get_files(scp->spp, &files);
 
-	impact_printf_debug("%s: %s: Sending list of %zu files\n", SP_COMMAND_HEADER_NAMESPACE, __func__, count);
+	impact(2, "%s: %s: Sending list of %zu files\n",
+		SP_COMMAND_HEADER_NAMESPACE,
+		__func__, count);
 	if(sprintf(buffer, "%zu", count) <= 0)
 	{
 		simplepost_file_free(files);
@@ -638,7 +668,9 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 
 	for(simplepost_file_t p = files; p; p = p->next)
 	{
-		impact_printf_debug("%s: %s: Sending %s %zu\n", SP_COMMAND_HEADER_NAMESPACE, __func__, SP_COMMAND_FILE_INDEX, i);
+		impact(2, "%s: %s: Sending %s %zu\n",
+			SP_COMMAND_HEADER_NAMESPACE, __func__,
+			SP_COMMAND_FILE_INDEX, i);
 		if(sprintf(buffer, "%zu", i++) <= 0)
 		{
 			simplepost_file_free(files);
@@ -648,13 +680,17 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 
 		if(p->file)
 		{
-			impact_printf_debug("%s: %s: Sending %s %s\n", SP_COMMAND_HEADER_NAMESPACE, __func__, SP_COMMAND_FILE_FILE, p->file);
+			impact(2, "%s: %s: Sending %s %s\n",
+				SP_COMMAND_HEADER_NAMESPACE, __func__,
+				SP_COMMAND_FILE_FILE, p->file);
 			__sock_send(sock, SP_COMMAND_FILE_FILE, p->file);
 		}
 
 		if(p->url)
 		{
-			impact_printf_debug("%s: %s: Sending %s %s\n", SP_COMMAND_HEADER_NAMESPACE, __func__, SP_COMMAND_FILE_URL, p->url);
+			impact(2, "%s: %s: Sending %s %s\n",
+				SP_COMMAND_HEADER_NAMESPACE, __func__,
+				SP_COMMAND_FILE_URL, p->url);
 			__sock_send(sock, SP_COMMAND_FILE_URL, p->url);
 		}
 
@@ -662,12 +698,16 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 		{
 			if(sprintf(buffer, "%u", p->count) <= 0)
 			{
-				impact_printf_error("%s: %s: Failed to buffer %s %u\n", SP_COMMAND_HEADER_NAMESPACE, __func__, SP_COMMAND_FILE_COUNT, p->count);
+				impact(0, "%s: %s: Failed to buffer %s %u\n",
+					SP_COMMAND_HEADER_NAMESPACE, __func__,
+					SP_COMMAND_FILE_COUNT, p->count);
 				simplepost_file_free(files);
 				return false;
 			}
 
-			impact_printf_debug("%s: %s: Sending %s %s\n", SP_COMMAND_HEADER_NAMESPACE, __func__, SP_COMMAND_FILE_COUNT, buffer);
+			impact(0, "%s: %s: Sending %s %s\n",
+				SP_COMMAND_HEADER_NAMESPACE, __func__,
+				SP_COMMAND_FILE_COUNT, buffer);
 			__sock_send(sock, SP_COMMAND_FILE_COUNT, buffer);
 		}
 	}
@@ -703,7 +743,9 @@ static bool __command_recv_file(simplecmd_t scp, int sock)
 
 	if(sscanf(buffer, "%u", &count) == EOF)
 	{
-		impact_printf_error("%s: %s: %s is not a port number\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC, buffer);
+		impact(0, "%s: %s: %s is not a port number\n",
+			SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC,
+			buffer);
 
 		free(buffer);
 		free(file);
@@ -751,7 +793,9 @@ static void* __process_request(void* p)
 	{
 		if(strcmp(command, __command_handlers[i].request) == 0)
 		{
-			impact_printf_debug("%s: Request 0x%lx: Responding to %s command\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), __command_handlers[i].request);
+			impact(2, "%s: Request 0x%lx: Responding to %s command\n",
+				SP_COMMAND_HEADER_NAMESPACE, pthread_self(),
+				__command_handlers[i].request);
 			response = (*__command_handlers[i].handler)(scp, sock);
 			break;
 		}
@@ -760,16 +804,22 @@ static void* __process_request(void* p)
 	#ifdef DEBUG
 	if(response)
 	{
-		impact_printf_debug("%s: Request 0x%lx: Successfully processed %s command\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), command);
+		impact(2, "%s: Request 0x%lx: Successfully processed %s command\n",
+			SP_COMMAND_HEADER_NAMESPACE, pthread_self(),
+			command);
 	}
 	else
 	{
-		impact_printf_debug("%s: Request 0x%lx: Failed to process %s command\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), command);
+		impact(2, "%s: Request 0x%lx: Failed to process %s command\n",
+			SP_COMMAND_HEADER_NAMESPACE, pthread_self(),
+			command);
 	}
 	#endif // DEBUG
 
 error:
-	impact_printf_debug("%s: Request 0x%lx: Closing client %d\n", SP_COMMAND_HEADER_NAMESPACE, pthread_self(), sock);
+	impact(3, "%s: Request 0x%lx: Closing client %d\n",
+		SP_COMMAND_HEADER_NAMESPACE, pthread_self(),
+		sock);
 	close(sock);
 
 	if(command) free(command);
@@ -811,7 +861,9 @@ static void* __accept_requests(void* p)
 		switch(pselect(scp->sock + 1, &fds, NULL, NULL, &timeout, NULL))
 		{
 			case -1:
-				impact_printf_error("%s: Cannot accept connections on socket %d\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock);
+				impact(0, "%s: Cannot accept connections on socket %d\n",
+					SP_COMMAND_HEADER_NAMESPACE,
+					scp->sock);
 				scp->accpeting_clients = false;
 				continue;
 
@@ -826,7 +878,8 @@ static void* __accept_requests(void* p)
 		struct simplecmd_request* scrp = (struct simplecmd_request*) malloc(sizeof(struct simplecmd_request));
 		if(scrp == NULL)
 		{
-			impact_printf_error("%s: %s: Failed to allocate memory for a new command request thread\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
+			impact(0, "%s: %s: Failed to allocate memory for a new command request thread\n",
+				SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
 			scp->accpeting_clients = false;
 			continue;
 		}
@@ -835,21 +888,29 @@ static void* __accept_requests(void* p)
 
 		if(pthread_create(&client_thread, NULL, &__process_request, (void*) scrp) == 0)
 		{
-			impact_printf_debug("%s: Launched request processing thread 0x%lx for client %d\n", SP_COMMAND_HEADER_NAMESPACE, client_thread, client_sock);
+			impact(2, "%s: Launched request processing thread 0x%lx for client %d\n",
+				SP_COMMAND_HEADER_NAMESPACE,
+				client_thread, client_sock);
 			pthread_detach(client_thread);
 		}
 		else
 		{
-			impact_printf_debug("%s: Failed to launch request processing thread for client %d\n", SP_COMMAND_HEADER_NAMESPACE, client_sock);
+			impact(2, "%s: Failed to launch request processing thread for client %d\n",
+				SP_COMMAND_HEADER_NAMESPACE,
+				client_sock);
 			close(scrp->client_sock);
 			free(scrp);
 		}
 	}
 
-	impact_printf_debug("%s: Waiting for %lu clients to finish processing ...\n", SP_COMMAND_HEADER_NAMESPACE, scp->client_count);
+	impact(2, "%s: Waiting for %zu clients to finish processing ...\n",
+		SP_COMMAND_HEADER_NAMESPACE,
+		scp->client_count);
 	while(scp->client_count) usleep(1000);
 
-	impact_printf_debug("%s: Closing socket %d\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock);
+	impact(3, "%s: Closing socket %d\n",
+		SP_COMMAND_HEADER_NAMESPACE,
+		scp->sock);
 	close(scp->sock);
 	scp->sock = -1;
 	remove(scp->sock_name);
@@ -896,7 +957,8 @@ void simplecmd_free(simplecmd_t scp)
 
 	if(scp->sock != -1)
 	{
-		impact_printf_debug("%s:%d: BUG! simplecmd_deactivate() should have (directly or indirectly) closed the socket already!\n", __FILE__, __LINE__);
+		impact(2, "%s:%d: BUG! %s should have (directly or indirectly) closed the socket already!\n",
+			__FILE__, __LINE__, __func__);
 		close(scp->sock);
 	}
 
@@ -920,13 +982,16 @@ bool simplecmd_activate(simplecmd_t scp, simplepost_t spp)
 {
 	if(scp->sock != -1)
 	{
-		impact_printf_error("%s: Server is already activated\n", SP_COMMAND_HEADER_NAMESPACE);
+		impact(0, "%s: Server is already activated\n",
+			SP_COMMAND_HEADER_NAMESPACE);
 		return false;
 	}
 
 	if(spp == NULL)
 	{
-		impact_printf_error("%s: Cannot activate command server without a %s instance\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION);
+		impact(0, "%s: Cannot activate command server without a %s instance\n",
+			SP_COMMAND_HEADER_NAMESPACE,
+			SP_MAIN_DESCRIPTION);
 		return false;
 	}
 	scp->spp = spp;
@@ -940,7 +1005,8 @@ bool simplecmd_activate(simplecmd_t scp, simplepost_t spp)
 		scp->sock_name = (char*) malloc(sizeof(char) * (strlen(buffer) + 1));
 		if(scp->sock_name == NULL)
 		{
-			impact_printf_error("%s: %s: Failed to allocate memory for the socket name\n", SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
+			impact(0, "%s: %s: Failed to allocate memory for the socket name\n",
+				SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
 			return false;
 		}
 		strcpy(scp->sock_name, buffer);
@@ -949,7 +1015,8 @@ bool simplecmd_activate(simplecmd_t scp, simplepost_t spp)
 	scp->sock = socket(AF_UNIX, SOCK_STREAM, 0);
 	if(scp->sock == -1)
 	{
-		impact_printf_error("%s: Socket could not be created\n", SP_COMMAND_HEADER_NAMESPACE);
+		impact(0, "%s: Socket could not be created\n",
+			SP_COMMAND_HEADER_NAMESPACE);
 		return false;
 	}
 
@@ -960,23 +1027,31 @@ bool simplecmd_activate(simplecmd_t scp, simplepost_t spp)
 
 	if(bind(scp->sock, (struct sockaddr*) &sock_addr, sizeof(struct sockaddr_un)) == -1)
 	{
-		impact_printf_error("%s: Failed to bind %s to socket %d\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock_name, scp->sock);
+		impact(0, "%s: Failed to bind %s to socket %d\n",
+			SP_COMMAND_HEADER_NAMESPACE,
+			scp->sock_name, scp->sock);
 		goto error;
 	}
 
 	if(listen(scp->sock, 30) == -1)
 	{
-		impact_printf_error("%s: Cannot listen on socket %d\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock);
+		impact(0, "%s: Cannot listen on socket %d\n",
+			SP_COMMAND_HEADER_NAMESPACE,
+			scp->sock);
 		goto error;
 	}
 
 	if(pthread_create(&scp->accept_thread, NULL, &__accept_requests, (void*) scp) != 0)
 	{
-		impact_printf_error("%s: Failed to create listen thread for %s\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock_name);
+		impact(0, "%s: Failed to create listen thread for %s\n",
+			SP_COMMAND_HEADER_NAMESPACE,
+			scp->sock_name);
 		goto error;
 	}
 
-	impact_printf_standard("%s: Now accepting commands on %s\n", SP_COMMAND_HEADER_NAMESPACE, scp->sock_name);
+	impact(1, "%s: Now accepting commands on %s\n",
+		SP_COMMAND_HEADER_NAMESPACE,
+		scp->sock_name);
 
 	return true;
 
@@ -1003,20 +1078,19 @@ bool simplecmd_deactivate(simplecmd_t scp)
 {
 	if(scp->sock == -1)
 	{
-		impact_printf_error("%s: Server is not active\n", SP_COMMAND_HEADER_NAMESPACE);
+		impact(0, "%s: Server is not active\n", SP_COMMAND_HEADER_NAMESPACE);
 		return false;
 	}
 
-	#ifdef DEBUG
-	pthread_t accept_thread = scp->accept_thread;
-	#endif // DEBUG
-
-	impact_printf_standard("%s: Shutting down ...\n", SP_COMMAND_HEADER_NAMESPACE);
+	impact(1, "%s: Shutting down ...\n", SP_COMMAND_HEADER_NAMESPACE);
 
 	scp->accpeting_clients = false;
 	pthread_join(scp->accept_thread, NULL);
 
-	impact_printf_debug("%s: 0x%lx cleanup complete\n", SP_COMMAND_HEADER_NAMESPACE, accept_thread);
+	#ifdef DEBUG
+	impact(2, "%s: 0x%tu cleanup complete\n",
+		SP_COMMAND_HEADER_NAMESPACE, scp->accept_thread);
+	#endif // DEBUG
 
 	return true;
 }
@@ -1059,19 +1133,25 @@ static int __open_sock_by_pid(pid_t server_pid)
 	sprintf(sock_name, "%s/%s_sock_%d", SP_COMMAND_SOCK_DIR, SP_MAIN_SHORT_NAME, server_pid);
 	if(stat(sock_name, &sock_status) == -1)
 	{
-		impact_printf_error("%s: Socket %s does not exist\n", SP_COMMAND_HEADER_NAMESPACE, sock_name);
+		impact(0, "%s: Socket %s does not exist\n",
+			SP_COMMAND_HEADER_NAMESPACE,
+			sock_name);
 		return -2;
 	}
 	if(S_ISSOCK(sock_status.st_mode) == 0)
 	{
-		impact_printf_error("%s: %s is not a socket\n", SP_COMMAND_HEADER_NAMESPACE, sock_name);
+		impact(0, "%s: %s is not a socket\n",
+			SP_COMMAND_HEADER_NAMESPACE,
+			sock_name);
 		return -2;
 	}
 
 	sock = socket(AF_UNIX, SOCK_STREAM, 0);
 	if(sock == -1)
 	{
-		impact_printf_error("%s: Failed to open socket %s\n", SP_COMMAND_HEADER_NAMESPACE, sock_name);
+		impact(0, "%s: Failed to open socket %s\n",
+			SP_COMMAND_HEADER_NAMESPACE,
+			sock_name);
 		return -1;
 	}
 
@@ -1081,7 +1161,9 @@ static int __open_sock_by_pid(pid_t server_pid)
 
 	if(connect(sock, (struct sockaddr*) &sock_addr, sizeof(sock_addr)) == -1)
 	{
-		impact_printf_error("%s: Failed to connect to socket %s\n", SP_COMMAND_HEADER_NAMESPACE, sock_name);
+		impact(0, "%s: Failed to connect to socket %s\n",
+			SP_COMMAND_HEADER_NAMESPACE,
+			sock_name);
 		close(sock);
 		return -1;
 	}
@@ -1146,7 +1228,9 @@ unsigned short simplecmd_get_port(pid_t server_pid)
 	{
 		if(sscanf(buffer, "%hu", &port) != 1)
 		{
-			impact_printf_error("%s: %s: %s is not a port number\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer);
+			impact(0, "%s: %s: %s is not a port number\n",
+				SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+				buffer);
 			port = 0;
 		}
 		free(buffer);
@@ -1220,12 +1304,16 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 
 	if(sscanf(buffer, "%zu", &count) != 1)
 	{
-		impact_printf_error("%s: %s: %s is not a number\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer);
+		impact(0, "%s: %s: %s is not a number\n",
+			SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+			buffer);
 		goto error;
 	}
 	free(buffer);
 
-	impact_printf_debug("%s: %s: Receiving list of %zu files\n", SP_COMMAND_HEADER_NAMESPACE, __func__, count);
+	impact(2, "%s: %s: Receiving list of %zu files\n",
+		SP_COMMAND_HEADER_NAMESPACE, __func__,
+		count);
 	if(count == 0) goto no_error;
 
 	while((i + 1) < count || tail == NULL || tail->file == NULL || tail->url == NULL)
@@ -1233,7 +1321,9 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 		__sock_recv(sock, NULL, &buffer);
 		if(buffer == NULL) goto error;
 
-		impact_printf_debug("%s: %s: Receiving %s\n", SP_COMMAND_HEADER_NAMESPACE, __func__, buffer);
+		impact(2, "%s: %s: Receiving %s\n",
+			SP_COMMAND_HEADER_NAMESPACE, __func__,
+			buffer);
 
 		if(strcmp(buffer, SP_COMMAND_FILE_INDEX) == 0)
 		{
@@ -1242,13 +1332,16 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 			__sock_recv(sock, NULL, &buffer);
 			if(buffer == NULL)
 			{
-				impact_printf_error("%s: %s: Did not receive the next file index as expected\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR);
+				impact(0, "%s: %s: Did not receive the next file index as expected\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR);
 				goto error;
 			}
 
 			if(sscanf(buffer, "%zu", &t) != 1)
 			{
-				impact_printf_error("%s: %s: %s is not a number\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer);
+				impact(0, "%s: %s: %s is not a number\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+					buffer);
 				goto error;
 			}
 			free(buffer);
@@ -1258,7 +1351,9 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 			{
 				if(t != i)
 				{
-					impact_printf_error("%s: %s: Expected the next file index to be %zu, not %zu\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i, t);
+					impact(0, "%s: %s: Expected the next file index to be %zu, not %zu\n",
+						SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+						i, t);
 					goto error;
 				}
 
@@ -1269,7 +1364,9 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 			{
 				if(t != ++i)
 				{
-					impact_printf_error("%s: %s: Expected the next file index to be %zu, not %zu\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i, t);
+					impact(0, "%s: %s: Expected the next file index to be %zu, not %zu\n",
+						SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+						i, t);
 					goto error;
 				}
 
@@ -1284,7 +1381,9 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 		}
 		else if(tail == NULL)
 		{
-			impact_printf_error("%s: %s: Received \"%s\" before the first file index\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer);
+			impact(0, "%s: %s: Received \"%s\" before the first file index\n",
+				SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+				buffer);
 			goto error;
 		}
 		else if(strcmp(buffer, SP_COMMAND_FILE_FILE) == 0)
@@ -1294,13 +1393,17 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 			__sock_recv(sock, NULL, &buffer);
 			if(buffer == NULL)
 			{
-				impact_printf_error("%s: %s: Did not receive the file[%zu] location as expected\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i);
+				impact(0, "%s: %s: Did not receive the file[%zu] location as expected\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+					i);
 				goto error;
 			}
 
 			if(tail->file)
 			{
-				impact_printf_error("%s: %s: Received new file[%zu] location \"%s\", but it is already set to \"%s\"\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i, buffer, tail->file);
+				impact(0, "%s: %s: Received new file[%zu] location \"%s\", but it is already set to \"%s\"\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+					i, buffer, tail->file);
 				goto error;
 			}
 
@@ -1313,13 +1416,17 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 			__sock_recv(sock, NULL, &buffer);
 			if(buffer == NULL)
 			{
-				impact_printf_error("%s: %s: Did not receive the file[%zu] URL as expected\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i);
+				impact(0, "%s: %s: Did not receive the file[%zu] URL as expected\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+					i);
 				goto error;
 			}
 
 			if(tail->url)
 			{
-				impact_printf_error("%s: %s: Received new file[%zu] URL \"%s\", but it is already set to \"%s\"\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i, buffer, tail->url);
+				impact(0, "%s: %s: Received new file[%zu] URL \"%s\", but it is already set to \"%s\"\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+					i, buffer, tail->url);
 				goto error;
 			}
 
@@ -1332,13 +1439,17 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 			__sock_recv(sock, NULL, &buffer);
 			if(buffer == NULL)
 			{
-				impact_printf_error("%s: %s: Did not receive the file[%zu] count as expected\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i);
+				impact(0, "%s: %s: Did not receive the file[%zu] count as expected\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+					i);
 				goto error;
 			}
 
 			if(sscanf(buffer, "%u", &tail->count) != 1)
 			{
-				impact_printf_error("%s: %s: Received new file[%zu] count \"%s\", but it is not a positive integer as expected!\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, i, buffer);
+				impact(0, "%s: %s: Received new file[%zu] count \"%s\", but it is not a positive integer as expected!\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+					i, buffer);
 				goto error;
 			}
 		}
@@ -1349,7 +1460,9 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 			 * older (or newer) version of this program, and the command
 			 * protocol has changed. If not, it is probably a bug.
 			 */
-			impact_printf_debug("%s: %s: Skipping unsupported file identifier \"%s\"\n", SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR, buffer);
+			impact(2, "%s: %s: Skipping unsupported file identifier \"%s\"\n",
+				SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+				buffer);
 			free(buffer);
 
 			/* Read and discard the argument that presumably comes after the
@@ -1363,7 +1476,9 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 	for(tail = *files, i = 0; tail; tail = tail->next, ++i);
 	if(i != count)
 	{
-		impact_printf_error("%s: BUG! Only received %zu of %zu files\n", __PRETTY_FUNCTION__, i, count);
+		impact(0, "%s: BUG! Only received %zu of %zu files\n",
+			__PRETTY_FUNCTION__,
+			i, count);
 		goto error;
 	}
 

@@ -1,7 +1,7 @@
 /*
  * SimplePost - A Simple HTTP Server
  *
- * Copyright (C) 2012-2015 Karl Lenz.  All rights reserved.
+ * Copyright (C) 2012-2016 Karl Lenz.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -22,17 +22,12 @@
 #ifndef _IMPACT_H_
 #define _IMPACT_H_
 
-#include <stdbool.h>
+/// Default verbosity level (see the impact_level documentation for details)
+#define DEFAULT_IMPACT_LEVEL 1
 
-extern bool impact_quiet;
+extern int impact_level;
 
-int impact_printf_standard(const char* format, ...) __attribute__ ((format (printf, 1, 2)));
-int impact_printf_error(const char* format, ...) __attribute__ ((format (printf, 1, 2)));
-
-#ifdef DEBUG
-int impact_printf_debug(const char* format, ...) __attribute__ ((format (printf, 1, 2)));
-#else // !DEBUG
-#define impact_printf_debug(...)
-#endif // DEBUG
+int impact(int level, const char* format, ...)
+	__attribute__ ((format (printf, 2, 3)));
 
 #endif // _IMPACT_H_

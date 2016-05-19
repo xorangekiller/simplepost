@@ -101,7 +101,19 @@ files
 The \fI--new\fR option must not be specified with this option! The behavior is undefined.
 
 .IP \fB-q\fR,\ \fB--quiet\fR
-Reduce verbosity with extreme prejudice. Do not print anything to STDOUT.
+Reduce verbosity with extreme prejudice. Do not print anything to STDOUT or STDERR.
+
+This option is ignored when the \fI--list\fR option is also given. You may not both explicitly request output and explicitly deny it at the same time!
+
+.IP \fB-s\fR,\ \fB--no-messages\fR
+Suppress all messages but critical error messages.
+
+This option is a slightly less severe alternative to \fI--quiet\fR. If everything works exactly as expected, SimplePost will print anything to the console, just like with \fI--quiet\fR. However if there is a fatal error, SimplePost will print a message about it to STDERR, unlike with \fI--quiet\fR.
+
+.IP \fB-v\fR,\ \fB--verbose\fR
+Print more verbose messages than usual to the console. If this option is given more than once, it will increase the verbosity even further. Note, however, that there is a practical limit to this effect. At some point specifying this option again will not help because you cannot make this program infinitely verbose.
+
+This option will have no effect if the \fI--quiet\fR or \fI--no-messages\fR options are also given. Those options always take precedence.
 
 .IP \fB--help\fR
 Print the program's built-in help documentation.
@@ -151,10 +163,11 @@ The following examples demonstrate the proper syntax for performing various comm
 .br
     $ simplepost -q -p 80 -c 1 ~/.bashrc
 
-\fB5.\fR Serve the current user's BASH aliases file exactly twice on the instance of SimplePost with the process identifier 99031. (Note that if no SimplePost instance has the \fIPID\fR 99031 when this command is run, it will fail. See the \fI--pid\fR and \fIEXIT CODES\fR entries in this manual for more information.)
+\fB5.\fR Serve the current user's BASH aliases file exactly twice on the instance of SimplePost with the process identifier 99031 with very verbose messages. (Note that if no SimplePost instance has the \fIPID\fR 99031 when this command is run, it will fail. See the \fI--pid\fR and \fIEXIT CODES\fR entries in this manual for more information.)
 
 .br
-    $ simplepost --pid 99031 --count 2 ~/.bash_aliases
+    $ simplepost --pid 99031 --verbose --verbose --count 2 ~/.bash_aliases
+    $ simplepost -vvp 99031 -c 2 ~/.bash_aliases
 
 \fB6.\fR Serve the \fIFILE\fR "Training Manual.pdf" on a random port until the SimplePost process receives the TERM signal.
 

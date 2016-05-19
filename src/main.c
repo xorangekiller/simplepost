@@ -70,7 +70,8 @@ static bool __resolve_pid(simplearg_t args)
 		pid_t pid = simplecmd_find_inst(args->address, args->port, args->pid);
 		if(pid == 0)
 		{
-			impact_printf_error("%s: Found no %s command instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+			impact(0, "%s: Found no %s command instance with PID %d\n",
+				SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
 			return false;
 		}
 	}
@@ -95,15 +96,35 @@ static bool __is_pid_valid(const simplearg_t args)
 {
 	if(args->pid == 0)
 	{
-		if(args->address && args->port) impact_printf_error("%s: There is no %s instance bound to ADDRESS %s listening on PORT %hu\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->address, args->port);
-		else if(args->address) impact_printf_error("%s: There is no %s instance bound to ADDRESS %s\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->address);
-		else if(args->port) impact_printf_error("%s: There is no %s instance listening on PORT %hu\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->port);
-		else impact_printf_error("%s: There are no other accessible %s instances\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION);
+		if(args->address && args->port)
+		{
+			impact(0, "%s: There is no %s instance bound to ADDRESS %s listening on PORT %hu\n",
+				SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+				args->address, args->port);
+		}
+		else if(args->address)
+		{
+			impact(0, "%s: There is no %s instance bound to ADDRESS %s\n",
+				SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+				args->address);
+		}
+		else if(args->port)
+		{
+			impact(0, "%s: There is no %s instance listening on PORT %hu\n",
+				SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+				args->port);
+		}
+		else
+		{
+			impact(0, "%s: There are no other accessible %s instances\n",
+				SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION);
+		}
 		return false;
 	}
 	else if(args->options & SA_OPT_NEW)
 	{
-		impact_printf_error("%s: No %s PID may be given with the '--new' option\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION);
+		impact(0, "%s: No %s PID may be given with the '--new' option\n",
+			SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION);
 		return false;
 	}
 
@@ -128,14 +149,18 @@ static bool __list_inst()
 	{
 		if(simplecmd_get_version(p->inst_pid, &version) == 0)
 		{
-			impact_printf_error("%s: Failed to get the version of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, p->inst_pid);
+			impact(0, "%s: Failed to get the version of the %s instance with PID %d\n",
+				SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+				p->inst_pid);
 			++failures;
 			continue;
 		}
 
 		if(simplecmd_get_address(p->inst_pid, &address) == 0)
 		{
-			impact_printf_error("%s: Failed to get the address of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, p->inst_pid);
+			impact(0, "%s: Failed to get the address of the %s instance with PID %d\n",
+				SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+				p->inst_pid);
 			++failures;
 			free(version);
 			continue;
@@ -144,14 +169,19 @@ static bool __list_inst()
 		port = simplecmd_get_port(p->inst_pid);
 		if(port == 0)
 		{
-			impact_printf_error("%s: Failed to get the port of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, p->inst_pid);
+			impact(0, "%s: Failed to get the port of the %s instance with PID %d\n",
+				SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+				p->inst_pid);
 			++failures;
 			free(address);
 			free(version);
 			continue;
 		}
 
-		printf("[PID %d] %s %s serving files on %s:%hu\n", p->inst_pid, SP_MAIN_DESCRIPTION, version, address, port);
+		printf("[PID %d] %s %s serving files on %s:%hu\n",
+			p->inst_pid,
+			SP_MAIN_DESCRIPTION, version,
+			address, port);
 		free(address);
 		free(version);
 	}
@@ -176,7 +206,9 @@ static bool __list_files(const simplearg_t args)
 	count = simplecmd_get_files(args->pid, &files);
 	if(count < 0)
 	{
-		impact_printf_error("%s: Failed to get the list of files being served by the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+		impact(0, "%s: Failed to get the list of files being served by the %s instance with PID %d\n",
+			SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+			args->pid);
 		return false;
 	}
 
@@ -217,11 +249,15 @@ static bool __shutdown_inst(const simplearg_t args)
 	const unsigned short sleep_res = 1; // Number of seconds to wait between checks for the other instance
 	unsigned short sleep_count = 0;     // Number of seconds that we have waited for the other instance
 
-	impact_printf_standard("%s: Shutting down the %s instance with PID %d ...\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+	impact(1, "%s: Shutting down the %s instance with PID %d ...\n",
+		SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+		args->pid);
 
 	if(kill(args->pid, SIGTERM) == -1)
 	{
-		impact_printf_error("%s: Failed to kill the %s instance with PID %d: %s\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid, strerror(errno));
+		impact(0, "%s: Failed to kill the %s instance with PID %d: %s\n",
+			SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+			args->pid, strerror(errno));
 		return false;
 	}
 
@@ -234,7 +270,9 @@ static bool __shutdown_inst(const simplearg_t args)
 
 	if(sleep_count >= max_sleep)
 	{
-		impact_printf_error("%s: %s %d did not shut down after %hu seconds!\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid, sleep_count);
+		impact(0, "%s: %s %d did not shut down after %hu seconds!\n",
+			SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+			args->pid, sleep_count);
 		return false;
 	}
 
@@ -254,18 +292,24 @@ static bool __add_to_other_inst(const simplearg_t args)
 	char* address;       // Destination server's address
 	unsigned short port; // Destination server's port
 
-	impact_printf_debug("%s: Trying to connect to the %s instance with PID %d ...\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+	impact(2, "%s: Trying to connect to the %s instance with PID %d ...\n",
+		SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+		args->pid);
 
 	if(simplecmd_get_address(args->pid, &address) == 0)
 	{
-		impact_printf_error("%s: Failed to get the ADDRESS of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+		impact(0, "%s: Failed to get the ADDRESS of the %s instance with PID %d\n",
+			SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+			args->pid);
 		return false;
 	}
 
 	port = simplecmd_get_port(args->pid);
 	if(port == 0)
 	{
-		impact_printf_error("%s: Failed to get the PORT of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+		impact(0, "%s: Failed to get the PORT of the %s instance with PID %d\n",
+			SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+			args->pid);
 		free(address);
 		return false;
 	}
@@ -275,12 +319,16 @@ static bool __add_to_other_inst(const simplearg_t args)
 
 	if(simplecmd_get_version(args->pid, &version) == 0)
 	{
-		impact_printf_error("%s: Failed to get the version of the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, args->pid);
+		impact(0, "%s: Failed to get the version of the %s instance with PID %d\n",
+			SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+			args->pid);
 		free(address);
 		return false;
 	}
 
-	impact_printf_debug("%s: Serving FILESs on the %s %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, version, args->pid);
+	impact(2, "%s: Serving FILESs on the %s %s instance with PID %d\n",
+		SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
+		version, args->pid);
 
 	free(version);
 	#endif // DEBUG
@@ -289,23 +337,26 @@ static bool __add_to_other_inst(const simplearg_t args)
 	{
 		if(simplecmd_set_file(args->pid, p->file, p->count) == false)
 		{
-			impact_printf_error("%s: Failed to add FILE %s to the %s instance with PID %d\n", SP_MAIN_HEADER_NAMESPACE, p->file, SP_MAIN_DESCRIPTION, args->pid);
+			impact(0, "%s: Failed to add FILE %s to the %s instance with PID %d\n",
+				SP_MAIN_HEADER_NAMESPACE,
+				p->file, SP_MAIN_DESCRIPTION, args->pid);
 		}
 		else
 		{
-			impact_printf_standard("[PID %d] Serving %s on http://%s:%u/%s ", args->pid, p->file, address, port, p->file);
+			impact(1, "[PID %d] Serving %s on http://%s:%u/%s ",
+				args->pid, p->file, address, port, p->file);
 			switch(p->count)
 			{
 				case 0:
-					impact_printf_standard("indefinitely\n");
+					impact(1, "indefinitely\n");
 					break;
 
 				case 1:
-					impact_printf_standard("exactly once\n");
+					impact(1, "exactly once\n");
 					break;
 
 				default:
-					impact_printf_standard("%u times\n", p->count);
+					impact(1, "%u times\n", p->count);
 					break;
 			}
 		}
@@ -328,7 +379,9 @@ static bool __start_httpd(const simplearg_t args)
 	httpd = simplepost_init();
 	if(httpd == NULL)
 	{
-		impact_printf_debug("%s: %s: Failed to allocate memory for %s HTTP server instance\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC, SP_MAIN_DESCRIPTION);
+		impact(2, "%s: %s: Failed to allocate memory for %s HTTP server instance\n",
+			SP_MAIN_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC,
+			SP_MAIN_DESCRIPTION);
 		return false;
 	}
 
@@ -365,7 +418,9 @@ static void __print_help()
 	printf("  -l, --list=LTYPE         list the requested LTYPE of information about an instance of this program\n");
 	printf("                           LTYPE=i,inst,instances    list all server instances that we can connect to\n");
 	printf("                           LTYPE=f,files             list all files being served by the selected server instance\n");
-	printf("  -q, --quiet              do not print anything to standard output\n");
+	printf("  -q, --quiet              do not print anything to standard output or standard error\n");
+	printf("  -s, --no-messages        suppress all messages but critical errors\n");
+	printf("  -v, --verbose            print increasingly more messages\n");
 	printf("      --help               display this help and exit\n");
 	printf("      --version            output version information and exit\n\n");
 	printf("File Options:\n");
@@ -407,18 +462,29 @@ static void __server_reset_pipe(int sig)
 
 	if(cmdd)
 	{
-		impact_printf_error("%s: LOCAL SOCKET COMMUNICATION ERROR!\n", SP_MAIN_HEADER_NAMESPACE);
+		impact(0, "%s: LOCAL SOCKET COMMUNICATION ERROR!\n",
+			SP_MAIN_HEADER_NAMESPACE);
 
-		impact_printf_debug("%s: Attempting to restart command server ...\n", SP_MAIN_HEADER_NAMESPACE);
+		impact(2, "%s: Attempting to restart command server ...\n",
+			SP_MAIN_HEADER_NAMESPACE);
 		simplecmd_free(cmdd);
 		cmdd = simplecmd_init();
 
-		if(cmdd) impact_printf_debug("%s: Command server restarted\n", SP_MAIN_HEADER_NAMESPACE);
-		else impact_printf_debug("%s: Failed to restart command server\n", SP_MAIN_HEADER_NAMESPACE);
+		if(cmdd)
+		{
+			impact(2, "%s: Command server restarted\n",
+				SP_MAIN_HEADER_NAMESPACE);
+		}
+		else
+		{
+			impact(2, "%s: Failed to restart command server\n",
+				SP_MAIN_HEADER_NAMESPACE);
+		}
 	}
 	else
 	{
-		impact_printf_error("%s: Highly improbable! Received SIGPIPE with no active local sockets!\n", SP_MAIN_HEADER_NAMESPACE);
+		impact(0, "%s: Highly improbable! Received SIGPIPE with no active local sockets!\n",
+			SP_MAIN_HEADER_NAMESPACE);
 	}
 }
 
@@ -452,7 +518,7 @@ static void __server_shutdown(int sig)
  */
 static void __server_terminal_interrupt(int sig)
 {
-	impact_printf_standard("\n"); // Terminate the ^C line
+	impact(1, "\n"); // Terminate the ^C line
 	__server_shutdown(sig);
 }
 
@@ -466,11 +532,13 @@ int main(int argc, char* argv[])
 	args = simplearg_init();
 	if(args == NULL)
 	{
-		impact_printf_debug("%s: %s: Failed to allocate memory for %s arguments instance\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC, SP_MAIN_DESCRIPTION);
+		impact(2, "%s: %s: Failed to allocate memory for %s arguments instance\n",
+			SP_MAIN_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC,
+			SP_MAIN_DESCRIPTION);
 		return 0;
 	}
 	simplearg_parse(args, argc, argv);
-	impact_quiet = (args->options & SA_OPT_QUIET) ? true : false;
+	impact_level = args->verbosity;
 
 	if(args->options & SA_OPT_ERROR) return 1;
 	if(args->actions)
@@ -506,7 +574,8 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-			impact_printf_error("%s: BUG! Failed to handle action 0x%02X\n", __PRETTY_FUNCTION__, args->actions);
+			impact(0, "%s: BUG! Failed to handle action 0x%02X\n",
+				__PRETTY_FUNCTION__, args->actions);
 			goto error;
 		}
 	}
@@ -521,10 +590,13 @@ int main(int argc, char* argv[])
 
 	if(args->options & SA_OPT_DAEMON)
 	{
-		impact_printf_standard("%s: Daemonizing and forking to the background\n", SP_MAIN_HEADER_NAMESPACE);
+		impact(1, "%s: Daemonizing and forking to the background\n",
+			SP_MAIN_HEADER_NAMESPACE);
 		if(daemon(1, 0) == -1)
 		{
-			impact_printf_error("%s: Failed to daemonize %s: %s\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION, strerror(errno));
+			impact(0, "%s: Failed to daemonize %s: %s\n",
+				SP_MAIN_HEADER_NAMESPACE,
+				SP_MAIN_DESCRIPTION, strerror(errno));
 			goto error;
 		}
 	}
@@ -540,7 +612,9 @@ int main(int argc, char* argv[])
 	cmdd = simplecmd_init();
 	if(cmdd == NULL)
 	{
-		impact_printf_debug("%s: %s: Failed to allocate memory for %s command server instance\n", SP_MAIN_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC, SP_MAIN_DESCRIPTION);
+		impact(2, "%s: %s: Failed to allocate memory for %s command server instance\n",
+			SP_MAIN_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC,
+			SP_MAIN_DESCRIPTION);
 		goto error;
 	}
 
