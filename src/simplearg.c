@@ -112,11 +112,11 @@ static void __set_address(simplearg_t sap, const char* optstr, const char* arg)
 	}
 
 	strcpy(sap->address, arg);
-	#ifdef DEBUG
+	#ifdef DEBUG_ARG
 	impact(1, "%s: Processed ADDRESS: %s\n",
 		SP_ARGS_HEADER_NAMESPACE,
 		sap->address);
-	#endif // DEBUG
+	#endif // DEBUG_ARG
 }
 
 /*!
@@ -168,11 +168,11 @@ static void __set_port(simplearg_t sap, const char* optstr, const char* arg)
 	else
 	{
 		sap->port = (unsigned short) i;
-		#ifdef DEBUG
+		#ifdef DEBUG_ARG
 		impact(1, "%s: Processed PORT: %hu\n",
 			SP_ARGS_HEADER_NAMESPACE,
 			sap->port);
-		#endif // DEBUG
+		#endif // DEBUG_ARG
 	}
 }
 
@@ -210,20 +210,20 @@ static void __set_list(simplearg_t sap, const char* optstr, const char* arg)
 	if(strcmp(arg, "i") == 0 || strcmp(arg, "inst") == 0 || strcmp(arg, "instances") == 0)
 	{
 		sap->actions |= SA_ACT_LIST_INST;
-		#ifdef DEBUG
+		#ifdef DEBUG_ARG
 		impact(1, "%s: Processed LTYPE: 0x%02X\n",
 			SP_ARGS_HEADER_NAMESPACE,
 			sap->actions & SA_ACT_LIST_INST);
-		#endif // DEBUG
+		#endif // DEBUG_ARG
 	}
 	else if(strcmp(arg, "f") == 0 || strcmp(arg, "files") == 0)
 	{
 		sap->actions |= SA_ACT_LIST_FILES;
-		#ifdef DEBUG
+		#ifdef DEBUG_ARG
 		impact(1, "%s: Processed LTYPE: 0x%02X\n",
 			SP_ARGS_HEADER_NAMESPACE,
 			sap->actions & SA_ACT_LIST_FILES);
-		#endif // DEBUG
+		#endif // DEBUG_ARG
 	}
 	else
 	{
@@ -291,11 +291,11 @@ static void __set_pid(simplearg_t sap, const char* optstr, const char* arg)
 	else
 	{
 		sap->pid = (pid_t) i;
-		#ifdef DEBUG
+		#ifdef DEBUG_ARG
 		impact(1, "%s: Processed PID: %d\n",
 			SP_ARGS_HEADER_NAMESPACE,
 			sap->pid);
-		#endif // DEBUG
+		#endif // DEBUG_ARG
 	}
 }
 
@@ -327,11 +327,11 @@ static void __set_new(simplearg_t sap)
 	else
 	{
 		sap->options |= SA_OPT_NEW;
-		#ifdef DEBUG
+		#ifdef DEBUG_ARG
 		impact(1, "%s: Processed new argument: 0x%02X\n",
 			SP_ARGS_HEADER_NAMESPACE,
 			sap->options & SA_OPT_NEW);
-		#endif // DEBUG
+		#endif // DEBUG_ARG
 	}
 }
 
@@ -357,11 +357,11 @@ static void __set_shutdown(simplearg_t sap)
 	else
 	{
 		sap->actions |= SA_ACT_SHUTDOWN;
-		#ifdef DEBUG
+		#ifdef DEBUG_ARG
 		impact(1, "%s: Processed kill argument: 0x%02X\n",
 			SP_ARGS_HEADER_NAMESPACE,
 			sap->actions & SA_ACT_SHUTDOWN);
-		#endif // DEBUG
+		#endif // DEBUG_ARG
 	}
 }
 
@@ -381,11 +381,11 @@ static void __set_daemon(simplearg_t sap)
 	else
 	{
 		sap->options |= SA_OPT_DAEMON;
-		#ifdef DEBUG
+		#ifdef DEBUG_ARG
 		impact(1, "%s: Processed daemon argument: 0x%02X\n",
 			SP_ARGS_HEADER_NAMESPACE,
 			sap->options & SA_OPT_DAEMON);
-		#endif // DEBUG
+		#endif // DEBUG_ARG
 	}
 }
 
@@ -407,11 +407,11 @@ static void __set_quiet(simplearg_t sap)
 	sap->verbosity = -1;
 
 	sap->options |= SA_OPT_QUIET;
-	#ifdef DEBUG
+	#ifdef DEBUG_ARG
 	impact(1, "%s: Processed quiet argument: 0x%02X\n",
 		SP_ARGS_HEADER_NAMESPACE,
 		sap->options & SA_OPT_QUIET);
-	#endif // DEBUG
+	#endif // DEBUG_ARG
 }
 
 /*!
@@ -434,11 +434,11 @@ static void __set_suppress(simplearg_t sap)
 	}
 
 	sap->options |= SA_OPT_SUPPRESS;
-	#ifdef DEBUG
+	#ifdef DEBUG_ARG
 	impact(1, "%s: Processed suppress argument: 0x%02X\n",
 		SP_ARGS_HEADER_NAMESPACE,
 		sap->options & SA_OPT_SUPPRESS);
-	#endif // DEBUG
+	#endif // DEBUG_ARG
 }
 
 /*!
@@ -453,11 +453,11 @@ static void __set_verbose(simplearg_t sap)
 		++(sap->verbosity);
 	}
 
-	#ifdef DEBUG
+	#ifdef DEBUG_ARG
 	impact(1, "%s: Processed verbose argument: %d\n",
 		SP_ARGS_HEADER_NAMESPACE,
 		sap->verbosity);
-	#endif // DEBUG
+	#endif // DEBUG_ARG
 }
 
 /*!
@@ -468,11 +468,11 @@ static void __set_verbose(simplearg_t sap)
 static void __set_help(simplearg_t sap)
 {
 	sap->actions |= SA_ACT_HELP;
-	#ifdef DEBUG
+	#ifdef DEBUG_ARG
 	impact(1, "%s: Processed help argument: 0x%02X\n",
 		SP_ARGS_HEADER_NAMESPACE,
 		sap->actions & SA_ACT_HELP);
-	#endif // DEBUG
+	#endif // DEBUG_ARG
 }
 
 /*!
@@ -483,11 +483,11 @@ static void __set_help(simplearg_t sap)
 static void __set_version(simplearg_t sap)
 {
 	sap->actions |= SA_ACT_VERSION;
-	#ifdef DEBUG
+	#ifdef DEBUG_ARG
 	impact(1, "%s: Processed version argument: 0x%02X\n",
 		SP_ARGS_HEADER_NAMESPACE,
 		sap->actions & SA_ACT_VERSION);
-	#endif // DEBUG
+	#endif // DEBUG_ARG
 }
 
 /*!
@@ -599,11 +599,11 @@ static void __set_count(simplearg_t sap, const char* optstr, const char* arg)
 	else
 	{
 		last->count = (unsigned int) i;
-		#ifdef DEBUG
+		#ifdef DEBUG_ARG
 		impact(1, "%s: Processed COUNT: %u\n",
 			SP_ARGS_HEADER_NAMESPACE,
 			last->count);
-		#endif // DEBUG
+		#endif // DEBUG_ARG
 	}
 }
 
@@ -674,11 +674,11 @@ static void __set_file(simplearg_t sap, const char* file)
 	}
 
 	strcpy(last->file, file);
-	#ifdef DEBUG
+	#ifdef DEBUG_ARG
 	impact(1, "%s: Processed FILE: %s\n",
 		SP_ARGS_HEADER_NAMESPACE,
 		last->file);
-	#endif // DEBUG
+	#endif // DEBUG_ARG
 }
 
 /*!

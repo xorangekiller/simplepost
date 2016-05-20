@@ -45,6 +45,24 @@ AS_IF([test "x$enable_debug" = xyes],
         AC_SUBST([AM_CFLAGS])],
     [AC_MSG_RESULT([no])])
 
+# Configure argument parser debugging.
+AS_IF([test "x$enable_debug" = xyes],
+    [AC_ARG_ENABLE(debug-arg, AS_HELP_STRING([--enable-debug-arg], [enable command line argument parser debug messages]),
+            [AS_CASE($enableval,
+                [yes|true], [enable_debug_arg=yes],
+                [no|false], [enable_debug_arg=no],
+                [AC_MSG_ERROR(bad value $enableval for --enable-debug-arg)])],
+            [enable_debug_arg=no])
+
+        AC_MSG_CHECKING([whether argument parser debug messages were requested])
+        AS_IF([test "x$enable_debug_arg" = xyes],
+            [AC_MSG_RESULT([yes])
+                AS_IF([AS_ECHO_N([" $CPPFLAGS $AM_CPPFLAGS "]) | egrep -qs "\s+\-DEBUG_ARG\s+"], [], [AM_CPPFLAGS="$AM_CPPFLAGS -DDEBUG_ARG"])
+                AC_SUBST([AM_CPPFLAGS])],
+            [AC_MSG_RESULT([no])])],
+    [enable_debug_arg=no])
+AM_CONDITIONAL([DEBUG_ARG], [test x$enable_debug_arg = xyes])
+
 # Configure automatic coloring on versions of gcc that support it (4.9+).
 my_save_cflags="$CFLAGS"
 CFLAGS=-fdiagnostics-color=auto
@@ -161,6 +179,8 @@ AC_OUTPUT([Makefile
 AS_ECHO(["************************************************************"])
 AS_ECHO(["$PACKAGE_NAME $PACKAGE_VERSION will be built with following features:"])
 printf "  %-39s $enable_debug\n" "Debug build:"
+AS_IF([test "x$enable_debug" = xyes],
+    [printf "  %-39s $enable_debug_arg\n" "Argument parser debug messages:"])
 printf "  %-39s " "Doxygen documentation:"
 AS_IF([test "$DX_FLAG_doc" = 1],
     [AS_ECHO([yes])
