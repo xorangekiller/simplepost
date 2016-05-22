@@ -388,12 +388,12 @@ static enum simplepost_addrerr __get_default_sockaddr(
  * hold the address string if it is too small.
  * \endparblock
  * \param[inout] size
+ * \parblock
  * Size (in bytes) of the string pointed to by addr
  *
  * If addr is reallocated to be larger, size will be modified when this
  * function returns to indicate its new size. If size is zero, addr will be
  * automatically allocated, NOT reallocated!
- * \parblock
  * \endparblock
  *
  * \return the code indicating the address that was retrieved, if any
