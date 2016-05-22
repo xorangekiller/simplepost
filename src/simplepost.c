@@ -24,6 +24,8 @@
 #include "config.h"
 
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <microhttpd.h>
@@ -35,6 +37,25 @@
 #include <netdb.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <errno.h>
+
+#if defined(HAVE_IFADDRS_H) && \
+    defined(HAVE_NET_IF_H)  && \
+    defined(HAVE_SYS_IOCTL_H)
+#define HAVE_IFADDRS_SUPPORT
+#else
+#undef HAVE_IFADDRS_SUPPORT
+#endif
+
+#ifdef HAVE_IFADDRS_SUPPORT
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <ifaddrs.h>
+#endif
+
+#ifdef HAVE_GETLINE
+#include <ctype.h>
+#endif
 
 #ifdef HAVE_LIBMAGIC
 #include <magic.h>
@@ -45,6 +66,387 @@
 
 /// libmicrohttpd error message header
 #define SP_HTTP_HEADER_MICROHTTPD "microhttpd"
+
+/*****************************************************************************
+ *                              Address Support                              *
+ *****************************************************************************/
+
+/*!
+ * \brief Response codes for the SimplePost address resolution methods
+ */
+enum simplepost_addrerr
+{
+	/// Failed to allocate memory for the response
+	SP_AE_MEM_ALLOC = -2,
+
+	/// Fatal error! No address could be retrieved.
+	SP_AE_FATAL = -1,
+
+	/// The address of the default network interface was retrieved
+	/// successfully.
+	SP_AE_DEFAULT_ADDR = 0,
+
+	/// There is no default route. The address of another network interface
+	/// was retrieved instead.
+	SP_AE_OTHER_ADDR = 1,
+
+	/// The address of the loopback interface was retrieved.
+	SP_AE_LO_ADDR = 2
+};
+
+/*!
+ * \brief Get the name of the "default" network interface.
+ *
+ * This function will retrieve the name of the network interface through which
+ * the default route is directed.
+ *
+ * \param[out] ifname Name of the default network interface
+ * \param[in]  size   Size (in bytes) of ifname
+ *
+ * \retval true  The network interface name was returned successfully.
+ * \retval false There is no default route, or the interface associated with
+ *               it could not be determined.
+ */
+static bool __get_default_ifname(char* ifname, size_t size)
+{
+	FILE* fp = fopen("/proc/net/route", "r");
+	if(fp == NULL)
+	{
+		return false;
+	}
+
+	char* buf;            // Temporary buffer for processing a line
+	char* line = NULL;    // Line read from the route list
+	size_t line_size = 0; // Size of the line
+	ssize_t line_len;     // Length of the line
+
+	#ifdef HAVE_GETLINE
+	while((line_len = getline(&line, &line_size, fp)) >= 0)
+	{
+		if(line_len == 0) continue;
+
+		/* The interface name is always the first field on each line of the
+		 * space-delimited route list. Find the end of it.
+		 */
+		buf = line;
+		while(buf < (line + line_len) && isspace(*buf) == 0) ++buf;
+		if(buf == line + line_len) continue;
+
+		/* We found the end of the interface name field. Terminate it so that
+		 * we can easily extract it later if this is indeed the default route.
+		 */
+		*buf++ = '\0';
+		if(buf == line + line_len) continue;
+
+		/* The destination address is the second field on each line of the
+		 * space-delimited route list. Find the beginning of it.
+		 */
+		while(buf < (line + line_len) && isspace(*buf)) ++buf;
+		if(buf == line + line_len) continue;
+
+		/* The default route is identified by a destination address that
+		 * consists of all zeros. Check to see if we found it.
+		 */
+		while(buf < (line + line_len) && *buf == '0') ++buf;
+		if(buf == line + line_len || isspace(*buf) == 0) continue;
+
+		if(ifname == NULL || size <= strlen(line)) goto error;
+
+		strcpy(ifname, line);
+
+		free(line);
+		fclose(fp);
+		return true;
+	}
+	#else // !HAVE_GETLINE
+	(void) ifname;
+	(void) size;
+	(void) buf;
+	(void) line_size;
+	(void) line_len;
+	goto error;
+	#endif // HAVE_GETLINE
+
+error:
+	free(line);
+	fclose(fp);
+	return false;
+}
+
+/*!
+ * \brief Get the name of any active network interface other than loopback.
+ *
+ * \param[out] ifname Name of an active network interface
+ * \param[in]  size   Size (in bytes) of ifname
+ *
+ * \retval true  The network interface name was returned successfully.
+ * \retval false There are no active network interfaces besides the loopback
+ *               interface, or the list could not be retrieved.
+ */
+static bool __get_other_ifname(char* ifname, size_t size)
+{
+	#ifdef HAVE_IFADDRS_SUPPORT
+	struct ifaddrs* addr_list; // Complete list of network interfaces
+
+	if(getifaddrs(&addr_list) == -1) return false;
+
+	for(struct ifaddrs* addr = addr_list; addr; addr = addr->ifa_next)
+	{
+		if(addr->ifa_addr->sa_family != AF_PACKET) continue;
+		if(!(addr->ifa_flags & IFF_UP)) continue;
+		if(addr->ifa_flags & IFF_LOOPBACK) continue;
+
+		if(ifname == NULL || size <= strlen(addr->ifa_name))
+		{
+			freeifaddrs(addr_list);
+			return false;
+		}
+
+		strcpy(ifname, addr->ifa_name);
+
+		freeifaddrs(addr_list);
+		return true;
+	}
+
+	freeifaddrs(addr_list);
+	#else // !HAVE_IFADDRS_SUPPORT
+	(void) ifname;
+	(void) size;
+	#endif // HAVE_IFADDRS_SUPPORT
+
+	return false;
+}
+
+/*!
+ * \brief Get the name of the loopback network interface.
+ *
+ * \param[out] ifname Name of the loopback network interface
+ * \param[in]  size   Size (in bytes) of ifname
+ *
+ * \retval true  The network interface name was returned successfully.
+ * \retval false There is no looback interfaces, or it could not be determined
+ *               for some reason.
+ */
+static bool __get_lo_ifname(char* ifname, size_t size)
+{
+	#ifdef HAVE_IFADDRS_SUPPORT
+	struct ifaddrs* addr_list; // Complete list of network interfaces
+
+	if(getifaddrs(&addr_list) == -1) return false;
+
+	for(struct ifaddrs* addr = addr_list; addr; addr = addr->ifa_next)
+	{
+		if(addr->ifa_addr->sa_family != AF_PACKET) continue;
+		if(!(addr->ifa_flags & IFF_UP)) continue;
+		if(!(addr->ifa_flags & IFF_LOOPBACK)) continue;
+
+		if(ifname == NULL || size <= strlen(addr->ifa_name))
+		{
+			freeifaddrs(addr_list);
+			return false;
+		}
+
+		strcpy(ifname, addr->ifa_name);
+
+		freeifaddrs(addr_list);
+		return true;
+	}
+
+	freeifaddrs(addr_list);
+	#else // !HAVE_IFADDRS_SUPPORT
+	(void) ifname;
+	(void) size;
+	#endif // HAVE_IFADDRS_SUPPORT
+
+	return false;
+}
+
+/*!
+ * \brief Get the address of the "default" network interface in network byte
+ * order.
+ *
+ * This function will attempt to retrieve the IP address of the network
+ * interface through which the default route is directed. If there is no
+ * default route, it will choose another network interface that is up and has
+ * an assigned IP address instead. If there is no such interface, it will fall
+ * back to the loopback interface.
+ *
+ * \note This function's interface intentionally models getsockname(2),
+ * although it is not completely compatible. The intent is that it can fairly
+ * easily be used along side/instead of getsockname().
+ *
+ * \param[out]   addr
+ * \parblock
+ * Address belonging to the network interface indicated by the return value
+ *
+ * This address is truncated if the buffer provided is too small. In this
+ * case, addrlen will return a value greater than was supplied to the call.
+ * \endparblock
+ * \param[inout] addrlen
+ * \parblock
+ * Amount of space (in bytes) pointed to by addr
+ *
+ * When this function returns, this value will be modified to indicate the
+ * actual size of the socket address.
+ * \endparblock
+ *
+ * \return the code indicating the address that was retrieved, if any
+ */
+static enum simplepost_addrerr __get_default_sockaddr(struct sockaddr* addr, socklen_t* addrlen)
+{
+	if(addr == NULL || addrlen == NULL) return SP_AE_MEM_ALLOC;
+
+	#ifdef HAVE_IFADDRS_SUPPORT
+	enum simplepost_addrerr ret; // Error code to return
+	char ifname[IFNAMSIZ];       // Name of the default network interface
+
+	if(__get_default_ifname(ifname, sizeof(ifname)/sizeof(ifname[0])))
+	{
+		ret = SP_AE_DEFAULT_ADDR;
+	}
+	else if(__get_other_ifname(ifname, sizeof(ifname)/sizeof(ifname[0])))
+	{
+		ret = SP_AE_OTHER_ADDR;
+	}
+	else if(__get_lo_ifname(ifname, sizeof(ifname)/sizeof(ifname[0])))
+	{
+		ret = SP_AE_LO_ADDR;
+	}
+	else
+	{
+		return SP_AE_FATAL;
+	}
+
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
+	if(sock == -1) return SP_AE_FATAL;
+
+	struct ifreq ifr;
+	memset(&ifr, 0, sizeof(ifr));
+	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+
+	if(ioctl(sock, SIOCGIFADDR, &ifr) == -1)
+	{
+		close(sock);
+		return SP_AE_FATAL;
+	}
+
+	close(sock);
+	sock = -1;
+
+	if(*addrlen < sizeof(ifr.ifr_addr))
+	{
+		*addrlen = sizeof(ifr.ifr_addr);
+		return SP_AE_MEM_ALLOC;
+	}
+
+	*addrlen = sizeof(ifr.ifr_addr);
+	memcpy(addr, &ifr.ifr_addr, *addrlen);
+	return ret;
+	#else // !HAVE_IFADDRS_SUPPORT
+	struct sockaddr_in lo_addr; // Default loopback address in network byte order
+	char* lo_addr_str;          // Loopback address as a string
+
+	memset(&lo_addr, 0, sizeof(lo_addr));
+	lo_addr.sin_family = AF_INET;
+
+	if(sizeof(lo_addr.sin_addr) != 4) return SP_AE_FATAL;
+	lo_addr_str = (char*) &lo_addr.sin_addr;
+	lo_addr_str[0] = 0x7F;
+	lo_addr_str[1] = 0x00;
+	lo_addr_str[2] = 0x00;
+	lo_addr_str[3] = 0x01;
+
+	if(*addrlen < sizeof(lo_addr))
+	{
+		*addrlen = sizeof(lo_addr);
+		return SP_AE_MEM_ALLOC;
+	}
+
+	*addrlen = sizeof(lo_addr);
+	memcpy(addr, &lo_addr, *addrlen);
+	return SP_AE_LO_ADDR;
+	#endif // HAVE_IFADDRS_SUPPORT
+}
+
+/*!
+ * \brief Get the address of the "default" network interface as a string.
+ *
+ * \note This is a convenience method. It uses __get_default_sockaddr() to do
+ * the "real work" of getting the IP address, then it merely converts it into
+ * a string. If you need to get more information about the interface or need
+ * the address in network byte order as well, call __get_default_sockaddr()
+ * and use inet_ntoa() to get the address string yourself.
+ *
+ * \param[out] addr
+ * \parblock
+ * Address belonging to the network interface indicated by the return value
+ *
+ * This address MUST NOT point to a static buffer! It will be dynamically
+ * allocated if it is NULL, or it will be reallocated to be large enough to
+ * hold the address string if it is too small.
+ * \endparblock
+ * \param[inout] size
+ * Size (in bytes) of the string pointed to by addr
+ *
+ * If addr is reallocated to be larger, size will be modified when this
+ * function returns to indicate its new size. If size is zero, addr will be
+ * automatically allocated, NOT reallocated!
+ * \parblock
+ * \endparblock
+ *
+ * \return the code indicating the address that was retrieved, if any
+ */
+static enum simplepost_addrerr __get_default_address(char** addr, size_t* size)
+{
+	if(addr == NULL || size == NULL) return SP_AE_MEM_ALLOC;
+
+	enum simplepost_addrerr ret; // Error code to return
+	struct sockaddr_in def_addr; // Default address in network byte order
+	socklen_t def_addr_len;      // Length of the default address
+
+	memset(&def_addr, 0, sizeof(def_addr));
+	def_addr.sin_family = AF_INET;
+	def_addr_len = sizeof(def_addr);
+
+	ret = __get_default_sockaddr((struct sockaddr*) &def_addr, &def_addr_len);
+	if(ret < 0) return ret;
+
+	char* tmp_addr;      // Temporary pointer to the address string
+	size_t tmp_addr_len; // Length of the temporary address string
+
+	tmp_addr = inet_ntoa(def_addr.sin_addr);
+	if(tmp_addr == NULL) return SP_AE_FATAL;
+
+	tmp_addr_len = strlen(tmp_addr);
+
+	if(*addr == NULL || *size == 0)
+	{
+		*addr = (char*) malloc(sizeof(char) * (tmp_addr_len + 1));
+		if(*addr == NULL)
+		{
+			*size = 0;
+			return SP_AE_MEM_ALLOC;
+		}
+
+		*size = tmp_addr_len + 1;
+	}
+	else if(*size <= tmp_addr_len)
+	{
+		char* realloc_addr = (char*) realloc(*addr, sizeof(char) * (tmp_addr_len + 1));
+		if(realloc_addr == NULL)
+		{
+			return SP_AE_MEM_ALLOC;
+		}
+
+		*addr = realloc_addr;
+		*size = tmp_addr_len + 1;
+	}
+
+	strncpy(*addr, tmp_addr, tmp_addr_len);
+	(*addr)[tmp_addr_len] = '\0';
+
+	return ret;
+}
 
 /*****************************************************************************
  *                               File Support                                *
@@ -968,7 +1370,7 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 			goto error;
 		}
 		source.sin_addr = sin_addr;
-		
+
 		if(spp->address) free(spp->address);
 		spp->address = (char*) malloc(sizeof(char) * (strlen(address) + 1));
 		if(spp->address == NULL)
@@ -983,36 +1385,25 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 	{
 		source.sin_addr.s_addr = htonl(INADDR_ANY);
 
-		struct addrinfo hints; // Criteria for selecting socket addresses
-		memset((void*) &hints, 0, sizeof(hints));
-		hints.ai_family = AF_INET; // Limit to IPv4
+		char* def_addr = NULL;    // Default source IP address as a string
+		size_t def_addr_size = 0; // Size (in bytes) of def_addr
 
-		struct addrinfo* address_info; // Address information for the local system
-		if(getaddrinfo(NULL, NULL, &hints, &address_info) == 0)
+		if(__get_default_address(&def_addr, &def_addr_size) < 0)
 		{
-			if(spp->address) free(spp->address);
-			spp->address = (char*) malloc(sizeof(char) * (strlen((const char*) address_info->ai_addr) + 1));
-			if(spp->address == NULL)
-			{
-				impact(0, "%s: %s: Failed to allocate memory for the source address\n",
-					SP_HTTP_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
-				goto error;
-			}
-			strcpy(spp->address, (const char*) address_info->ai_addr);
-			freeaddrinfo(address_info);
+			impact(0, "%s: Failed to get the default source address that the server is bound to\n",
+				SP_HTTP_HEADER_NAMESPACE);
+			goto error;
 		}
-		else
+
+		if(def_addr == NULL || def_addr_size == 0)
 		{
-			if(spp->address) free(spp->address);
-			spp->address = (char*) malloc(sizeof(char) * (strlen("127.0.0.1") + 1));
-			if(spp->address == NULL)
-			{
-				impact(0, "%s: %s: Failed to allocate memory for the source address\n",
-					SP_HTTP_HEADER_NAMESPACE , SP_MAIN_HEADER_MEMORY_ALLOC);
-				goto error;
-			}
-			strcpy(spp->address, "127.0.0.1");
+			impact(0, "%s:%d: BUG! __get_default_address succeeded but did not return an address\n",
+				__PRETTY_FUNCTION__, __LINE__);
+			goto error;
 		}
+
+		if(spp->address) free(spp->address);
+		spp->address = def_addr;
 	}
 
 	MHD_set_panic_func(&__panic, (void*) spp);
@@ -1039,20 +1430,22 @@ unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned s
 		httpd_sock = MHD_get_daemon_info(spp->httpd, MHD_DAEMON_INFO_LISTEN_FD);
 		if(httpd_sock == NULL)
 		{
-			impact(0, "%s: Failed to lock the socket the server is listening on\n",
+			impact(0, "%s: Failed to get the socket the server is listening on\n",
 				SP_HTTP_HEADER_NAMESPACE);
 			goto error;
 		}
 
 		if(getsockname(httpd_sock->listen_fd, (struct sockaddr*) &source, &source_len) == -1)
 		{
-			impact(0, "%s: Port could not be allocated\n",
-				SP_HTTP_HEADER_NAMESPACE);
+			impact(0, "%s: Socket could not be allocated: %s\n",
+				SP_HTTP_HEADER_NAMESPACE,
+				strerror(errno));
 			goto error;
 		}
 
 		port = ntohs(source.sin_port);
 	}
+
 	spp->port = port;
 
 	impact(1, "%s: Bound HTTP server to ADDRESS %s listening on PORT %u with PID %d\n",
@@ -1092,12 +1485,13 @@ bool simplepost_unbind(simplepost_t spp)
 
 	impact(1, "%s: Shutting down ...\n", SP_HTTP_HEADER_NAMESPACE);
 	MHD_stop_daemon(spp->httpd);
-	spp->httpd = NULL;
 
 	#ifdef DEBUG
 	impact(2, "%s: %p cleanup complete\n",
 		SP_HTTP_HEADER_NAMESPACE, spp->httpd);
 	#endif // DEBUG
+
+	spp->httpd = NULL;
 
 	return true;
 }

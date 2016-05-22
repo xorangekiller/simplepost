@@ -126,7 +126,7 @@ AC_CHECK_LIB([pthread], [pthread_self],
         LIBS="-lpthread $LIBS"],
     [AC_MSG_ERROR([libpthread not found.])])
 
-# Check for header files.
+# Check for required header files.
 AC_HEADER_STDBOOL
 AC_CHECK_HEADERS([arpa/inet.h  \
                   fcntl.h      \
@@ -147,13 +147,18 @@ AS_IF([test "x$with_libmagic" = xyes],
     [AC_CHECK_HEADERS([magic.h], [],
         [AC_MSG_ERROR([magic.h not found.])])])
 
+# Check for optional header files.
+AC_CHECK_HEADERS([sys/ioctl.h \
+                  net/if.h    \
+                  ifaddrs.h])
+
 # Check for typedefs, structures, and compiler characteristics.
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 
-# Check for library functions.
+# Check for required library functions.
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([memset      \
@@ -166,6 +171,9 @@ AC_CHECK_FUNCS([memset      \
 AC_CHECK_FUNCS(MHD_create_response_from_buffer, [],
     [AC_CHECK_FUNCS(MHD_create_response_from_data, [],
         [AC_MSG_ERROR([libmicrohttpd is broken or has an unsupported method of creating responses.])])])
+
+# Check for optional library functions.
+AC_CHECK_FUNCS([getline])
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_HEADERS([src/config.h:src/config.in])
