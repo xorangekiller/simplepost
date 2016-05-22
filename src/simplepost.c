@@ -292,7 +292,9 @@ static bool __get_lo_ifname(char* ifname, size_t size)
  *
  * \return the code indicating the address that was retrieved, if any
  */
-static enum simplepost_addrerr __get_default_sockaddr(struct sockaddr* addr, socklen_t* addrlen)
+static enum simplepost_addrerr __get_default_sockaddr(
+	struct sockaddr* addr,
+	socklen_t* addrlen)
 {
 	if(addr == NULL || addrlen == NULL) return SP_AE_MEM_ALLOC;
 
@@ -529,7 +531,9 @@ static void __simplepost_serve_free(struct simplepost_serve* spsp)
  * \return the modified list at the inserted element on success, or NULL if
  * something went wrong
  */
-static struct simplepost_serve* __simplepost_serve_insert_before(struct simplepost_serve* spsp1, struct simplepost_serve* spsp2)
+static struct simplepost_serve* __simplepost_serve_insert_before(
+	struct simplepost_serve* spsp1,
+	struct simplepost_serve* spsp2)
 {
 	if(spsp2 == NULL)
 	{
@@ -568,7 +572,9 @@ static struct simplepost_serve* __simplepost_serve_insert_before(struct simplepo
  * \return the modified list at the inserted element on success, or NULL if
  * something went wrong
  */
-static struct simplepost_serve* __simplepost_serve_insert_after(struct simplepost_serve* spsp1, struct simplepost_serve* spsp2)
+static struct simplepost_serve* __simplepost_serve_insert_after(
+	struct simplepost_serve* spsp1,
+	struct simplepost_serve* spsp2)
 {
 	if(spsp2 == NULL)
 	{
@@ -616,7 +622,9 @@ static struct simplepost_serve* __simplepost_serve_insert_after(struct simplepos
  * before spsp. However if there are no more elements in the list (either
  * before spsp or after spsp + n), return NULL instead.
  */
-static struct simplepost_serve* __simplepost_serve_remove(struct simplepost_serve* spsp, size_t n)
+static struct simplepost_serve* __simplepost_serve_remove(
+	struct simplepost_serve* spsp,
+	size_t n)
 {
 	struct simplepost_serve* prev = spsp->prev; // Last element in the original list
 
@@ -700,7 +708,11 @@ static size_t __simplepost_serve_length(struct simplepost_serve* spsp)
  * queued for transmission to the client, or print an error message and return
  * NULL if an error occurs
  */
-static struct MHD_Response* __response_prep_data(struct MHD_Connection* connection, unsigned int status_code, size_t size, void* data)
+static struct MHD_Response* __response_prep_data(
+	struct MHD_Connection* connection,
+	unsigned int status_code,
+	size_t size,
+	void* data)
 {
 	struct MHD_Response* response; // Response to the request
 
@@ -758,7 +770,11 @@ static struct MHD_Response* __response_prep_data(struct MHD_Connection* connecti
  * queued for transmission to the client, or print an error message and return
  * NULL if an error occurs
  */
-static struct MHD_Response* __response_prep_file(struct MHD_Connection* connection, unsigned int status_code, size_t size, const char* file)
+static struct MHD_Response* __response_prep_file(
+	struct MHD_Connection* connection,
+	unsigned int status_code,
+	size_t size,
+	const char* file)
 {
 	struct MHD_Response* response; // Response to the request
 	int fd;                        // File descriptor
@@ -939,7 +955,10 @@ static bool __does_uri_match(const char* uri1, const char* uri2)
  * return value is zero, either the URI does not specify a valid file, or
  * another (more serious) error occurred
  */
-static size_t __get_filename_from_uri(simplepost_t spp, char** file, const char* uri)
+static size_t __get_filename_from_uri(
+	simplepost_t spp,
+	char** file,
+	const char* uri)
 {
 	size_t file_length = 0; // Length of the file name and path
 	*file = NULL;           // Failsafe
@@ -988,7 +1007,11 @@ error:
  * \param[in] line   Line of the C source file where the error occured
  * \param[in] reason Error message
  */
-static void __panic(void* cls, const char* file, unsigned int line, const char* reason)
+static void __panic(
+	void* cls,
+	const char* file,
+	unsigned int line,
+	const char* reason)
 {
 	simplepost_t spp = (simplepost_t) cls; // Instance to act on
 
@@ -1051,7 +1074,15 @@ static void __log_microhttpd_messages(void* cls, const char* format, va_list ap)
  *         serious error we encountered while handling the request
  * \retval MHD_YES will be returned if the connection was handled successfully
  */
-static int __process_request(void* cls, struct MHD_Connection* connection, const char* uri, const char* method, const char* version, const char* data, size_t* data_size, void** state)
+static int __process_request(
+	void* cls,
+	struct MHD_Connection* connection,
+	const char* uri,
+	const char* method,
+	const char* version,
+	const char* data,
+	size_t* data_size,
+	void** state)
 {
 	// Unused parameters
 	(void) data;
@@ -1119,7 +1150,10 @@ static int __process_request(void* cls, struct MHD_Connection* connection, const
 			impact(0, "%s: Request 0x%lx: Resource not found: %s\n",
 				SP_HTTP_HEADER_NAMESPACE, pthread_self(),
 				uri);
-			spsp->response = __response_prep_data(connection, MHD_HTTP_NOT_FOUND, strlen(SP_HTTP_RESPONSE_NOT_FOUND), (void*) SP_HTTP_RESPONSE_NOT_FOUND);
+			spsp->response = __response_prep_data(connection,
+				MHD_HTTP_NOT_FOUND,
+				strlen(SP_HTTP_RESPONSE_NOT_FOUND),
+				(void*) SP_HTTP_RESPONSE_NOT_FOUND);
 			goto finalize_request;
 		}
 
@@ -1136,7 +1170,10 @@ static int __process_request(void* cls, struct MHD_Connection* connection, const
 					impact(2, "%s: Request 0x%lx: File not found: %s\n",
 						SP_HTTP_HEADER_NAMESPACE, pthread_self(),
 						spsp->file);
-					spsp->response = __response_prep_data(connection, MHD_HTTP_NOT_FOUND, strlen(SP_HTTP_RESPONSE_NOT_FOUND), (void*) SP_HTTP_RESPONSE_NOT_FOUND);
+					spsp->response = __response_prep_data(connection,
+						MHD_HTTP_NOT_FOUND,
+						strlen(SP_HTTP_RESPONSE_NOT_FOUND),
+						(void*) SP_HTTP_RESPONSE_NOT_FOUND);
 					goto finalize_request;
 				}
 			}
@@ -1147,21 +1184,30 @@ static int __process_request(void* cls, struct MHD_Connection* connection, const
 			impact(0, "%s: Request 0x%lx: Directory not supported: %s\n",
 				SP_HTTP_HEADER_NAMESPACE, pthread_self(),
 				spsp->file);
-			spsp->response = __response_prep_data(connection, MHD_HTTP_FORBIDDEN, strlen(SP_HTTP_RESPONSE_FORBIDDEN), (void*) SP_HTTP_RESPONSE_FORBIDDEN);
+			spsp->response = __response_prep_data(connection,
+				MHD_HTTP_FORBIDDEN,
+				strlen(SP_HTTP_RESPONSE_FORBIDDEN),
+				(void*) SP_HTTP_RESPONSE_FORBIDDEN);
 			goto finalize_request;
 		}
 
 		impact(2, "%s: Request 0x%lx: Serving FILE %s\n",
 			SP_HTTP_HEADER_NAMESPACE, pthread_self(),
 			spsp->file);
-		spsp->response = __response_prep_file(connection, MHD_HTTP_OK, file_status.st_size, spsp->file);
+		spsp->response = __response_prep_file(connection,
+			MHD_HTTP_OK,
+			file_status.st_size,
+			spsp->file);
 	}
 	else
 	{
 		impact(2, "%s: Request 0x%lx: %s is not a supported HTTP method\n",
 			SP_HTTP_HEADER_NAMESPACE, pthread_self(),
 			method);
-		spsp->response = __response_prep_data(connection, MHD_HTTP_BAD_REQUEST, strlen(SP_HTTP_RESPONSE_BAD_REQUEST), (void*) SP_HTTP_RESPONSE_BAD_REQUEST);
+		spsp->response = __response_prep_data(connection,
+			MHD_HTTP_BAD_REQUEST,
+			strlen(SP_HTTP_RESPONSE_BAD_REQUEST),
+			(void*) SP_HTTP_RESPONSE_BAD_REQUEST);
 	}
 
 finalize_request:
@@ -1198,7 +1244,11 @@ finalize_request:
  * \param[in] state      Data preserved from the request handler
  * \param[in] toe        Reason the request was terminated
  */
-void __finalize_request(void* cls, struct MHD_Connection* connection, void** state, enum MHD_RequestTerminationCode toe)
+void __finalize_request(
+	void* cls,
+	struct MHD_Connection* connection,
+	void** state,
+	enum MHD_RequestTerminationCode toe)
 {
 	// Unused parameters
 	(void) cls;
@@ -1342,7 +1392,10 @@ void simplepost_free(simplepost_t spp)
  * \return the port the server is bound to. If the return value is 0, an error
  * occurred.
  */
-unsigned short simplepost_bind(simplepost_t spp, const char* address, unsigned short port)
+unsigned short simplepost_bind(
+	simplepost_t spp,
+	const char* address,
+	unsigned short port)
 {
 	pthread_mutex_lock(&spp->master_lock);
 
@@ -1569,7 +1622,12 @@ bool simplepost_is_alive(const simplepost_t spp)
  * \return the number of characters written to the url (excluding the NULL-
  * terminating character)
  */
-size_t simplepost_serve_file(simplepost_t spp, char** url, const char* file, const char* uri, unsigned int count)
+size_t simplepost_serve_file(
+	simplepost_t spp,
+	char** url,
+	const char* file,
+	const char* uri,
+	unsigned int count)
 {
 	struct stat file_status;                   // Status of the input file
 	struct simplepost_serve* this_file = NULL; // File to serve
