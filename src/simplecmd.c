@@ -686,14 +686,6 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 			__sock_send(sock, SP_COMMAND_FILE_FILE, p->file);
 		}
 
-		if(p->url)
-		{
-			impact(2, "%s: %s: Sending %s %s\n",
-				SP_COMMAND_HEADER_NAMESPACE, __func__,
-				SP_COMMAND_FILE_URL, p->url);
-			__sock_send(sock, SP_COMMAND_FILE_URL, p->url);
-		}
-
 		if(p->count)
 		{
 			if(sprintf(buffer, "%u", p->count) <= 0)
@@ -705,10 +697,23 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 				return false;
 			}
 
-			impact(0, "%s: %s: Sending %s %s\n",
+			impact(2, "%s: %s: Sending %s %s\n",
 				SP_COMMAND_HEADER_NAMESPACE, __func__,
 				SP_COMMAND_FILE_COUNT, buffer);
 			__sock_send(sock, SP_COMMAND_FILE_COUNT, buffer);
+		}
+
+		/* Always send the URL last. The reason for this is that only the FILE
+		 * and URL fields and required per-file. All others are optional.
+		 * Therefore to make sure that the optional fields are not skipped on
+		 * the client side, always send a required field last.
+		 */
+		if(p->url)
+		{
+			impact(2, "%s: %s: Sending %s %s\n",
+				SP_COMMAND_HEADER_NAMESPACE, __func__,
+				SP_COMMAND_FILE_URL, p->url);
+			__sock_send(sock, SP_COMMAND_FILE_URL, p->url);
 		}
 	}
 
