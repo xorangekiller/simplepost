@@ -78,6 +78,6 @@ unsigned short simplecmd_get_port(pid_t server_pid);
 size_t simplecmd_get_version(pid_t server_pid, char** version);
 
 ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files);
-bool simplecmd_set_file(pid_t server_pid, const char* file, unsigned int count);
+bool simplecmd_set_file(pid_t server_pid, const char* file, const char* uri, unsigned int count);
 
 #endif // _SIMPLECMD_H_

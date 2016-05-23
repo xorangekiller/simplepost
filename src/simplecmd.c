@@ -365,7 +365,7 @@ size_t simplecmd_list_inst(simplecmd_list_t* sclp)
 				while(isdigit(*pid_ptr) == 0) ++pid_ptr;
 				sscanf(pid_ptr, "%d", &tail->inst_pid);
 
-				impact(2, "%s: Found %s:%d socket %s\n",
+				impact(4, "%s: Found %s:%d socket %s\n",
 					SP_COMMAND_HEADER_NAMESPACE,
 						SP_MAIN_DESCRIPTION, tail->inst_pid,
 						tail->sock_name);
@@ -520,6 +520,7 @@ static struct simplecmd_handler __command_handlers[] =
  **********************************************************/
 #define SP_COMMAND_FILE_INDEX "Index"
 #define SP_COMMAND_FILE_FILE  "File"
+#define SP_COMMAND_FILE_URI   "URI"
 #define SP_COMMAND_FILE_URL   "URL"
 #define SP_COMMAND_FILE_COUNT "Count"
 
@@ -656,7 +657,7 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 
 	count = simplepost_get_files(scp->spp, &files);
 
-	impact(2, "%s: %s: Sending list of %zu files\n",
+	impact(3, "%s: %s: Sending list of %zu files\n",
 		SP_COMMAND_HEADER_NAMESPACE,
 		__func__, count);
 	if(sprintf(buffer, "%zu", count) <= 0)
@@ -668,7 +669,7 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 
 	for(simplepost_file_t p = files; p; p = p->next)
 	{
-		impact(2, "%s: %s: Sending %s %zu\n",
+		impact(3, "%s: %s: Sending %s %zu\n",
 			SP_COMMAND_HEADER_NAMESPACE, __func__,
 			SP_COMMAND_FILE_INDEX, i);
 		if(sprintf(buffer, "%zu", i++) <= 0)
@@ -680,7 +681,7 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 
 		if(p->file)
 		{
-			impact(2, "%s: %s: Sending %s %s\n",
+			impact(3, "%s: %s: Sending %s %s\n",
 				SP_COMMAND_HEADER_NAMESPACE, __func__,
 				SP_COMMAND_FILE_FILE, p->file);
 			__sock_send(sock, SP_COMMAND_FILE_FILE, p->file);
@@ -697,7 +698,7 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 				return false;
 			}
 
-			impact(2, "%s: %s: Sending %s %s\n",
+			impact(3, "%s: %s: Sending %s %s\n",
 				SP_COMMAND_HEADER_NAMESPACE, __func__,
 				SP_COMMAND_FILE_COUNT, buffer);
 			__sock_send(sock, SP_COMMAND_FILE_COUNT, buffer);
@@ -710,7 +711,7 @@ static bool __command_send_files(simplecmd_t scp, int sock)
 		 */
 		if(p->url)
 		{
-			impact(2, "%s: %s: Sending %s %s\n",
+			impact(3, "%s: %s: Sending %s %s\n",
 				SP_COMMAND_HEADER_NAMESPACE, __func__,
 				SP_COMMAND_FILE_URL, p->url);
 			__sock_send(sock, SP_COMMAND_FILE_URL, p->url);
@@ -733,38 +734,109 @@ static bool __command_send_files(simplecmd_t scp, int sock)
  */
 static bool __command_recv_file(simplecmd_t scp, int sock)
 {
-	char* url;          // URL of the file being served
-	char* file;         // Name and path of the file to serve
-	char* buffer;       // Count as a string
-	unsigned int count; // Number of times the file should be served
+	char* url = NULL;    // URL of the file being served
+	char* file = NULL;   // Name and path of the file to serve
+	char* uri = NULL;    // URI of the file to serve
+	char* buffer = NULL; // Count or identifier string from the client
+	unsigned int count;  // Number of times the file should be served
 
-	if(__sock_recv(sock, NULL, &file) == 0) return false;
-
-	if(__sock_recv(sock, NULL, &buffer) == 0)
+	while(__sock_recv(sock, NULL, &buffer))
 	{
-		free(file);
-		return false;
-	}
+		if(buffer == NULL) goto error;
 
-	if(sscanf(buffer, "%u", &count) == EOF)
-	{
-		impact(0, "%s: %s: %s is not a port number\n",
-			SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC,
+		impact(3, "%s: %s: Receiving %s\n",
+			SP_COMMAND_HEADER_NAMESPACE, __func__,
 			buffer);
 
-		free(buffer);
-		free(file);
+		if(strcmp(buffer, SP_COMMAND_FILE_FILE) == 0)
+		{
+			free(buffer);
+			buffer = NULL;
 
-		return false;
+			if(file)
+			{
+				impact(0, "%s: %s: Received a second FILE\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR);
+				goto error;
+			}
+			else if(__sock_recv(sock, NULL, &file) == 0)
+			{
+				impact(0, "%s: %s: Did not receive a FILE as expected\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR);
+				goto error;
+			}
+		}
+		else if(strcmp(buffer, SP_COMMAND_FILE_URI) == 0)
+		{
+			free(buffer);
+			buffer = NULL;
+
+			if(uri)
+			{
+				impact(0, "%s: %s: Received a second URI\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR);
+				goto error;
+			}
+			else if(__sock_recv(sock, NULL, &uri) == 0)
+			{
+				impact(0, "%s: %s: Did not receive a URI as expected\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR);
+				goto error;
+			}
+		}
+		else if(strcmp(buffer, SP_COMMAND_FILE_COUNT) == 0)
+		{
+			free(buffer);
+			buffer = NULL;
+
+			if(__sock_recv(sock, NULL, &buffer) == 0)
+			{
+				impact(0, "%s: %s: Did not receive the COUNT as expected\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR);
+				goto error;
+			}
+
+			if(sscanf(buffer, "%u", &count) == EOF)
+			{
+				impact(0, "%s: %s: %s is not a valid COUNT\n",
+					SP_COMMAND_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC,
+					buffer);
+				goto error;
+			}
+
+			free(buffer);
+			buffer = NULL;
+		}
+		else
+		{
+			impact(3, "%s: %s: Invalid file identifier \"%s\"\n",
+				SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
+				buffer);
+			goto error;
+		}
 	}
 
-	if(simplepost_serve_file(scp->spp, &url, file, NULL, count) == 0) return false;
-	if(url) free(url);
+	if(file == NULL)
+	{
+		impact(0, "%s: %s: Did not receive a FILE to serve\n",
+			SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR);
+		goto error;
+	}
+
+	if(simplepost_serve_file(scp->spp, &url, file, uri, count) == 0) return false;
 
 	free(buffer);
+	free(uri);
 	free(file);
-
+	free(url);
 	return true;
+
+error:
+	free(buffer);
+	free(uri);
+	free(file);
+	free(url);
+	return false;
 }
 
 /*!
@@ -822,7 +894,7 @@ static void* __process_request(void* p)
 	#endif // DEBUG
 
 error:
-	impact(3, "%s: Request 0x%lx: Closing client %d\n",
+	impact(4, "%s: Request 0x%lx: Closing client %d\n",
 		SP_COMMAND_HEADER_NAMESPACE, pthread_self(),
 		sock);
 	close(sock);
@@ -913,7 +985,7 @@ static void* __accept_requests(void* p)
 		scp->client_count);
 	while(scp->client_count) usleep(1000);
 
-	impact(3, "%s: Closing socket %d\n",
+	impact(4, "%s: Closing socket %d\n",
 		SP_COMMAND_HEADER_NAMESPACE,
 		scp->sock);
 	close(scp->sock);
@@ -1294,7 +1366,7 @@ size_t simplecmd_get_version(pid_t server_pid, char** version)
 ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 {
 	int sock;               // Socket descriptor
-	char* buffer;           // Count, index, or identifier string from the server
+	char* buffer = NULL;    // Count, index, or identifier string from the server
 	size_t count;           // Number of files being served
 	size_t i = 0;           // Index of the current file being received
 	size_t t = 0;           // Temporary file index converted from the buffer
@@ -1315,8 +1387,9 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 		goto error;
 	}
 	free(buffer);
+	buffer = NULL;
 
-	impact(2, "%s: %s: Receiving list of %zu files\n",
+	impact(3, "%s: %s: Receiving list of %zu files\n",
 		SP_COMMAND_HEADER_NAMESPACE, __func__,
 		count);
 	if(count == 0) goto no_error;
@@ -1326,13 +1399,14 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 		__sock_recv(sock, NULL, &buffer);
 		if(buffer == NULL) goto error;
 
-		impact(2, "%s: %s: Receiving %s\n",
+		impact(3, "%s: %s: Receiving %s\n",
 			SP_COMMAND_HEADER_NAMESPACE, __func__,
 			buffer);
 
 		if(strcmp(buffer, SP_COMMAND_FILE_INDEX) == 0)
 		{
 			free(buffer);
+			buffer = NULL;
 
 			__sock_recv(sock, NULL, &buffer);
 			if(buffer == NULL)
@@ -1394,6 +1468,7 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 		else if(strcmp(buffer, SP_COMMAND_FILE_FILE) == 0)
 		{
 			free(buffer);
+			buffer = NULL;
 
 			__sock_recv(sock, NULL, &buffer);
 			if(buffer == NULL)
@@ -1417,6 +1492,7 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 		else if(strcmp(buffer, SP_COMMAND_FILE_URL) == 0)
 		{
 			free(buffer);
+			buffer = NULL;
 
 			__sock_recv(sock, NULL, &buffer);
 			if(buffer == NULL)
@@ -1440,6 +1516,7 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 		else if(strcmp(buffer, SP_COMMAND_FILE_COUNT) == 0)
 		{
 			free(buffer);
+			buffer = NULL;
 
 			__sock_recv(sock, NULL, &buffer);
 			if(buffer == NULL)
@@ -1457,6 +1534,9 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 					i, buffer);
 				goto error;
 			}
+
+			free(buffer);
+			buffer = NULL;
 		}
 		else
 		{
@@ -1465,16 +1545,18 @@ ssize_t simplecmd_get_files(pid_t server_pid, simplepost_file_t* files)
 			 * older (or newer) version of this program, and the command
 			 * protocol has changed. If not, it is probably a bug.
 			 */
-			impact(2, "%s: %s: Skipping unsupported file identifier \"%s\"\n",
+			impact(3, "%s: %s: Skipping unsupported file identifier \"%s\"\n",
 				SP_COMMAND_HEADER_NAMESPACE, SP_COMMAND_HEADER_PROTOCOL_ERROR,
 				buffer);
 			free(buffer);
+			buffer = NULL;
 
 			/* Read and discard the argument that presumably comes after the
 			 * unsupported file identifier that we encountered.
 			 */
 			__sock_recv(sock, NULL, &buffer);
 			free(buffer);
+			buffer = NULL;
 		}
 	}
 
@@ -1507,12 +1589,17 @@ error:
  *
  * \param[in] server_pid Process identifier of the server to act on
  * \param[in] file       Name and path of the file to serve
+ * \param[in] uri        URI of the file to serve
  * \param[in] count      Number of times the file should be served
  *
  * \return true if the file was successfully added to the server, false if
  * something went wrong (and the file was not added to the server)
  */
-bool simplecmd_set_file(pid_t server_pid, const char* file, unsigned int count)
+bool simplecmd_set_file(
+	pid_t server_pid,
+	const char* file,
+	const char* uri,
+	unsigned int count)
 {
 	int sock;         // Socket descriptor
 	char buffer[512]; // Count as a string
@@ -1520,9 +1607,33 @@ bool simplecmd_set_file(pid_t server_pid, const char* file, unsigned int count)
 	sock = __open_sock_by_pid(server_pid);
 	if(sock < 0) return false;
 
-	__sock_send(sock, __command_handlers[SP_COMMAND_SET_FILE].request, file);
-	sprintf(buffer, "%u", count);
-	__sock_send(sock, NULL, buffer);
+	__sock_send(sock, __command_handlers[SP_COMMAND_SET_FILE].request, NULL);
+
+	if(file)
+	{
+		impact(3, "%s: %s: Sending %s %s\n",
+			SP_COMMAND_HEADER_NAMESPACE, __func__,
+			SP_COMMAND_FILE_FILE, file);
+		__sock_send(sock, SP_COMMAND_FILE_FILE, file);
+	}
+
+	if(count)
+	{
+		sprintf(buffer, "%u", count);
+
+		impact(3, "%s: %s: Sending %s %s\n",
+			SP_COMMAND_HEADER_NAMESPACE, __func__,
+			SP_COMMAND_FILE_COUNT, buffer);
+		__sock_send(sock, SP_COMMAND_FILE_COUNT, buffer);
+	}
+
+	if(uri)
+	{
+		impact(3, "%s: %s: Sending %s %s\n",
+			SP_COMMAND_HEADER_NAMESPACE, __func__,
+			SP_COMMAND_FILE_URI, uri);
+		__sock_send(sock, SP_COMMAND_FILE_URI, uri);
+	}
 
 	close(sock);
 

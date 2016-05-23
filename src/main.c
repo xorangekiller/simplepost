@@ -22,6 +22,7 @@
 #include "simplepost.h"
 #include "simplearg.h"
 #include "simplecmd.h"
+#include "simplestr.h"
 #include "impact.h"
 #include "config.h"
 
@@ -202,6 +203,8 @@ static bool __list_files(const simplearg_t args)
 {
 	simplepost_file_t files; // List of files being served by the server
 	ssize_t count;           // Number of files being served
+	char count_buf[1024];    // COUNT string of the file being served
+	size_t failures = 0;     // Number of files we failed to print
 
 	count = simplecmd_get_files(args->pid, &files);
 	if(count < 0)
@@ -214,26 +217,22 @@ static bool __list_files(const simplearg_t args)
 
 	for(simplepost_file_t p = files; p; p = p->next)
 	{
-		printf("[PID %d] Serving %s on %s ", args->pid, p->file, p->url);
-		switch(p->count)
+		if(simplestr_count_to_str(count_buf, sizeof(count_buf)/sizeof(count_buf[0]), p->count) == 0)
 		{
-			case 0:
-				printf("indefinitely\n");
-				break;
-
-			case 1:
-				printf("exactly once\n");
-				break;
-
-			default:
-				printf("%u times\n", p->count);
-				break;
+			impact(0, "%s: Failed to convert the %s COUNT to a string\n",
+				SP_MAIN_HEADER_NAMESPACE,
+				p->file);
+			++failures;
+			continue;
 		}
+
+		printf("[PID %d] Serving %s on %s %s\n",
+			args->pid, p->file, p->url, count_buf);
 	}
 
 	simplepost_file_free(files);
 
-	return true;
+	return (failures == 0);
 }
 
 /*!
@@ -291,6 +290,8 @@ static bool __add_to_other_inst(const simplearg_t args)
 {
 	char* address;       // Destination server's address
 	unsigned short port; // Destination server's port
+	char buf[2048];      // String describing the file to add to the server
+	size_t failures = 0; // The number of files we failed to add to the server
 
 	impact(2, "%s: Trying to connect to the %s instance with PID %d ...\n",
 		SP_MAIN_HEADER_NAMESPACE, SP_MAIN_DESCRIPTION,
@@ -335,36 +336,32 @@ static bool __add_to_other_inst(const simplearg_t args)
 
 	for(simplefile_t p = args->files; p; p = p->next)
 	{
-		if(simplecmd_set_file(args->pid, p->file, p->count) == false)
+		if(simplecmd_set_file(args->pid, p->file, p->uri, p->count) == false)
 		{
 			impact(0, "%s: Failed to add FILE %s to the %s instance with PID %d\n",
 				SP_MAIN_HEADER_NAMESPACE,
 				p->file, SP_MAIN_DESCRIPTION, args->pid);
+			++failures;
 		}
 		else
 		{
-			impact(1, "[PID %d] Serving %s on http://%s:%u/%s ",
-				args->pid, p->file, address, port, p->file);
-			switch(p->count)
+			if(simplestr_get_serving_str(buf, sizeof(buf)/sizeof(buf[0]),
+				p->file, address, port, p->uri, p->count) == 0)
 			{
-				case 0:
-					impact(1, "indefinitely\n");
-					break;
-
-				case 1:
-					impact(1, "exactly once\n");
-					break;
-
-				default:
-					impact(1, "%u times\n", p->count);
-					break;
+				impact(0, "%s: Failed to construct the description string for %s\n",
+					SP_MAIN_HEADER_NAMESPACE,
+					p->file);
+				++failures;
+				continue;
 			}
+
+			impact(1, "[PID %d] %s\n", args->pid, buf);
 		}
 	}
 
 	free(address);
 
-	return true;
+	return (failures == 0);
 }
 
 /*!
@@ -390,7 +387,7 @@ static bool __start_httpd(const simplearg_t args)
 	{
 		char* url; // URL of the file being served
 
-		if(simplepost_serve_file(httpd, &url, p->file, NULL, p->count) == 0) return false;
+		if(simplepost_serve_file(httpd, &url, p->file, p->uri, p->count) == 0) return false;
 		free(url);
 	}
 
@@ -425,7 +422,8 @@ static void __print_help()
 	printf("      --version            output version information and exit\n\n");
 	printf("File Options:\n");
 	printf("  -c, --count=COUNT        serve the file COUNT times\n");
-	printf("                           by default FILE will be served until the server is shut down\n\n");
+	printf("                           by default FILE will be served until the server is shut down\n");
+	printf("  -u, --uri=URI            explicitly set the URI of the file\n\n");
 	printf("Examples:\n");
 	printf("  %s --list=instances              List all available instances of this program\n", SP_MAIN_SHORT_NAME);
 	printf("  %s -p 80 -q -c 1 FILE            Serve FILE on port 80 one time.\n", SP_MAIN_SHORT_NAME);

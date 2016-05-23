@@ -8,6 +8,8 @@ simplepost_SOURCES = \
 	config.h     \
 	impact.h     \
 	impact.c     \
+	simplestr.h  \
+	simplestr.c  \
 	simplepost.h \
 	simplepost.c \
 	simplearg.h  \

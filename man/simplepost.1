@@ -131,6 +131,13 @@ Once the file has been served to a client (or multiple clients) \fICOUNT\fR time
 
 Once all files being served by this SimplePost instance have been downloaded the maximum allowable number of times, SimplePost will shut down the web server and exit. If this option is not specified, \fIFILE\fR will be served until this instance of SimplePost is sent the TERM signal.
 
+.IP \fB-u\fR\ \fIURI\fR,\ \fB--uri\fR=\fIURI\fR
+Serve \fIFILE\fR with the Uniform Resource Identifier \fIURI\fR.
+
+By default SimplePost will automatically generate a URI for each \fIFILE\fR based on its base file name (see \fBbasename\fR(1)). This option, however, allows you to override this behavior and explicitly set a URI of your choosing.
+
+Please note that the URI is the unique identifier of each resource as far as the web server is concerned. Therefore specifying the same URI more than once will allow you to change the other properties of that resource. For example, you can change the \fICOUNT\fR or \fIFILE\fR associated with an existing \fIURI\fR.
+
 .SH FILE
 At least one \fIFILE\fR must be specified to serve. More than one \fIFILE\fR may be specified, preceded by the \fIFILE_OPTIONS\fR you want to apply to it.
 
@@ -178,6 +185,12 @@ The following examples demonstrate the proper syntax for performing various comm
 
 .br
     $ simplepost --new --port=55555 --count=5 test.txt --count=2 test.log
+
+\fB8.\fR Serve README on port 9876 exactly twice with the URI "/files/test.txt".
+
+.br
+    $ simplepost --port=9876 --count=2 --uri /files/test.txt README
+    $ simplepost -p 9876 -c 2 -u /files/test.txt README
 
 .SH AUTHOR
 This manual was written by Karl Lenz <xorangekiller@gmail.com>.

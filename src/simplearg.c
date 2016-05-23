@@ -510,11 +510,7 @@ static simplefile_t __get_last_file(simplearg_t sap, short new)
 			sap->files = (simplefile_t) malloc(sizeof(struct simplefile));
 			if(sap->files == NULL) return NULL;
 
-			sap->files->count = 0;
-			sap->files->file = NULL;
-
-			sap->files->next = NULL;
-			sap->files->prev = NULL;
+			memset(sap->files, 0, sizeof(struct simplefile));
 		}
 		else
 		{
@@ -529,10 +525,7 @@ static simplefile_t __get_last_file(simplearg_t sap, short new)
 		last->next = (simplefile_t) malloc(sizeof(struct simplefile));
 		if(last->next == NULL) return NULL;
 
-		last->next->count = 0;
-		last->next->file = NULL;
-
-		last->next->next = NULL;
+		memset(last->next, 0, sizeof(struct simplefile));
 		last->next->prev = last;
 
 		last = last->next;
@@ -605,6 +598,90 @@ static void __set_count(simplearg_t sap, const char* optstr, const char* arg)
 			last->count);
 		#endif // DEBUG_ARG
 	}
+}
+
+/*!
+ * \brief Process the URI argument.
+ *
+ * \param[inout] sap Instance to act on
+ * \param[in] optstr String containing the URI option
+ * \param[in] arg    Argument string to process
+ */
+static void __set_uri(simplearg_t sap, const char* optstr, const char* arg)
+{
+	simplefile_t last = __get_last_file(sap, 1);
+	if(last == NULL)
+	{
+		impact(0, "%s: %s: Failed to allocate memory for FILE\n",
+			SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
+		sap->options |= SA_OPT_ERROR;
+		return;
+	}
+
+	if(last->uri)
+	{
+		impact(0, "%s: %s: URI already set for FILE\n",
+			SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION);
+		sap->options |= SA_OPT_ERROR;
+		return;
+	}
+
+	if(arg == NULL)
+	{
+		impact(0, "%s:%d: BUG! No URI given to process\n",
+			__PRETTY_FUNCTION__, __LINE__);
+		sap->options |= SA_OPT_ERROR;
+		return;
+	}
+
+	if(arg[0] == '-')
+	{
+		__set_missing(sap, optstr);
+		return;
+	}
+
+	if(arg[0] != '/')
+	{
+		impact(0, "%s: %s: URI must start with a /: %s\n",
+			SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION,
+			arg);
+		sap->options |= SA_OPT_ERROR;
+		return;
+	}
+
+	if(arg[1] == '\0')
+	{
+		impact(0, "%s: %s: URI must contain a valid path: %s\n",
+			SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION,
+			arg);
+		sap->options |= SA_OPT_ERROR;
+		return;
+	}
+
+	if(strstr(arg, "//"))
+	{
+		impact(0, "%s: %s: URI must contain a path between each pair of /: %s\n",
+			SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION,
+			arg);
+		sap->options |= SA_OPT_ERROR;
+		return;
+	}
+
+	last->uri = (char*) malloc(sizeof(char) * (strlen(arg) + 1));
+	if(last->uri == NULL)
+	{
+		impact(0, "%s: %s: Failed to allocate memory for URI\n",
+			SP_ARGS_HEADER_NAMESPACE, SP_MAIN_HEADER_MEMORY_ALLOC);
+		sap->options |= SA_OPT_ERROR;
+		return;
+	}
+
+	strcpy(last->uri, arg);
+	#ifdef DEBUG_ARG
+	impact(1, "%s: Processed URI: %s\n",
+		SP_ARGS_HEADER_NAMESPACE,
+		last->uri);
+	#endif // DEBUG_ARG
 }
 
 /*!
@@ -936,6 +1013,7 @@ static int __parse_file_opts(simplearg_t sap, int argc, char* argv[])
 	struct option file_longopts[] =
 	{
 		{"count", required_argument, NULL, 'c'},
+		{"uri",   required_argument, NULL, 'u'},
 		{0, 0, 0, 0}
 	};
 
@@ -963,7 +1041,7 @@ static int __parse_file_opts(simplearg_t sap, int argc, char* argv[])
 				break;
 			}
 
-			opt_arg = getopt_long(argc + 1, argv - 1, "c:", file_longopts, &opt_long);
+			opt_arg = getopt_long(argc + 1, argv - 1, "c:u:", file_longopts, &opt_long);
 
 			if(optind < 1 || (optind - 1) < opt_index)
 			{
@@ -983,6 +1061,10 @@ static int __parse_file_opts(simplearg_t sap, int argc, char* argv[])
 
 				case 'c':
 					__set_count(sap, argv[opt_index], optarg);
+					break;
+
+				case 'u':
+					__set_uri(sap, argv[opt_index], optarg);
 					break;
 
 				case '?':
@@ -1064,6 +1146,7 @@ void simplearg_free(simplearg_t sap)
 		simplefile_t p = sap->files;
 		sap->files = sap->files->next;
 		free(p->file);
+		free(p->uri);
 		free(p);
 	}
 

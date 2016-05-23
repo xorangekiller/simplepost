@@ -33,11 +33,6 @@ which larger, more complete web servers do not, and requiring the user to work
 through more configuration settings before getting their basic web server
 up-and-running goes against its design philosophy.
 
-Implement support for custom URLs. Currently URLs are designated by the
-SimplePost HTTP server. While they work and are fairly readable, it would be
-nice to be able to specify a custom URL for a file. simplepost_serve_file()
-already implements this feature, it just need to be exposed to the user.
-
 Allow the user to query the current status of the server. Ideally this function
 should not be interactive, but should instead use the program's existing
 functionality to target another running instance and query its status over the

@@ -77,6 +77,9 @@ typedef struct simplefile
 	/// Number of times the file may be downloaded
 	unsigned int count;
 
+	/// Uniform Resource Identifier of the file
+	char* uri;
+
 
 	/// Next file in the linked list
 	struct simplefile* next;

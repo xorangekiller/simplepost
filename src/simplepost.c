@@ -20,6 +20,7 @@
  */
 
 #include "simplepost.h"
+#include "simplestr.h"
 #include "impact.h"
 #include "config.h"
 
@@ -1681,6 +1682,13 @@ size_t simplepost_serve_file(
 				uri);
 			goto abort_insert;
 		}
+		else if(uri[1] == '\0' || strstr(uri, "//"))
+		{
+			impact(0, "%s: Missing path in URI: %s\n",
+				SP_HTTP_HEADER_NAMESPACE,
+				uri);
+			goto abort_insert;
+		}
 	}
 	else
 	{
@@ -1753,16 +1761,15 @@ size_t simplepost_serve_file(
 
 	if(url)
 	{
-		int url_length_2; // Length of the URL as reported by sprintf()
+		size_t url_size; // Size of the URL buffer
 
-		*url = (char*) malloc(sizeof(char) * (strlen(spp->address) + strlen(uri) + 50));
+		url_size = strlen(spp->address) + strlen(uri) + 50;
+		*url = (char*) malloc(sizeof(char) * url_size);
 		if(*url == NULL) goto cannot_insert_file;
 
-		if(spp->port == 80) url_length_2 = sprintf(*url, "http://%s%s", spp->address, this_file->uri);
-		else url_length_2 = sprintf(*url, "http://%s:%u%s", spp->address, spp->port, this_file->uri);
-		if(url_length_2 <= 0) goto cannot_insert_file;
-
-		url_length = url_length_2;
+		url_length = simplestr_get_url(*url, url_size,
+			file, spp->address, spp->port, this_file->uri);
+		if(url_length == 0) goto cannot_insert_file;
 	}
 
 	if(this_file->file == NULL)
@@ -1784,25 +1791,19 @@ size_t simplepost_serve_file(
 
 	if(url_length)
 	{
-		switch(count)
+		char count_buf[1024]; // COUNT string of the file being served
+
+		if(simplestr_count_to_str(count_buf, sizeof(count_buf)/sizeof(count_buf[0]), count) == 0)
 		{
-			case 0:
-				impact(1, "%s: Serving %s on %s indefinitely\n",
-					SP_HTTP_HEADER_NAMESPACE,
-					file, *url);
-				break;
-
-			case 1:
-				impact(1, "%s: Serving %s on %s exactly once\n",
-					SP_HTTP_HEADER_NAMESPACE,
-					file, *url);
-				break;
-
-			default:
-				impact(1, "%s: Serving %s on %s %u times\n",
-					SP_HTTP_HEADER_NAMESPACE,
-					file, *url, count);
-				break;
+			impact(1, "%s: Serving %s on %s\n",
+				SP_HTTP_HEADER_NAMESPACE,
+				file, *url);
+		}
+		else
+		{
+			impact(1, "%s: Serving %s on %s %s\n",
+				SP_HTTP_HEADER_NAMESPACE,
+				file, *url, count_buf);
 		}
 	}
 
@@ -1814,6 +1815,11 @@ cannot_insert_file:
 		file);
 
 abort_insert:
+	if(url)
+	{
+		free(*url);
+		*url = NULL;
+	}
 	if(is_file_new)
 	{
 		__simplepost_serve_remove(this_file, 1);
@@ -2013,6 +2019,7 @@ size_t simplepost_get_files(simplepost_t spp, simplepost_file_t* files)
 
 		if(p->file == NULL) goto abort_count;
 		tail->file = (char*) malloc(sizeof(char) * (strlen(p->file) + 1));
+		if(tail->file == NULL) goto abort_count;
 		strcpy(tail->file, p->file);
 
 		if(p->uri == NULL) goto abort_count;
