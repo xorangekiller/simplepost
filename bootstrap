@@ -2,7 +2,7 @@
 #
 # Bootstrap the SimplePost configure script with GNU autotools.
 #
-# Copyright (C) 2015-2016 Karl Lenz.  All rights reserved.
+# Copyright (C) 2015-2017 Karl Lenz.  All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public
@@ -79,12 +79,23 @@ env_find_ac()
 ## Get a space-delmited list of the automake macro files required to bootstrap.
 env_get_m4_req()
 {
-	__autoconf_archive_url='http://mirrors.ocf.berkeley.edu/gnu/autoconf-archive/autoconf-archive-2015.09.25.tar.xz'
+	__autoconf_archive_url='http://mirrors.ocf.berkeley.edu/gnu/autoconf-archive/autoconf-archive-2017.03.21.tar.xz'
 
 	# Unfortunately this is a hard-coded list. It must be kept up-to-date
 	# when automake dependencies are added or dropped.
-	m4_req="ax_prog_doxygen.m4:${__autoconf_archive_url}
-		ax_compare_version.m4:${__autoconf_archive_url}"
+	#
+	# Syntax: m4_file_name:m4_file_version:url
+	#
+	# NOTE: All AM_CONDITIONAL calls were removed from ax_prog_doxygen.m4 in
+	# 2015 and replaced with a new DX_RULES substitution. The previously
+	# provided aminclude.am snippet is no longer supported or necessary, so
+	# ax_prog_doxygen.m4 v14 or later is now required. Previous versions of
+	# the macro will still compile with automake, but they will produce a
+	# syntactically invalid doc/Makefile (with the DX_RULES substitution
+	# still intact and untouched by automake).
+	#
+	m4_req="ax_prog_doxygen.m4:14:${__autoconf_archive_url}
+		ax_compare_version.m4:0:${__autoconf_archive_url}"
 }
 
 ## Set the search path for automake macro files.
@@ -158,6 +169,8 @@ env_set_m4_path()
 ## Download an automake macro file from the given URL.
 env_download_m4_file()
 {
+	unset m4_file_path
+
 	if [ "x$1" = 'x' ]; then
 		echo "env_download_m4_file: BUG! No m4 macro file to find" 1>&2
 		exit 1
@@ -240,6 +253,9 @@ env_download_m4_file()
 		export ACLOCAL_PATH="${ACLOCAL_PATH}:${__downloaded_file_base_path}"
 	fi
 
+	# Save the full path of the downloaded macro file for env_find_m4_file().
+	m4_file_path="$__downloaded_file_path"
+
 	# Update $m4_search_path now that $ACLOCAL_PATH has been updated with the
 	# new search path.
 	env_set_m4_path
@@ -248,6 +264,8 @@ env_download_m4_file()
 ## Try to find the given automake macro file in the search path.
 env_find_m4_file()
 {
+	unset m4_file_path
+
 	if [ "x$1" = 'x' ]; then
 		echo "env_find_m4_file: BUG! No m4 macro file to find" 1>&2
 		exit 1
@@ -266,14 +284,13 @@ env_find_m4_file()
 	fi
 
 	echo -n "checking for ${__file}... " 1>&2
-	__file_found=0
 	for __path in $(echo $m4_search_path | tr ':' '\n'); do
 		if [ -e "${__path}/${__file}" ]; then
-			__file_found=1
+			m4_file_path="${__path}/${__file}"
 			break
 		fi
 	done
-	if [ $__file_found -eq 0 ]; then
+	if [ "x$m4_file_path" = 'x' ]; then
 		if [ $download -eq 0 ] || [ "x$__url" = 'x' ]; then
 			echo "not found" 1>&2
 			exit 1
@@ -281,8 +298,49 @@ env_find_m4_file()
 
 		echo "downloading" 1>&2
 		env_download_m4_file $__file $__url
+		if [ "x$m4_file_path" = 'x' ]; then
+			echo "env_find_m4_file: BUG! env_download_m4_file did not set m4 macro file path" 1>&2
+			exit 1
+		fi
 	else
 		echo "found" 1>&2
+	fi
+}
+
+## Check the version of the given automake macro file.
+env_check_m4_ver()
+{
+	if [ "x$1" = 'x' ] || [ ! -r "$1" ]; then
+		echo "env_check_m4_ver: BUG! No m4 macro file to check the version of" 1>&2
+		exit 1
+	fi
+	__file="$1"
+
+	if [ "x$2" = 'x' ]; then
+		__ver=0
+	else
+		__ver="$2"
+	fi
+
+	if ! echo "$__ver" | grep -Eqs '^([0-9]+\.)*[0-9]+$'; then
+		echo "env_check_m4_ver: BUG! Invalid m4 macro file version to check: $__ver" 1>&2
+		exit 1
+	fi
+
+	if [ "$__ver" != '0' ]; then
+		echo -n "checking $(basename "${__file}") version... " 1>&2
+		__real_ver="$(cat "$__file" 2>/dev/null | grep -Eio 'serial\s+([0-9]+\.)*[0-9]+' | head -n1 | awk '{print $2}')"
+		if [ "x$__real_ver" = 'x' ]; then
+			echo "unversioned!" 1>&2
+			exit 1
+		fi
+
+		if [ "$__real_ver" != "$__ver" ] && verlte $__real_ver $__ver; then
+			echo "$__real_ver (v$__ver or later required)" 1>&2
+			exit 1
+		else
+			echo "$__real_ver" 1>&2
+		fi
 	fi
 }
 
@@ -294,9 +352,11 @@ env_find_m4_req()
 
 	for __req_file in $m4_req; do
 		__req_file_name=$(echo $__req_file | cut -d: -f1)
-		__req_file_url=$(echo $__req_file | cut -d: -f2-)
+		__req_file_ver=$(echo $__req_file | cut -d: -f2)
+		__req_file_url=$(echo $__req_file | cut -d: -f3-)
 
 		env_find_m4_file $__req_file_name $__req_file_url
+		env_check_m4_ver "$m4_file_path" $__req_file_ver
 	done
 }
 

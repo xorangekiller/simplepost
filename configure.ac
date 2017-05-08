@@ -100,8 +100,11 @@ AS_IF([test "$DX_FLAG_doc" = 1],
         AX_COMPARE_VERSION([$DX_DOXYGEN_REQUIRED_VERSION], le, [$DX_DOXYGEN_VERSION],
             [AC_MSG_RESULT([yes])],
             [AC_MSG_RESULT([no])
-                AM_CONDITIONAL([DX_COND_doc], [false])
                 AC_SUBST([DX_FLAG_doc], 0)])])
+
+AS_IF([test "$DX_FLAG_doc" = 1],
+    [AM_CONDITIONAL([DX_COND_doc], [true])],
+    [AM_CONDITIONAL([DX_COND_doc], [false])])
 
 # Configure libmagic.
 AC_ARG_WITH(magic, AS_HELP_STRING([--without-magic], [do not serve the HTTP Content-Type of files]),

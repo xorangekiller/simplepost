@@ -1,6 +1,6 @@
 if DX_COND_doc
 
-include $(top_srcdir)/doc/doxygen-include.am
+@DX_RULES@
 
 MOSTLYCLEANFILES = \
 	$(DX_CLEANFILES)
