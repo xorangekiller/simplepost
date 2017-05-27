@@ -1,5 +1,5 @@
 AC_PREREQ([2.63])
-AC_INIT([simplepost], [0.3.0], [xorangekiller@gmail.com])
+AC_INIT([simplepost], [0.4.0], [xorangekiller@gmail.com])
 AC_CONFIG_SRCDIR([src/simplepost.c])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([no-define])

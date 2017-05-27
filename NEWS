@@ -1,5 +1,41 @@
 SimplePost NEWS
 
+* Noteworthy changes in release 0.4.0 (2017-05-27) [stable]
+
+** Rewrote the build system to use autotools
+
+  The original build system for SimplePost was hand-written Makefiles.
+  Although they were pretty easy to understand and easy to write, they made it
+  difficult to dynamically enable and disable features without searching the
+  Makefiles themselves for feature flags, and, more importantly, they made it
+  difficult to cross-compile SimplePost. Therefore in this release replaces
+  the former hand-written Makefiles with GNU autoconf and GNU automake.
+
+  Using the new build system is fairly straight-forward. Install autoconf,
+  automake, and autoconf-archive on your machine, then run the following
+  commands. This should be familiar to anyone who has used an autotools-based
+  project before.
+    $ ./bootstrap
+    $ ./configure
+    $ make
+    $ sudo make install
+
+** Added new command line options to make scripting easier
+
+  From the beginning, one of the big advantages of SimplePost over other HTTP
+  servers - possibly *the* big advantage - was that it could be used to
+  quickly and easily setup a webserver from a shell script. This release added
+  several new features designed to significantly enhance those scripting
+  capabilities.
+
+  Notably the "--list files" option was added to provide a way to get a list
+  of the files currently being served by any active SimplePost instance; the
+  "--uri" option was added to provide a way to explicitly set the URI of a
+  file rather than just using its file name (as was the previous default);
+  and the "--daemon" option was added to provide an easy way to run SimplePost
+  in the background as a system daemon. Combined with the preexisting options,
+  SimplePost 0.4 presents a much more powerful interface for shell scripting.
+
 * Noteworthy changes in release 0.3.0 (2014-03-10) [stable]
 
 ** Replaced minimally compliant HTTP/1.0 implementation with HTTP/1.1
