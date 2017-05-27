@@ -316,10 +316,16 @@ env_check_m4_ver()
 	fi
 	__file="$1"
 
-	if [ "x$2" = 'x' ]; then
+	if [ "x$2" = 'x' ] || ! echo "$2" | grep -Eqs '^[0-9]+$'; then
 		__ver=0
 	else
 		__ver="$2"
+	fi
+
+	if [ "x$3" = 'x' ]; then
+		unset __url
+	else
+		__url="$3"
 	fi
 
 	if ! echo "$__ver" | grep -Eqs '^([0-9]+\.)*[0-9]+$'; then
@@ -336,8 +342,17 @@ env_check_m4_ver()
 		fi
 
 		if [ "$__real_ver" != "$__ver" ] && verlte $__real_ver $__ver; then
-			echo "$__real_ver (v$__ver or later required)" 1>&2
-			exit 1
+			if [ $download -eq 0 ] || [ "x$__url" = 'x' ]; then
+				echo "$__real_ver (v$__ver or later required)" 1>&2
+				exit 1
+			fi
+
+			echo "$__real_ver (downloading v$__ver or later)" 1>&2
+			env_download_m4_file $(basename "$__file") $__url
+			if [ "x$m4_file_path" = 'x' ]; then
+				echo "env_find_m4_file: BUG! env_download_m4_file did not set m4 macro file path" 1>&2
+				exit 1
+			fi
 		else
 			echo "$__real_ver" 1>&2
 		fi
@@ -356,7 +371,7 @@ env_find_m4_req()
 		__req_file_url=$(echo $__req_file | cut -d: -f3-)
 
 		env_find_m4_file $__req_file_name $__req_file_url
-		env_check_m4_ver "$m4_file_path" $__req_file_ver
+		env_check_m4_ver "$m4_file_path" $__req_file_ver $__req_file_url
 	done
 }
 
