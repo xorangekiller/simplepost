@@ -22,6 +22,30 @@ AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_EGREP
 AC_PROG_SED
+AC_PATH_PROG([GIT], [git])
+
+# If we are doing a non-release build from Git, append the shortened SHA-1
+# commit hash to the program version string (before it is used for any
+# substitutions).
+AS_IF([test "x$GIT" = x],
+    [],
+    [[git_short_rev=$($GIT rev-parse --short HEAD 2>/dev/null)]
+        AS_IF([test "x$git_short_rev" = x],
+            [],
+            [[git_rev_version="$git_short_rev"]
+                AS_IF([$GIT diff --cached --quiet 1>/dev/null 2>&1 && $GIT diff --quiet 1>/dev/null 2>&1],
+                    [git_worktree_dirty=no],
+                    [git_worktree_dirty=yes])
+                AS_IF([test "x$git_worktree_dirty" = xyes],
+                    [git_rev_version="${git_rev_version}-dirty"])
+                [git_rev_tag=$(git tag --points-at HEAD 2>/dev/null | sed 's/^v//')]
+                AS_IF([test "x$git_rev_tag" = x],
+                    [PACKAGE_VERSION="$PACKAGE_VERSION ($git_rev_version)"],
+                    [AS_IF([test "x$git_worktree_dirty" = xyes],
+                        [PACKAGE_VERSION="$git_rev_tag ($git_rev_version)"],
+                        [PACKAGE_VERSION="$git_rev_tag"])])
+                AS_IF([test -e confdefs.h],
+                    [sed -E -i "s/(#define PACKAGE_VERSION ).+/\1\"$PACKAGE_VERSION\"/" confdefs.h])])])
 
 # Configure the debug feature.
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [disable optimizations and tune for debugging]),
