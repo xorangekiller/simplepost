@@ -197,7 +197,10 @@ AC_CHECK_FUNCS([memset      \
     [], [AC_MSG_ERROR([required library function not found.])])
 AC_CHECK_FUNCS(MHD_create_response_from_buffer, [],
     [AC_CHECK_FUNCS(MHD_create_response_from_data, [],
-        [AC_MSG_ERROR([libmicrohttpd is broken or has an unsupported method of creating responses.])])])
+        [AC_MSG_ERROR([libmicrohttpd is broken or has an unsupported method of creating responses from a data buffer.])])])
+AC_CHECK_FUNCS(MHD_create_response_from_fd_at_offset64, [],
+    [AC_CHECK_FUNCS(MHD_create_response_from_fd_at_offset, [],
+        [AC_MSG_ERROR([libmicrohttpd is broken or has an unsupported method of creating responses from a file descriptor.])])])
 
 # Check for optional library functions.
 AC_CHECK_FUNCS([getline])

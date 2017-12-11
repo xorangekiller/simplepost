@@ -687,6 +687,7 @@ static size_t __simplepost_serve_length(struct simplepost_serve* spsp)
 #define SP_HTTP_RESPONSE_BAD_REQUEST "<html><head><title>Bad Request\r\n</title></head>\r\n<body><p>HTTP request method not supported.\r\n</body></html>\r\n"
 #define SP_HTTP_RESPONSE_FORBIDDEN "<html><head><title>Forbidden\r\n</title></head>\r\n<body><p>The request CANNOT be fulfilled.\r\n</body></html>\r\n"
 #define SP_HTTP_RESPONSE_NOT_FOUND "<html><head><title>Not Found\r\n</title></head>\r\n<body><p>There is no resource matching the specified URI.\r\n</body></html>\r\n"
+#define SP_HTTP_RESPONSE_NOT_ALLOWED "<html><head><title>Method Not Allowed\r\n</title></head>\r\n<body><p>Invalid or unsupported HTTP method.\r\n</body></html>\r\n"
 #define SP_HTTP_RESPONSE_NOT_ACCEPTABLE "<html><head><title>Not Acceptable\r\n</title></head>\r\n<body><p>HTTP headers request a resource we cannot satisfy.\r\n</body></html>\r\n"
 #define SP_HTTP_RESPONSE_GONE "<html><head><title>Not Available\r\n</title></head>\r\n<body><p>The requested resource is no longer available.\r\n</body></html>\r\n"
 #define SP_HTTP_RESPONSE_UNSUPPORTED_MEDIA_TYPE "<html><head><title>Unsupported Media Type\r\n</title></head>\r\n<body><p>The requested resource is not valid for the requested method.\r\n</body></html>\r\n"
@@ -764,7 +765,8 @@ static struct MHD_Response* __response_prep_data(
  *
  * \param[in] connection  Connection identifying the client
  * \param[in] status_code HTTP status code to send
- * \param[in] size        Size of the data portion of the response
+ * \param[in] size        Number of bytes from the file to send in the response
+ * \param[in] offset      Number of bytes to seek into the file before sending
  * \param[in] file        Name and path of the file to send
  *
  * \return a libmicrohttpd response instance if the specified file has been
@@ -775,6 +777,7 @@ static struct MHD_Response* __response_prep_file(
 	struct MHD_Connection* connection,
 	unsigned int status_code,
 	size_t size,
+	size_t offset,
 	const char* file)
 {
 	struct MHD_Response* response; // Response to the request
@@ -792,7 +795,30 @@ static struct MHD_Response* __response_prep_file(
 		return NULL;
 	}
 
-	response = MHD_create_response_from_fd(size, fd);
+	if(offset > 0)
+	{
+		impact(2, "%s: Request 0x%lx: Seeking %zu bytes into FILE %s, reading %zu bytes\n",
+			SP_HTTP_HEADER_NAMESPACE, pthread_self(),
+			offset, file, size);
+
+		/* MHD_create_response_from_fd_at_offset() is deprecated and should
+		 * only be used with old versions of libmicrohttpd that do not support
+		 * files larger than 2 GiB.
+		 */
+		#ifdef HAVE_MHD_CREATE_RESPONSE_FROM_FD_AT_OFFSET64
+		response = MHD_create_response_from_fd_at_offset64(size, fd, offset);
+		#else
+		#ifdef HAVE_MHD_CREATE_RESPONSE_FROM_FD_AT_OFFSET
+		response = MHD_create_response_from_fd_at_offset(size, fd, offset);
+		#else
+		#error "libmicrohttpd does not have a supported MHD_create_response_from_fd_at_offset*() method"
+		#endif // HAVE_MHD_CREATE_RESPONSE_FROM_FD_AT_OFFSET
+		#endif // HAVE_MHD_CREATE_RESPONSE_FROM_FD_AT_OFFSET64
+	}
+	else
+	{
+		response = MHD_create_response_from_fd(size, fd);
+	}
 	if(response == NULL)
 	{
 		impact(2, "%s:%d: %s: Failed to allocate memory for the HTTP response %u\n",
@@ -833,6 +859,95 @@ static struct MHD_Response* __response_prep_file(
 	}
 
 	return response;
+}
+
+/*!
+ * \brief Extract the data length and offset from the HTTP range header.
+ *
+ * This method reads the RFC 2616 Section 14.35 byte range header from an HTTP
+ * request, if there is one, parses it, and returns the byte range specified
+ * in it.
+ *
+ * \note Only an invalid byte range is considered an error. If the range
+ * header does not exist at all, the offset is set to zero and the length is
+ * left unmodified.
+ *
+ * \param[in]    connection Inbound connection to read the request headers from
+ * \param[inout] length     Total length of the data requested by the client
+ * \param[out]   offset     Number of bytes to seek before returning any data
+ *
+ * \retval true there is no range header, or it was parsed successfully
+ * \retval false failed to parse the range extracted from the range header
+ */
+static bool __response_get_range(
+	struct MHD_Connection* connection,
+	size_t* length,
+	size_t* offset)
+{
+	long first_byte = 0;  // The first byte in the range
+	long last_byte = 0;   // The last byte in the range
+	long parity_byte = 0; // Temporary value read with the last byte
+
+	const char* ranges = MHD_lookup_connection_value(
+		connection,
+		MHD_HEADER_KIND,
+		"Range");
+	if(ranges == NULL)
+	{
+		// No range header. Success!
+		*offset = 0;
+	}
+	else if(strncmp(ranges, "bytes=", 6) != 0)
+	{
+		// We don't know how to deal with ranges not specified in bytes.
+		return false;
+	}
+	else if(sscanf(ranges + 6, "%ld", &first_byte) != 1)
+	{
+		// The first byte in the range is missing or invalid.
+		return false;
+	}
+	else if((size_t) labs(first_byte) >= *length)
+	{
+		// The first byte is beyond the end of the data.
+		return false;
+	}
+	else if(first_byte < 0)
+	{
+		// Negative first byte. Seek backwards from the end of the file.
+		*offset = (size_t) *length + first_byte;
+		*length -= *offset;
+	}
+	else if(sscanf(ranges + 6, "%ld-%ld", &parity_byte, &last_byte) != 2)
+	{
+		if(first_byte != parity_byte)
+		{
+			// Oops! Did we parse the first byte wrong?
+			return false;
+		}
+
+		// The last byte in the range is missing. Just use the end of the file.
+		*offset = (size_t) first_byte;
+		*length -= *offset;
+	}
+	else if(first_byte != parity_byte)
+	{
+		// Oops! Did we parse the first byte wrong?
+		return false;
+	}
+	else if(last_byte < first_byte || (size_t) last_byte >= *length)
+	{
+		// The last byte in the range is invalid.
+		return false;
+	}
+	else
+	{
+		// The range is valid. Assign it.
+		*offset = (size_t) first_byte;
+		*length = (size_t) last_byte - first_byte;
+	}
+
+	return true;
 }
 
 /*****************************************************************************
@@ -1192,12 +1307,26 @@ static int __process_request(
 			goto finalize_request;
 		}
 
+		size_t file_size = file_status.st_size;
+		size_t file_offset = 0;
+		if(__response_get_range(connection, &file_size, &file_offset) == false)
+		{
+			impact(0, "%s: Request 0x%lx: Invalid range header\n",
+				SP_HTTP_HEADER_NAMESPACE, pthread_self());
+			spsp->response = __response_prep_data(connection,
+				MHD_HTTP_BAD_REQUEST,
+				strlen(SP_HTTP_RESPONSE_BAD_REQUEST),
+				(void*) SP_HTTP_RESPONSE_BAD_REQUEST);
+			goto finalize_request;
+		}
+
 		impact(2, "%s: Request 0x%lx: Serving FILE %s\n",
 			SP_HTTP_HEADER_NAMESPACE, pthread_self(),
 			spsp->file);
 		spsp->response = __response_prep_file(connection,
 			MHD_HTTP_OK,
-			file_status.st_size,
+			file_size,
+			file_offset,
 			spsp->file);
 	}
 	else
@@ -1206,9 +1335,9 @@ static int __process_request(
 			SP_HTTP_HEADER_NAMESPACE, pthread_self(),
 			method);
 		spsp->response = __response_prep_data(connection,
-			MHD_HTTP_BAD_REQUEST,
-			strlen(SP_HTTP_RESPONSE_BAD_REQUEST),
-			(void*) SP_HTTP_RESPONSE_BAD_REQUEST);
+			MHD_HTTP_METHOD_NOT_ALLOWED,
+			strlen(SP_HTTP_RESPONSE_NOT_ALLOWED),
+			(void*) SP_HTTP_RESPONSE_NOT_ALLOWED);
 	}
 
 finalize_request:
