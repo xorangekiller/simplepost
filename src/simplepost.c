@@ -445,7 +445,7 @@ static enum simplepost_addrerr __get_default_address(char** addr, size_t* size)
 		*size = tmp_addr_len + 1;
 	}
 
-	strncpy(*addr, tmp_addr, tmp_addr_len);
+	strcpy(*addr, tmp_addr);
 	(*addr)[tmp_addr_len] = '\0';
 
 	return ret;
