@@ -162,7 +162,7 @@ static void __set_port(simplearg_t sap, const char* optstr, const char* arg)
 	{
 		impact(0, "%s: %s: PORT must be between 1 and %hu: %d\n",
 			SP_ARGS_HEADER_NAMESPACE, SP_ARGS_HEADER_INVLAID_OPTION,
-			USHRT_MAX, i);
+			(unsigned short) USHRT_MAX, i);
 		sap->options |= SA_OPT_ERROR;
 	}
 	else
